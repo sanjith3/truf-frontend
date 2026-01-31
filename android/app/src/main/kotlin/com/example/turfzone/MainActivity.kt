@@ -1,0 +1,5 @@
+package com.example.turfzone
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()
