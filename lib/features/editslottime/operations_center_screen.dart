@@ -26,6 +26,8 @@ class _OperationsCenterScreenState extends State<OperationsCenterScreen> {
     {'time': '6:00 PM - 7:00 PM', 'visible': true},
   ];
   TextEditingController reasonController = TextEditingController();
+  String? _selectedEmergencyEvent;
+  bool _isEmergencyStopActive = false;
 
   @override
   Widget build(BuildContext context) {
@@ -109,29 +111,33 @@ class _OperationsCenterScreenState extends State<OperationsCenterScreen> {
                       border: Border.all(color: Colors.grey[200]!),
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Current Status',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[800],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Current Status',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[800],
+                                ),
                               ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Quickly open or close for the remaining day',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[500],
+                              SizedBox(height: 4),
+                              Text(
+                                'Quickly open or close for the remaining day',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        SizedBox(width: 12),
                         Switch(
                           value: _isOpenToday,
                           onChanged: (value) {
@@ -337,37 +343,49 @@ class _OperationsCenterScreenState extends State<OperationsCenterScreen> {
                   ),
                   SizedBox(height: 20),
                   
-                  GridView.builder(
+                  ListView.separated(
                     shrinkWrap: true,
                     physics: NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 2.5,
-                    ),
                     itemCount: timeSlots.length,
+                    separatorBuilder: (context, index) => SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final slot = timeSlots[index];
                       return Container(
-                        padding: EdgeInsets.all(12),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.grey[50],
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: slot['visible'] ? Colors.grey[200]! : Colors.red[100]!,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.02),
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              slot['time'],
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: slot['visible'] ? Colors.grey[800] : Colors.grey[600],
-                              ),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time,
+                                  size: 18,
+                                  color: slot['visible'] ? Color(0xFF00C853) : Colors.grey[400],
+                                ),
+                                SizedBox(width: 12),
+                                Text(
+                                  slot['time'],
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: slot['visible'] ? Colors.grey[800] : Colors.grey[400],
+                                  ),
+                                ),
+                              ],
                             ),
                             Switch(
                               value: slot['visible'],
@@ -458,17 +476,37 @@ class _OperationsCenterScreenState extends State<OperationsCenterScreen> {
                             color: Colors.red[800],
                           ),
                         ),
-                        SizedBox(height: 8),
+                        SizedBox(height: 12),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: ['Heavy Rain', 'Power Failure', 'Maintenance', 'Other']
-                              .map((event) => Chip(
-                                    label: Text(event),
-                                    backgroundColor: Colors.red[100],
-                                    labelStyle: TextStyle(color: Colors.red[800]),
-                                  ))
-                              .toList(),
+                              .map((event) {
+                            final isSelected = _selectedEmergencyEvent == event;
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedEmergencyEvent = isSelected ? null : event;
+                                });
+                              },
+                              child: Container(
+                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? Colors.red : Colors.red[50],
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.red[200]!),
+                                ),
+                                child: Text(
+                                  event,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.white : Colors.red[800],
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
                         ),
                       ],
                     ),
@@ -480,11 +518,32 @@ class _OperationsCenterScreenState extends State<OperationsCenterScreen> {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () {
+                        if (_selectedEmergencyEvent == null && !_isEmergencyStopActive) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Please select an event type first')),
+                          );
+                          return;
+                        }
+
+                        if (_isEmergencyStopActive) {
+                          setState(() {
+                            _isEmergencyStopActive = false;
+                            _selectedEmergencyEvent = null;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Emergency stop deactivated'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                          return;
+                        }
+
                         showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
                             title: Text('Confirm Emergency Stop'),
-                            content: Text('This will block all new bookings immediately. Are you sure?'),
+                            content: Text('This will block all new bookings for "$_selectedEmergencyEvent" immediately. Are you sure?'),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context),
@@ -493,9 +552,12 @@ class _OperationsCenterScreenState extends State<OperationsCenterScreen> {
                               ElevatedButton(
                                 onPressed: () {
                                   Navigator.pop(context);
+                                  setState(() {
+                                    _isEmergencyStopActive = true;
+                                  });
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Emergency stop activated'),
+                                      content: Text('Emergency stop activated: $_selectedEmergencyEvent'),
                                       backgroundColor: Colors.red,
                                     ),
                                   );
@@ -510,7 +572,7 @@ class _OperationsCenterScreenState extends State<OperationsCenterScreen> {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                        backgroundColor: _isEmergencyStopActive ? Colors.green : Colors.red,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -520,10 +582,10 @@ class _OperationsCenterScreenState extends State<OperationsCenterScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.warning, size: 20),
+                          Icon(_isEmergencyStopActive ? Icons.check_circle : Icons.warning, size: 20),
                           SizedBox(width: 12),
                           Text(
-                            'Activate Emergency Stop',
+                            _isEmergencyStopActive ? 'Deactivate Emergency Stop' : 'Activate Emergency Stop',
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                         ],

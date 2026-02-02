@@ -282,6 +282,8 @@ class _TurfSlotsScreenState extends State<TurfSlotsScreen> {
                                     fontWeight: FontWeight.w700,
                                     color: Colors.grey[800],
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 SizedBox(height: 4),
                                 if (slot['user'] != null)
@@ -293,11 +295,15 @@ class _TurfSlotsScreenState extends State<TurfSlotsScreen> {
                                         color: Colors.grey[600],
                                       ),
                                       SizedBox(width: 4),
-                                      Text(
-                                        'Booked by: ${slot['user']}',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.grey[600],
+                                      Expanded(
+                                        child: Text(
+                                          'Booked by: ${slot['user']}',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey[600],
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],
@@ -414,6 +420,8 @@ class _TurfSlotsScreenState extends State<TurfSlotsScreen> {
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 SizedBox(height: 2),
                                 Text(
@@ -422,6 +430,8 @@ class _TurfSlotsScreenState extends State<TurfSlotsScreen> {
                                     fontSize: 13,
                                     color: Colors.grey[600],
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),

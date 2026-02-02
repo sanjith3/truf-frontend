@@ -590,18 +590,10 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1.8,
-          ),
-          itemCount: availableSports.length,
-          itemBuilder: (context, index) {
-            final sport = availableSports[index];
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: availableSports.map((sport) {
             final isSelected = selectedSports.contains(sport);
             return GestureDetector(
               onTap: () {
@@ -614,10 +606,11 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                 });
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                width: (MediaQuery.of(context).size.width - 70) / 3, // Roughly 3 columns
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
                 decoration: BoxDecoration(
                   color: isSelected ? const Color(0xFF00C853) : Colors.white,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: isSelected
                         ? const Color(0xFF00C853)
@@ -635,6 +628,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                       : [],
                 ),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
@@ -642,7 +636,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                       size: 20,
                       color: isSelected ? Colors.white : Colors.grey[600],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       sport,
                       textAlign: TextAlign.center,
@@ -650,7 +644,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         color: isSelected ? Colors.white : Colors.grey[700],
                       ),
                     ),
@@ -658,7 +652,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                 ),
               ),
             );
-          },
+          }).toList(),
         ),
         const SizedBox(height: 16),
         Row(
