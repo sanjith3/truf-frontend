@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:turfzone/booking/booking_screen.dart';
 import 'package:turfzone/models/turf.dart';
 import 'package:turfzone/features/profile/profile_screen.dart';
+import 'package:turfzone/features/Admindashboard/admin_screen.dart';
 
 import '../../turffdetail/turfdetails_screen.dart';
 
@@ -16,6 +17,16 @@ class UserHomeScreen extends StatefulWidget {
 class _UserHomeScreenState extends State<UserHomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Turf> _filteredTurfs = [];
+
+  // Filter variables
+  RangeValues _priceRange = const RangeValues(0, 2000);
+  double _maxPrice = 2000;
+  final Map<String, bool> _timeFilters = {
+    'Morning': false,
+    'Afternoon': false,
+    'Evening': false,
+    'Night': false,
+  };
 
   // Define turfs list as a class member
   final List<Turf> _turfs = [
@@ -79,6 +90,36 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       address: "Peelamedu Industrial Estate, Coimbatore",
       description: "Affordable turf with great facilities",
     ),
+    Turf(
+      id: '5',
+      name: "Premium Sports Arena",
+      location: "Singanallur",
+      distance: 6.2,
+      price: 1200,
+      rating: 4.7,
+      images: [
+        "https://images.unsplash.com/photo-1547347298-4074fc3086f0?w=800",
+      ],
+      amenities: ["Flood Lights", "Parking", "Water", "Showers", "Cafeteria"],
+      mapLink: "https://maps.app.goo.gl/jkl345",
+      address: "Singanallur Industrial Area, Coimbatore",
+      description: "Luxury turf with premium facilities",
+    ),
+    Turf(
+      id: '6',
+      name: "Budget Sports Ground",
+      location: "Sitra",
+      distance: 7.1,
+      price: 350,
+      rating: 4.0,
+      images: [
+        "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=800",
+      ],
+      amenities: ["Parking"],
+      mapLink: "https://maps.app.goo.gl/mno678",
+      address: "Sitra Main Road, Coimbatore",
+      description: "Affordable ground for casual play",
+    ),
   ];
 
   @override
@@ -86,6 +127,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     super.initState();
     _filteredTurfs = _turfs;
     _searchController.addListener(_searchTurfs);
+    // Find max price from turfs
+    _maxPrice = _turfs
+        .map((t) => t.price.toDouble())
+        .reduce((a, b) => a > b ? a : b);
+    _priceRange = RangeValues(0, _maxPrice);
   }
 
   void _searchTurfs() {
@@ -102,6 +148,82 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             )
             .toList();
       }
+      _applyFilters();
+    });
+  }
+
+  void _applyFilters() {
+    List<Turf> filtered = _turfs;
+
+    // Apply search filter if any
+    if (_searchController.text.isNotEmpty) {
+      final query = _searchController.text.toLowerCase();
+      filtered = filtered
+          .where(
+            (turf) =>
+                turf.name.toLowerCase().contains(query) ||
+                turf.location.toLowerCase().contains(query),
+          )
+          .toList();
+    }
+
+    // Apply price range filter
+    filtered = filtered
+        .where(
+          (turf) =>
+              turf.price >= _priceRange.start && turf.price <= _priceRange.end,
+        )
+        .toList();
+
+    // Apply time filters if any selected
+    final selectedTimes = _timeFilters.entries
+        .where((e) => e.value)
+        .map((e) => e.key)
+        .toList();
+    if (selectedTimes.isNotEmpty) {
+      filtered = filtered.where((turf) {
+        if (selectedTimes.contains('Morning')) {
+          return true;
+        }
+        if (selectedTimes.contains('Afternoon')) {
+          return turf.price >= 400;
+        }
+        if (selectedTimes.contains('Evening')) {
+          return turf.price >= 600;
+        }
+        if (selectedTimes.contains('Night')) {
+          return turf.price >= 700 && turf.amenities.contains('Flood Lights');
+        }
+        return true;
+      }).toList();
+    }
+
+    setState(() {
+      _filteredTurfs = filtered;
+    });
+
+    // Show feedback snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          'Filters applied successfully',
+          style: TextStyle(fontWeight: FontWeight.w500),
+        ),
+        backgroundColor: const Color(0xFF1DB954),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _priceRange = RangeValues(0, _maxPrice);
+      _timeFilters.forEach((key, value) {
+        _timeFilters[key] = false;
+      });
+      _applyFilters();
     });
   }
 
@@ -118,11 +240,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         automaticallyImplyLeading: false,
         title: Row(
           children: [
-            // Location on left
             IconButton(
               icon: const Icon(Icons.location_on, color: Colors.white),
               onPressed: () {
-                // Show current location or location selector
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Coimbatore, Tamil Nadu")),
                 );
@@ -148,7 +268,36 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           ],
         ),
         actions: [
-          // Profile icon on right - Navigates to ProfileScreen
+          // Switch to Admin Button
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminScreen()),
+                );
+              },
+              icon: const Icon(Icons.switch_account, size: 18, color: Colors.white),
+              label: const Text(
+                "Admin",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange[700],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                elevation: 2,
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.person, color: Colors.white),
             onPressed: () {
@@ -246,12 +395,68 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                IconButton(
-                  onPressed: () {
-                    // Show filter options
-                    _showFilterOptions(context);
-                  },
-                  icon: const Icon(Icons.filter_list, color: Color(0xFF1DB954)),
+                Row(
+                  children: [
+                    if (_isFilterActive())
+                      Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        child: TextButton(
+                          onPressed: _resetFilters,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            backgroundColor: Colors.grey.shade100,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.clear,
+                                size: 14,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Clear",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    IconButton(
+                      onPressed: () => _showFilterOptions(context),
+                      icon: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: _isFilterActive()
+                              ? Colors.orange.shade100
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _isFilterActive()
+                                ? Colors.orange.shade300
+                                : Colors.transparent,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.filter_list,
+                          color: _isFilterActive()
+                              ? Colors.orange.shade800
+                              : const Color(0xFF1DB954),
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -271,7 +476,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                           style: TextStyle(fontSize: 18, color: Colors.grey),
                         ),
                         Text(
-                          "Try a different search",
+                          "Try adjusting your filters or search",
                           style: TextStyle(color: Colors.grey),
                         ),
                       ],
@@ -293,55 +498,376 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     );
   }
 
+  bool _isFilterActive() {
+    return _priceRange.start > 0 ||
+        _priceRange.end < _maxPrice ||
+        _timeFilters.values.any((value) => value);
+  }
+
   void _showFilterOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Center(
-                child: Text(
-                  "Filter Turfs",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Add filter options here (price range, amenities, distance, etc.)
-              const Text(
-                "Filter options coming soon...",
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1DB954),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Filter Turfs",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, size: 24),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Price Range Filter
+                          _buildFilterSection(
+                            title: "Price Range",
+                            icon: Icons.attach_money,
+                            child: Column(
+                              children: [
+                                // Selected Range Display
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                    horizontal: 16,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFF1DB954,
+                                    ).withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(
+                                                0.05,
+                                              ),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 1),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Text(
+                                          "₹${_priceRange.start.round()} - ₹${_priceRange.end.round()}",
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF1DB954),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        "selected",
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                RangeSlider(
+                                  values: _priceRange,
+                                  min: 0,
+                                  max: _maxPrice,
+                                  divisions: 20,
+                                  labels: RangeLabels(
+                                    "₹${_priceRange.start.round()}",
+                                    "₹${_priceRange.end.round()}",
+                                  ),
+                                  activeColor: const Color(0xFF1DB954),
+                                  inactiveColor: Colors.grey.shade300,
+                                  onChanged: (RangeValues values) {
+                                    setState(() {
+                                      _priceRange = values;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "₹0",
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                    Text(
+                                      "₹${_maxPrice.toInt()}",
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 25),
+
+                          // Divider
+                          const Divider(height: 1, color: Colors.grey),
+
+                          const SizedBox(height: 25),
+
+                          // Time Slot Availability Filter - IMPROVED UI
+                          _buildFilterSection(
+                            title: "Preferred Time Slots",
+                            icon: Icons.access_time,
+                            child: Column(
+                              children: [
+                                const SizedBox(height: 8),
+                                GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        crossAxisSpacing: 12,
+                                        mainAxisSpacing: 12,
+                                        childAspectRatio: 3.5,
+                                      ),
+                                  itemCount: _timeFilters.length,
+                                  itemBuilder: (context, index) {
+                                    final entry = _timeFilters.entries
+                                        .elementAt(index);
+                                    final isSelected = entry.value;
+
+                                    return GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _timeFilters[entry.key] = !isSelected;
+                                        });
+                                      },
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color:
+                                              Colors.white, // Changed to white
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? const Color(0xFF1DB954)
+                                                : Colors.grey.shade300,
+                                            width: isSelected ? 2 : 1.5,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(
+                                                0.05,
+                                              ),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              _getTimeSlotIcon(entry.key),
+                                              size: 18,
+                                              color: isSelected
+                                                  ? const Color(0xFF1DB954)
+                                                  : Colors.grey.shade700,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                entry.key,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isSelected
+                                                      ? const Color(0xFF1DB954)
+                                                      : Colors.grey.shade800,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            if (isSelected)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  right: 8.0,
+                                                ),
+                                                child: Icon(
+                                                  Icons.check_circle,
+                                                  size: 18,
+                                                  color: const Color(
+                                                    0xFF1DB954,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "Select preferred playing times",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 30),
+                        ],
+                      ),
                     ),
                   ),
-                  child: const Text(
-                    "Apply Filters",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+
+                  // Apply & Clear Buttons
+                  Row(
+                    children: [
+                      // Clear All Button
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _resetFilters();
+                            });
+                            Navigator.pop(context);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            side: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          child: const Text(
+                            "Clear All",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Apply Filters Button
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _applyFilters();
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1DB954),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            "Apply Filters",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
+    );
+  }
+
+  IconData _getTimeSlotIcon(String timeSlot) {
+    switch (timeSlot) {
+      case 'Morning':
+        return Icons.wb_sunny;
+      case 'Afternoon':
+        return Icons.brightness_5;
+      case 'Evening':
+        return Icons.nights_stay;
+      case 'Night':
+        return Icons.nightlight_round;
+      default:
+        return Icons.access_time;
+    }
+  }
+
+  Widget _buildFilterSection({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: const Color(0xFF1DB954), size: 18),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        child,
+      ],
     );
   }
 }

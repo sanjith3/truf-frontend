@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:turfzone/features/partner/join_partner_screen.dart';
+import 'package:turfzone/features/bookings/my_bookings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -77,10 +78,6 @@ class ProfileScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _buildStatsItem("Bookings", "12"),
-                      const SizedBox(width: 30),
-                      _buildStatsItem("Reviews", "24"),
-                      const SizedBox(width: 30),
-                      _buildStatsItem("Wallet", "₹1,500"),
                     ],
                   ),
                 ],
@@ -100,28 +97,10 @@ class ProfileScreen extends StatelessWidget {
                     title: "My Bookings",
                     subtitle: "View and manage your bookings",
                     onTap: () {
-                      // Navigate to My Bookings screen
-                      // Navigator.push(context, MaterialPageRoute(builder: (_) => MyBookingsScreen()));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("My Bookings screen coming soon"),
-                        ),
-                      );
-                    },
-                  ),
-                  const Divider(height: 0),
-
-                  // Wallet
-                  _buildMenuItem(
-                    icon: Icons.account_balance_wallet,
-                    title: "Wallet",
-                    subtitle: "Balance: ₹1,500",
-                    onTap: () {
-                      // Navigate to Wallet screen
-                      // Navigator.push(context, MaterialPageRoute(builder: (_) => WalletScreen()));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Wallet screen coming soon"),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const MyBookingsScreen(),
                         ),
                       );
                     },
@@ -134,8 +113,6 @@ class ProfileScreen extends StatelessWidget {
                     title: "Help & Support",
                     subtitle: "FAQs, Contact us, Privacy Policy",
                     onTap: () {
-                      // Navigate to Help screen
-                      // Navigator.push(context, MaterialPageRoute(builder: (_) => HelpScreen()));
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text("Help & Support screen coming soon"),

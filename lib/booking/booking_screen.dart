@@ -72,14 +72,16 @@ class _BookingScreenState extends State<BookingScreen> {
     return widget.turf.price.toDouble() * _selectedTimeSlots.length;
   }
 
-  List<DateTime> _getWeekDays() {
-    List<DateTime> weekDays = [];
+  List<DateTime> _getNext30Days() {
+    List<DateTime> days = [];
     DateTime currentDate = DateTime.now();
 
-    for (int i = 0; i < 7; i++) {
-      weekDays.add(currentDate.add(Duration(days: i)));
+    for (int i = 0; i < 30; i++) {
+      days.add(
+        DateTime(currentDate.year, currentDate.month, currentDate.day + i),
+      );
     }
-    return weekDays;
+    return days;
   }
 
   void _selectSlot(TimeSlot slot) {
@@ -112,7 +114,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final weekDays = _getWeekDays();
+    final next30Days = _getNext30Days();
     final totalAmount = _calculateTotal();
 
     return Scaffold(
@@ -128,8 +130,8 @@ class _BookingScreenState extends State<BookingScreen> {
 
           const SizedBox(height: 16),
 
-          // Week Selection
-          _buildWeekSelector(weekDays),
+          // Date Selection (Next 30 Days)
+          _buildDateSelector(next30Days),
 
           const SizedBox(height: 16),
 
@@ -219,14 +221,28 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  Widget _buildWeekSelector(List<DateTime> weekDays) {
+  Widget _buildDateSelector(List<DateTime> days) {
+    // Find today's date for comparison
+    final DateTime today = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+
+    // Check if selected date is today (for comparison)
+    final DateTime normalizedSelectedDate = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            "Select Date (Week View)",
+            "Select Date (Next 30 Days)",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
@@ -234,11 +250,11 @@ class _BookingScreenState extends State<BookingScreen> {
             height: 80,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: weekDays.length,
+              itemCount: days.length,
               itemBuilder: (context, index) {
-                final day = weekDays[index];
-                final isToday = day.day == DateTime.now().day;
-                final isSelected = day.day == _selectedDate.day;
+                final day = days[index];
+                final isToday = day.isAtSameMomentAs(today);
+                final isSelected = normalizedSelectedDate.isAtSameMomentAs(day);
 
                 return GestureDetector(
                   onTap: () {
@@ -250,7 +266,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   child: Container(
                     width: 60,
                     margin: EdgeInsets.only(
-                      right: index == weekDays.length - 1 ? 0 : 10,
+                      right: index == days.length - 1 ? 0 : 10,
                     ),
                     decoration: BoxDecoration(
                       color: isSelected
@@ -351,7 +367,6 @@ class _BookingScreenState extends State<BookingScreen> {
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-
                 color: Colors.black,
               ),
             ),
@@ -644,5 +659,4 @@ class TimeSlotCard extends StatelessWidget {
       ),
     );
   }
-}              // Status indicator in top-right corner (much smaller)
-          
+}

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/turf.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class TurfDetailsScreen extends StatefulWidget {
   final Turf turf;
@@ -14,9 +15,10 @@ class TurfDetailsScreen extends StatefulWidget {
 
 class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
   int _currentImageIndex = 0;
-  late VideoPlayerController _videoController;
-  late ChewieController _chewieController;
-  bool _isVideoPlaying = false;
+  VideoPlayerController? _videoController;
+  ChewieController? _chewieController;
+  bool _isVideoInitialized = false;
+  bool _isLoadingVideo = false;
 
   // Sample turf details - in real app, these would come from the turf model
   final List<String> _turfImages = [
@@ -27,8 +29,9 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
     "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800",
   ];
 
-  final String _videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-  
+  final String _videoUrl =
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+
   final List<String> _availableGames = [
     "Football",
     "Cricket",
@@ -36,7 +39,7 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
     "Volleyball",
     "Basketball",
   ];
-  
+
   final List<String> _facilities = [
     "Flood Lights",
     "Changing Rooms",
@@ -51,24 +54,33 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
   @override
   void initState() {
     super.initState();
+  }
+
+  Future<void> _loadVideo() async {
+    if (_isLoadingVideo || _isVideoInitialized) return;
+    setState(() => _isLoadingVideo = true);
+
     _videoController = VideoPlayerController.networkUrl(Uri.parse(_videoUrl));
+
+    await _videoController!.initialize();
+
     _chewieController = ChewieController(
-      videoPlayerController: _videoController,
-      autoPlay: false,
+      videoPlayerController: _videoController!,
+      autoPlay: true,
       looping: true,
       showControls: true,
-      aspectRatio: 16 / 9,
-      placeholder: Container(
-        color: Colors.grey.shade300,
-        child: const Center(child: CircularProgressIndicator()),
-      ),
     );
+
+    setState(() {
+      _isVideoInitialized = true;
+      _isLoadingVideo = false;
+    });
   }
 
   @override
   void dispose() {
-    _videoController.dispose();
-    _chewieController.dispose();
+    _videoController?.dispose();
+    _chewieController?.dispose();
     super.dispose();
   }
 
@@ -142,14 +154,21 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.amber.shade50,
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.star, size: 18, color: Colors.amber),
+                                  const Icon(
+                                    Icons.star,
+                                    size: 18,
+                                    color: Colors.amber,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
                                     widget.turf.rating.toString(),
@@ -172,7 +191,10 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                           ],
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF1DB954).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
@@ -273,7 +295,17 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(15),
-                        child: Chewie(controller: _chewieController),
+                        child: _isVideoInitialized
+                            ? Chewie(controller: _chewieController!)
+                            : Center(
+                                child: _isLoadingVideo
+                                    ? const CircularProgressIndicator()
+                                    : ElevatedButton.icon(
+                                        onPressed: _loadVideo,
+                                        icon: const Icon(Icons.play_arrow),
+                                        label: const Text("Play Turf Video"),
+                                      ),
+                              ),
                       ),
                     ),
 
@@ -293,7 +325,10 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                       runSpacing: 10,
                       children: _availableGames.map((game) {
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.blue.shade50,
                             borderRadius: BorderRadius.circular(12),
@@ -302,7 +337,11 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.sports_soccer, size: 18, color: Colors.blue.shade700),
+                              Icon(
+                                Icons.sports_soccer,
+                                size: 18,
+                                color: Colors.blue.shade700,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 game,
@@ -332,12 +371,13 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 3.5,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            childAspectRatio: 3.5,
+                          ),
                       itemCount: _facilities.length,
                       itemBuilder: (context, index) {
                         return Container(
@@ -349,7 +389,11 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.check_circle, size: 18, color: Colors.green.shade700),
+                              Icon(
+                                Icons.check_circle,
+                                size: 18,
+                                color: Colors.green.shade700,
+                              ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
@@ -526,10 +570,16 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
             });
           },
           itemBuilder: (context, index) {
-            return Image.network(
-              _turfImages[index],
+            return CachedNetworkImage(
+              imageUrl: _turfImages[index],
+
               fit: BoxFit.cover,
               width: double.infinity,
+              placeholder: (context, url) => Container(
+                color: Colors.grey.shade300,
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+              errorWidget: (context, url, error) => const Icon(Icons.error),
             );
           },
         ),
@@ -559,7 +609,12 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
     );
   }
 
-  Widget _buildContactItem(IconData icon, String title, String value, Color color) {
+  Widget _buildContactItem(
+    IconData icon,
+    String title,
+    String value,
+    Color color,
+  ) {
     return Row(
       children: [
         Container(
@@ -577,10 +632,7 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
             children: [
               Text(
                 title,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 4),
               Text(
@@ -606,10 +658,7 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       builder: (context) {
-        return GalleryViewer(
-          images: _turfImages,
-          initialIndex: initialIndex,
-        );
+        return GalleryViewer(images: _turfImages, initialIndex: initialIndex);
       },
     );
   }
@@ -677,7 +726,7 @@ class _GalleryViewerState extends State<GalleryViewer> {
               ],
             ),
           ),
-          
+
           // Image Viewer
           Expanded(
             child: PageView.builder(
@@ -694,15 +743,19 @@ class _GalleryViewerState extends State<GalleryViewer> {
                   scaleEnabled: true,
                   maxScale: 3,
                   minScale: 1,
-                  child: Image.network(
-                    widget.images[index],
+                  child: CachedNetworkImage(
+                    imageUrl: widget.images[index],
                     fit: BoxFit.contain,
+                    placeholder: (context, url) =>
+                        const Center(child: CircularProgressIndicator()),
+                    errorWidget: (context, url, error) =>
+                        const Icon(Icons.error, color: Colors.white),
                   ),
                 );
               },
             ),
           ),
-          
+
           // Thumbnails
           SizedBox(
             height: 80,
@@ -730,9 +783,18 @@ class _GalleryViewerState extends State<GalleryViewer> {
                             : Colors.transparent,
                         width: 2,
                       ),
-                      image: DecorationImage(
-                        image: NetworkImage(widget.images[index]),
+                    ),
+
+                    // ✅ child must be here, NOT inside BoxDecoration
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: CachedNetworkImage(
+                        imageUrl: widget.images[index],
                         fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            Container(color: Colors.grey.shade300),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.error),
                       ),
                     ),
                   ),
@@ -740,7 +802,7 @@ class _GalleryViewerState extends State<GalleryViewer> {
               },
             ),
           ),
-          
+
           const SizedBox(height: 20),
         ],
       ),
