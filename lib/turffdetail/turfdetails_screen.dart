@@ -1,8 +1,7 @@
 // turf_details_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/turf.dart';
-import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class TurfDetailsScreen extends StatefulWidget {
@@ -15,10 +14,8 @@ class TurfDetailsScreen extends StatefulWidget {
 
 class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
   int _currentImageIndex = 0;
-  VideoPlayerController? _videoController;
-  ChewieController? _chewieController;
-  bool _isVideoInitialized = false;
-  bool _isLoadingVideo = false;
+  late Timer _timer;
+  final PageController _pageController = PageController();
 
   // Sample turf details - in real app, these would come from the turf model
   final List<String> _turfImages = [
@@ -28,9 +25,6 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
     "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800",
     "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800",
   ];
-
-  final String _videoUrl =
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
 
   final List<String> _availableGames = [
     "Football",
@@ -54,33 +48,32 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    // Start auto slide timer
+    _startAutoSlide();
   }
 
-  Future<void> _loadVideo() async {
-    if (_isLoadingVideo || _isVideoInitialized) return;
-    setState(() => _isLoadingVideo = true);
+  void _startAutoSlide() {
+    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (_currentImageIndex < _turfImages.length - 1) {
+        _currentImageIndex++;
+      } else {
+        _currentImageIndex = 0;
+      }
 
-    _videoController = VideoPlayerController.networkUrl(Uri.parse(_videoUrl));
-
-    await _videoController!.initialize();
-
-    _chewieController = ChewieController(
-      videoPlayerController: _videoController!,
-      autoPlay: true,
-      looping: true,
-      showControls: true,
-    );
-
-    setState(() {
-      _isVideoInitialized = true;
-      _isLoadingVideo = false;
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(
+          _currentImageIndex,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
     });
   }
 
   @override
   void dispose() {
-    _videoController?.dispose();
-    _chewieController?.dispose();
+    _timer.cancel();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -230,7 +223,7 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                                 ),
                               ),
                               Text(
-                                "2.5 km from your location • Open 6 AM - 10 PM",
+                                "2.5 km from your location",
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey.shade600,
@@ -240,6 +233,57 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                           ),
                         ),
                       ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Operating Hours
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.access_time,
+                              size: 20,
+                              color: Colors.green.shade700,
+                            ),
+                          ),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Operating Hours",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  "6:00 AM - 10:00 PM (Daily)",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 20),
@@ -259,53 +303,6 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                         fontSize: 14,
                         color: Colors.grey.shade700,
                         height: 1.5,
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // Video Section
-                    const Text(
-                      "Turf Preview",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "15-second video tour of the facility",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    Container(
-                      height: 200,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(15),
-                        child: _isVideoInitialized
-                            ? Chewie(controller: _chewieController!)
-                            : Center(
-                                child: _isLoadingVideo
-                                    ? const CircularProgressIndicator()
-                                    : ElevatedButton.icon(
-                                        onPressed: _loadVideo,
-                                        icon: const Icon(Icons.play_arrow),
-                                        label: const Text("Play Turf Video"),
-                                      ),
-                              ),
                       ),
                     ),
 
@@ -437,7 +434,6 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                         itemBuilder: (context, index) {
                           return GestureDetector(
                             onTap: () {
-                              // Show full screen image viewer
                               _showFullScreenGallery(index);
                             },
                             child: Container(
@@ -471,51 +467,6 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                             ),
                           );
                         },
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // Contact Info
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "Contact Information",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 15),
-                          _buildContactItem(
-                            Icons.phone,
-                            "Phone Number",
-                            "+91 98765 43210",
-                            Colors.blue,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildContactItem(
-                            Icons.email,
-                            "Email",
-                            "contact@${widget.turf.name.toLowerCase().replaceAll(' ', '')}.com",
-                            Colors.red,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildContactItem(
-                            Icons.access_time,
-                            "Operating Hours",
-                            "6:00 AM - 10:00 PM (Daily)",
-                            Colors.green,
-                          ),
-                        ],
                       ),
                     ),
 
@@ -563,6 +514,7 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
     return Stack(
       children: [
         PageView.builder(
+          controller: _pageController,
           itemCount: _turfImages.length,
           onPageChanged: (index) {
             setState(() {
@@ -572,7 +524,6 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
           itemBuilder: (context, index) {
             return CachedNetworkImage(
               imageUrl: _turfImages[index],
-
               fit: BoxFit.cover,
               width: double.infinity,
               placeholder: (context, url) => Container(
@@ -603,46 +554,6 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                 ),
               ),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildContactItem(
-    IconData icon,
-    String title,
-    String value,
-    Color color,
-  ) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, size: 20, color: color),
-        ),
-        const SizedBox(width: 15),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
           ),
         ),
       ],
@@ -784,10 +695,8 @@ class _GalleryViewerState extends State<GalleryViewer> {
                         width: 2,
                       ),
                     ),
-
-                    // ✅ child must be here, NOT inside BoxDecoration
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(6),
                       child: CachedNetworkImage(
                         imageUrl: widget.images[index],
                         fit: BoxFit.cover,

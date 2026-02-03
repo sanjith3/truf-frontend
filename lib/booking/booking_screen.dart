@@ -135,6 +135,11 @@ class _BookingScreenState extends State<BookingScreen> {
 
           const SizedBox(height: 16),
 
+          // CLARITY BOX FOR CUSTOMERS - ADDED HERE
+          _buildClarityBox(),
+
+          const SizedBox(height: 12),
+
           // Time Slot Selection Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -207,7 +212,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       _availableTimeSlots.length,
                     ),
 
-                    const SizedBox(height: 20), // Extra space for bottom button
+                    const SizedBox(height: 40), // Extra space for bottom button
                   ],
                 ),
               ),
@@ -218,6 +223,99 @@ class _BookingScreenState extends State<BookingScreen> {
 
       // Floating Book Button at Bottom
       bottomNavigationBar: _buildBottomBar(totalAmount),
+    );
+  }
+
+  // NEW METHOD: Clarity Box for customers
+  Widget _buildClarityBox() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Available indicator
+          Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: Colors.green.shade800),
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                "Available",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.green,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 20),
+
+          // Booked indicator
+          // Booked indicator
+          Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: Colors.grey.shade500),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                "Booked",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(width: 20),
+
+          // Selected indicator
+          Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: Colors.blue.shade800),
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                "Selected",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -403,17 +501,14 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Widget _buildBottomBar(double totalAmount) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200, width: 0.6),
+        ),
+
+        // REMOVED: boxShadow
       ),
       child: SizedBox(
         width: double.infinity,
@@ -424,9 +519,11 @@ class _BookingScreenState extends State<BookingScreen> {
             backgroundColor: const Color(0xFF1DB954),
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(0),
+
+              // Changed from 14 to 10
             ),
-            elevation: 2,
+            elevation: 0,
             disabledBackgroundColor: Colors.grey.shade300,
           ),
           child: Text(
@@ -612,12 +709,13 @@ class TimeSlotCard extends StatelessWidget {
     Color textColor;
 
     if (!slot.isAvailable) {
-      bgColor = Colors.red.shade50;
-      borderColor = Colors.red.shade300;
-      textColor = Colors.red.shade800;
+      bgColor = Colors.grey.shade200;
+      borderColor = Colors.grey.shade400;
+      textColor = Colors.grey.shade600;
     } else if (isSelected) {
-      bgColor = const Color(0xFF1DB954);
-      borderColor = const Color(0xFF1DB954);
+      bgColor = Colors.blue;
+
+      borderColor = Colors.blue;
       textColor = Colors.white;
     } else {
       bgColor = Colors.green.shade50;

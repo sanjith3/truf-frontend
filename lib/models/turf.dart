@@ -7,6 +7,8 @@ class Turf {
   final double rating;
   final List<String> images;
   final List<String> amenities;
+  final List<String> sports;
+
   final String mapLink;
   final String address;
   final String description;
@@ -20,8 +22,12 @@ class Turf {
     required this.rating,
     required this.images,
     required this.amenities,
+
+    // ✅ NOT required
+    List<String>? sports,
+
     required this.mapLink,
     required this.address,
     required this.description,
-  });
+  }) : sports = sports ?? [];
 }

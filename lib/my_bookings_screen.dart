@@ -1,4 +1,4 @@
-// my_bookings_screen.dart (in features/bookings/)
+// my_bookings_screen.dart - UPDATED
 import 'package:flutter/material.dart';
 
 class MyBookingsScreen extends StatefulWidget {
@@ -10,52 +10,118 @@ class MyBookingsScreen extends StatefulWidget {
 
 class _MyBookingsScreenState extends State<MyBookingsScreen> {
   int _selectedFilter = 0;
-  List<Map<String, dynamic>> bookings = [
+  List<String> filters = ['Today', 'Upcoming', 'Past', 'All'];
+  
+  List<Map<String, dynamic>> allBookings = [
     {
       'id': 'BK001',
-      'user': 'Rajesh Kumar',
+      'customer': 'Rajesh Kumar',
       'phone': '9876543210',
-      'date': 'Today, 4:00 PM',
-      'duration': '2 hours',
-      'amount': '₹1,598',
-      'status': 'Confirmed',
-      'color': Colors.green,
-      'icon': Icons.check_circle,
+      'date': 'Today, 7:00 AM',
+      'duration': '1 hour',
+      'amount': '₹500',
+      'status': 'confirmed',
+      'payment': 'Paid',
+      'turf': 'final',
     },
     {
       'id': 'BK002',
-      'user': 'Priya Sharma',
+      'customer': 'Team Alpha',
       'phone': '9876543211',
-      'date': 'Today, 6:00 PM',
-      'duration': '1.5 hours',
-      'amount': '₹1,198',
-      'status': 'Pending',
-      'color': Colors.orange,
-      'icon': Icons.pending,
+      'date': 'Today, 8:00 AM',
+      'duration': '1 hour',
+      'amount': '₹500',
+      'status': 'confirmed',
+      'payment': 'Paid',
+      'turf': 'final',
     },
     {
       'id': 'BK003',
-      'user': 'Vikram Singh',
+      'customer': 'Priya Sharma',
       'phone': '9876543212',
-      'date': 'Tomorrow, 8:00 AM',
-      'duration': '3 hours',
-      'amount': '₹2,397',
-      'status': 'Completed',
-      'color': Colors.blue,
-      'icon': Icons.done_all,
+      'date': 'Today, 10:00 AM',
+      'duration': '1 hour',
+      'amount': '₹600',
+      'status': 'pending',
+      'payment': 'Pending',
+      'turf': 'final',
     },
     {
       'id': 'BK004',
-      'user': 'Anita Rao',
+      'customer': 'Vikram Singh',
       'phone': '9876543213',
-      'date': 'Mar 15, 2:00 PM',
+      'date': 'Today, 12:00 PM',
       'duration': '2 hours',
-      'amount': '₹1,598',
-      'status': 'Cancelled',
-      'color': Colors.red,
-      'icon': Icons.cancel,
+      'amount': '₹1,400',
+      'status': 'confirmed',
+      'payment': 'Paid',
+      'turf': 'final',
+    },
+    {
+      'id': 'BK005',
+      'customer': 'Anita Rao',
+      'phone': '9876543214',
+      'date': 'Tomorrow, 2:00 PM',
+      'duration': '1 hour',
+      'amount': '₹700',
+      'status': 'confirmed',
+      'payment': 'Paid',
+      'turf': 'final',
+    },
+    {
+      'id': 'BK006',
+      'customer': 'Rahul Mehta',
+      'phone': '9876543215',
+      'date': 'Tomorrow, 3:00 PM',
+      'duration': '2 hours',
+      'amount': '₹1,600',
+      'status': 'cancelled',
+      'payment': 'Refunded',
+      'turf': 'final',
+    },
+    {
+      'id': 'BK007',
+      'customer': 'Suresh Kumar',
+      'phone': '9876543216',
+      'date': 'Tomorrow, 4:00 PM',
+      'duration': '1 hour',
+      'amount': '₹800',
+      'status': 'confirmed',
+      'payment': 'Paid',
+      'turf': 'final',
+    },
+    {
+      'id': 'BK008',
+      'customer': 'Neha Gupta',
+      'phone': '9876543217',
+      'date': 'Tomorrow, 6:00 PM',
+      'duration': '1 hour',
+      'amount': '₹900',
+      'status': 'confirmed',
+      'payment': 'Paid',
+      'turf': 'final',
     },
   ];
+
+  List<Map<String, dynamic>> get filteredBookings {
+    switch (_selectedFilter) {
+      case 0: // Today
+        return allBookings.where((b) => b['date'].contains('Today')).toList();
+      case 1: // Upcoming
+        return allBookings.where((b) => b['date'].contains('Tomorrow')).toList();
+      case 2: // Past
+        return allBookings.where((b) => b['status'] == 'cancelled').toList();
+      default:
+        return allBookings;
+    }
+  }
+
+  double get todayRevenue {
+    return filteredBookings
+        .where((b) => b['payment'] == 'Paid')
+        .map((b) => double.parse(b['amount'].replaceAll('₹', '').replaceAll(',', '')))
+        .fold(0, (sum, amount) => sum + amount);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,58 +146,97 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       ),
       body: Column(
         children: [
-          // Filter Tabs
+          // Revenue Summary
           Container(
-            height: 60,
             color: Colors.white,
+            padding: EdgeInsets.all(16),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildFilterTab('All', 0),
-                _buildFilterTab('Today', 1),
-                _buildFilterTab('Upcoming', 2),
-                _buildFilterTab('Past', 3),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Today\'s Revenue',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '₹${todayRevenue.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF00C853),
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Bookings',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '${filteredBookings.length}',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          
-          Expanded(
+
+          // Filter Tabs
+          Container(
+            color: Colors.white,
+            padding: EdgeInsets.symmetric(vertical: 8),
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Stats Card
-                  Container(
-                    padding: EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 20,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(filters.length, (index) {
+                  return Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: ChoiceChip(
+                      label: Text(filters[index]),
+                      selected: _selectedFilter == index,
+                      onSelected: (selected) {
+                        setState(() {
+                          _selectedFilter = index;
+                        });
+                      },
+                      selectedColor: Color(0xFF00C853),
+                      labelStyle: TextStyle(
+                        color: _selectedFilter == index ? Colors.white : Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildStatItem('24', 'Total'),
-                        _buildStatItem('12', 'Confirmed'),
-                        _buildStatItem('3', 'Pending'),
-                        _buildStatItem('2', 'Cancelled'),
-                      ],
-                    ),
-                  ),
-                  
-                  SizedBox(height: 20),
-                  
-                  // Bookings List
-                  ...bookings.map((booking) => _buildBookingCard(booking)).toList(),
-                  
-                  SizedBox(height: 40),
-                ],
+                  );
+                }),
               ),
+            ),
+          ),
+
+          // Booking List
+          Expanded(
+            child: ListView.builder(
+              padding: EdgeInsets.all(16),
+              itemCount: filteredBookings.length,
+              itemBuilder: (context, index) {
+                return _buildBookingCard(filteredBookings[index], index);
+              },
             ),
           ),
         ],
@@ -139,68 +244,21 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     );
   }
 
-  Widget _buildFilterTab(String title, int index) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedFilter = index),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: _selectedFilter == index ? Color(0xFF00C853) : Colors.transparent,
-                width: 3,
-              ),
-            ),
-          ),
-          child: Center(
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: _selectedFilter == index ? FontWeight.w600 : FontWeight.w500,
-                color: _selectedFilter == index ? Color(0xFF00C853) : Colors.grey[600],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildBookingCard(Map<String, dynamic> booking, int index) {
+    Color statusColor = booking['status'] == 'confirmed' ? Colors.green :
+                       booking['status'] == 'pending' ? Colors.orange : Colors.red;
+    String statusText = booking['status'].toUpperCase();
 
-  Widget _buildStatItem(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF00C853),
-          ),
-        ),
-        SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBookingCard(Map<String, dynamic> booking) {
     return Container(
-      margin: EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: Offset(0, 4),
+            blurRadius: 10,
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -215,40 +273,34 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 Text(
                   booking['id'],
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
                     color: Colors.grey[600],
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: booking['color'].withOpacity(0.1),
+                    color: statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: booking['color'].withOpacity(0.3)),
+                    border: Border.all(color: statusColor.withOpacity(0.3)),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(booking['icon'], size: 14, color: booking['color']),
-                      SizedBox(width: 6),
-                      Text(
-                        booking['status'],
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: booking['color'],
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    statusText,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          
+
           Divider(height: 0),
-          
-          // User Info
+
+          // Customer Info
           Container(
             padding: EdgeInsets.all(16),
             child: Row(
@@ -268,7 +320,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        booking['user'],
+                        booking['customer'],
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -306,7 +358,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                     Text(
                       booking['date'],
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         color: Colors.grey[600],
                       ),
                     ),
@@ -315,99 +367,146 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               ],
             ),
           ),
-          
-          // Footer Actions
+
+          // Actions
           Container(
             padding: EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.grey[50],
               borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(16),
+                bottomLeft: Radius.circular(12),
+                bottomRight: Radius.circular(12),
               ),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {},
+                    onPressed: () {
+                      // Call customer
+                    },
                     icon: Icon(Icons.phone, size: 16),
                     label: Text('Call'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.blue,
                       side: BorderSide(color: Colors.blue),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
                     ),
                   ),
                 ),
                 SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: Icon(Icons.chat, size: 16),
+                    onPressed: () {
+                      // Message customer
+                    },
+                    icon: Icon(Icons.message, size: 16),
                     label: Text('Message'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.green,
                       side: BorderSide(color: Colors.green),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
                     ),
                   ),
                 ),
                 SizedBox(width: 8),
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      if (booking['status'] == 'Pending') {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: Text('Confirm Booking'),
-                            content: Text('Confirm booking ${booking['id']} for ${booking['user']}?'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: Text('Cancel'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    booking['status'] = 'Confirmed';
-                                    booking['color'] = Colors.green;
-                                    booking['icon'] = Icons.check_circle;
-                                  });
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Booking confirmed'),
-                                      backgroundColor: Color(0xFF00C853),
-                                    ),
-                                  );
-                                },
-                                child: Text('Confirm'),
-                              ),
-                            ],
+                  child: booking['status'] == 'pending'
+                      ? ElevatedButton.icon(
+                          onPressed: () {
+                            _confirmBooking(booking, index);
+                          },
+                          icon: Icon(Icons.check, size: 16),
+                          label: Text('Confirm'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFF00C853),
+                            foregroundColor: Colors.white,
                           ),
-                        );
-                      }
-                    },
-                    icon: Icon(Icons.check, size: 16),
-                    label: Text(booking['status'] == 'Pending' ? 'Confirm' : 'View'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF00C853),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
+                        )
+                      : booking['status'] == 'confirmed'
+                          ? OutlinedButton.icon(
+                              onPressed: () {
+                                _cancelBooking(booking, index);
+                              },
+                              icon: Icon(Icons.cancel, size: 16),
+                              label: Text('Cancel'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: BorderSide(color: Colors.red),
+                              ),
+                            )
+                          : SizedBox(),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmBooking(Map<String, dynamic> booking, int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirm Booking'),
+        content: Text('Confirm booking ${booking['id']} for ${booking['customer']}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('No'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                booking['status'] = 'confirmed';
+                booking['payment'] = 'Paid';
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Booking confirmed'),
+                  backgroundColor: Color(0xFF00C853),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF00C853),
+            ),
+            child: Text('Yes, Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _cancelBooking(Map<String, dynamic> booking, int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Cancel Booking'),
+        content: Text('Cancel booking ${booking['id']} for ${booking['customer']}?\n\nRefund will be processed.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('No'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                booking['status'] = 'cancelled';
+                booking['payment'] = 'Refunded';
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Booking cancelled and refunded'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: Text('Yes, Cancel'),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -235,6 +236,196 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     }
   }
 
+  void _showRatingDialog(BuildContext context, String turfName) {
+    double rating = 0;
+    String review = '';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Rate Your Experience",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "How was your experience at $turfName?",
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Star Rating
+                    Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(5, (index) {
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                rating = (index + 1).toDouble();
+                              });
+                            },
+                            child: Icon(
+                              index < rating.toInt()
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              size: 40,
+                              color: Colors.amber,
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: Text(
+                        rating == 0
+                            ? "Tap to rate"
+                            : "${rating.toInt()}.0 Stars",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: rating == 0
+                              ? Colors.grey[500]
+                              : Colors.amber[800],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Review Description
+                    const Text(
+                      "Add a Review",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 100,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: TextField(
+                        maxLines: 4,
+                        onChanged: (value) => review = value,
+                        decoration: const InputDecoration(
+                          hintText: "Share your experience (optional)...",
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.all(12),
+                          hintStyle: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              side: BorderSide(color: Colors.grey[300]!),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: Text(
+                              "Cancel",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: rating == 0
+                                ? null
+                                : () {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          rating == 5
+                                              ? "Thanks for your ${rating.toInt()}-star review! ❤️"
+                                              : "Thanks for your ${rating.toInt()}-star review!",
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF00C853,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00C853),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              disabledBackgroundColor: Colors.grey[300],
+                            ),
+                            child: Text(
+                              "Submit Review",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
+                    if (rating == 0)
+                      Center(
+                        child: Text(
+                          "Please select a rating",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red[400],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -246,13 +437,23 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text("My Bookings"),
-        backgroundColor: const Color(0xFF1DB954),
+        backgroundColor: const Color(0xFF00C853),
+        foregroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
           labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
+          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          labelStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
           tabs: const [
             Tab(text: "Upcoming"),
             Tab(text: "Completed"),
@@ -296,20 +497,24 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.calendar_today_outlined,
-              size: 80,
-              color: Colors.grey,
+              size: 60,
+              color: Colors.grey[400],
             ),
             const SizedBox(height: 16),
             Text(
               emptyMessage,
-              style: const TextStyle(fontSize: 18, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               "Book your first turf to get started",
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
             ),
           ],
         ),
@@ -317,7 +522,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       itemCount: bookings.length,
       itemBuilder: (context, index) {
         return BookingTurfCard(
@@ -328,6 +533,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           showCancelButton: showCancelButton,
           onCancel: () => _cancelBooking(bookings[index]),
           onOpenMap: (mapLink) => _openMapLocation(mapLink),
+          onRate: (turfName) => _showRatingDialog(context, turfName),
         );
       },
     );
@@ -340,6 +546,7 @@ class BookingTurfCard extends StatelessWidget {
   final bool showCancelButton;
   final VoidCallback onCancel;
   final Function(String) onOpenMap;
+  final Function(String) onRate;
 
   const BookingTurfCard({
     super.key,
@@ -348,6 +555,7 @@ class BookingTurfCard extends StatelessWidget {
     required this.showCancelButton,
     required this.onCancel,
     required this.onOpenMap,
+    required this.onRate,
   });
 
   @override
@@ -373,32 +581,33 @@ class BookingTurfCard extends StatelessWidget {
 
     switch (booking.status) {
       case BookingStatus.upcoming:
-        statusColor = Colors.orange;
+        statusColor = const Color(0xFF00C853);
         statusText = "Upcoming";
         statusIcon = Icons.access_time;
         break;
       case BookingStatus.completed:
-        statusColor = Colors.green;
+        statusColor = Colors.blue;
         statusText = "Completed";
         statusIcon = Icons.check_circle;
         break;
       case BookingStatus.cancelled:
-        statusColor = Colors.red;
+        statusColor = Colors.grey[700]!;
         statusText = "Cancelled";
         statusIcon = Icons.cancel;
         break;
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.grey.shade200, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade300,
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -409,12 +618,12 @@ class BookingTurfCard extends StatelessWidget {
           Stack(
             children: [
               Container(
-                height: 200,
+                height: 105,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
                   ),
                   image: DecorationImage(
                     image: NetworkImage(imageUrl),
@@ -423,34 +632,34 @@ class BookingTurfCard extends StatelessWidget {
                 ),
               ),
 
-              // Status Badge (Top Left)
+              // Status Badge
               Positioned(
-                top: 15,
-                left: 15,
+                top: 10,
+                left: 10,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                    horizontal: 8,
+                    vertical: 4,
                   ),
                   decoration: BoxDecoration(
                     color: statusColor,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(6),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 5,
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
                       ),
                     ],
                   ),
                   child: Row(
                     children: [
-                      Icon(statusIcon, size: 14, color: Colors.white),
+                      Icon(statusIcon, size: 12, color: Colors.white),
                       const SizedBox(width: 4),
                       Text(
                         statusText,
                         style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
                       ),
@@ -459,64 +668,85 @@ class BookingTurfCard extends StatelessWidget {
                 ),
               ),
 
-              // Booking ID Badge
-              Positioned(
-                top: 15,
-                right: 15,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    booking.bookingId,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+              // Paid Status Badge (Top Right)
+              // Paid Status Badge (Top Right)
+              if (booking.paymentStatus == 'Paid')
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00C853),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      "Paid",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-              // Distance Badge with Map Navigation
+              // Refund Status Badge (No else)
+              if (booking.paymentStatus.contains('Refund'))
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      booking.paymentStatus,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Distance Badge (Moved to bottom when paid status is shown)
               Positioned(
-                bottom: 15,
-                right: 15,
+                bottom: 10,
+                right: 10,
                 child: GestureDetector(
                   onTap: () => onOpenMap(booking.mapLink),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+                      horizontal: 8,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 5,
-                        ),
-                      ],
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
                       children: [
                         const Icon(
-                          Icons.location_on,
-                          size: 14,
-                          color: Color(0xFF1DB954),
+                          Icons.near_me_outlined,
+                          size: 12,
+                          color: Color(0xFF00C853),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           "${booking.distance} km",
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                            fontSize: 10,
                           ),
                         ),
                       ],
@@ -529,10 +759,11 @@ class BookingTurfCard extends StatelessWidget {
 
           // Booking Details
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Turf Name and Rating
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -543,205 +774,250 @@ class BookingTurfCard extends StatelessWidget {
                           Text(
                             booking.turfName,
                             style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
                               color: Colors.black87,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Row(
                             children: [
-                              const Icon(
-                                Icons.location_on,
-                                size: 16,
-                                color: Colors.grey,
+                              Icon(
+                                Icons.location_on_outlined,
+                                size: 12,
+                                color: Colors.grey[600],
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
                                   booking.location,
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
                           ),
                         ],
                       ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          "₹${booking.amount}",
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF1DB954),
-                          ),
-                        ),
-                        const Text(
-                          "/hour",
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 15),
+                const SizedBox(height: 8),
 
-                // Booking Date & Time
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue.shade100),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                // Price and Rating Row
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.amber[50],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_today,
-                                size: 16,
-                                color: Colors.blue.shade700,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                dateText,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blue.shade700,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 16,
-                                color: Colors.blue.shade700,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                "${booking.startTime} - ${booking.endTime}",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blue.shade700,
-                                ),
-                              ),
-                            ],
+                          Icon(Icons.star, size: 12, color: Colors.amber[700]),
+                          const SizedBox(width: 4),
+                          Text(
+                            booking.rating.toString(),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.amber[800],
+                            ),
                           ),
                         ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: booking.paymentStatus == 'Paid'
-                              ? Colors.green.shade50
-                              : booking.paymentStatus.contains('Refund')
-                              ? Colors.orange.shade50
-                              : Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: booking.paymentStatus == 'Paid'
-                                ? Colors.green.shade100
-                                : booking.paymentStatus.contains('Refund')
-                                ? Colors.orange.shade100
-                                : Colors.grey.shade300,
-                          ),
-                        ),
-                        child: Text(
-                          booking.paymentStatus,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: booking.paymentStatus == 'Paid'
-                                ? Colors.green.shade800
-                                : booking.paymentStatus.contains('Refund')
-                                ? Colors.orange.shade800
-                                : Colors.grey.shade800,
-                          ),
-                        ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
                       ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00C853).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.currency_rupee_outlined,
+                            size: 12,
+                            color: const Color(0xFF00C853),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "${booking.amount}/hour",
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF00C853),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Booking Date & Time
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 14,
+                        color: Colors.grey[700],
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            dateText,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "${booking.startTime} - ${booking.endTime}",
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      // Payment Status Indicator
+                      if (booking.status != BookingStatus.cancelled)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: booking.paymentStatus == 'Paid'
+                                ? Colors.green[50]
+                                : Colors.orange[50],
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: booking.paymentStatus == 'Paid'
+                                  ? Colors.green[100]!
+                                  : Colors.orange[100]!,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                booking.paymentStatus == 'Paid'
+                                    ? Icons.check_circle_outlined
+                                    : Icons.money_off_outlined,
+                                size: 12,
+                                color: booking.paymentStatus == 'Paid'
+                                    ? Colors.green[600]
+                                    : Colors.orange[600],
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                booking.paymentStatus,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: booking.paymentStatus == 'Paid'
+                                      ? Colors.green[700]
+                                      : Colors.orange[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
 
                 // Action Buttons
                 if (showCancelButton &&
                     booking.status == BookingStatus.upcoming)
                   Row(
                     children: [
-                      // Cancel Booking Button - Compact and clean
                       Expanded(
                         child: SizedBox(
-                          height: 48, // Medium height
+                          height: 36,
                           child: OutlinedButton(
                             onPressed: onCancel,
                             style: OutlinedButton.styleFrom(
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              side: BorderSide(color: Colors.red.shade300),
-                              backgroundColor: Colors.red.shade50,
+                              side: BorderSide(color: Colors.red[300]!),
+                              backgroundColor: Colors.red[50],
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
                             ),
                             child: Text(
                               "Cancel Booking",
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.red.shade800,
+                                color: Colors.red[800],
                               ),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      // View Details Button - Compact and clean
+                      const SizedBox(width: 8),
                       Expanded(
                         child: SizedBox(
-                          height: 48, // Medium height
+                          height: 36,
                           child: ElevatedButton(
                             onPressed: () {
-                              // Navigate to booking details or turf details
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                    "Viewing booking details",
-                                  ),
-                                  backgroundColor: Colors.green,
+                                const SnackBar(
+                                  content: Text("Viewing booking details"),
+                                  backgroundColor: Color(0xFF00C853),
                                 ),
                               );
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1DB954),
+                              backgroundColor: const Color(0xFF00C853),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
                             ),
                             child: const Text(
                               "View Details",
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
                               ),
@@ -754,32 +1030,28 @@ class BookingTurfCard extends StatelessWidget {
 
                 if (booking.status == BookingStatus.completed)
                   SizedBox(
-                    height: 48,
-                    width: double.infinity,
+                    height: 36,
                     child: ElevatedButton(
-                      onPressed: () {
-                        // Rate this turf
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Rating feature coming soon"),
-                          ),
-                        );
-                      },
+                      onPressed: () => onRate(booking.turfName),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1DB954),
+                        backgroundColor: const Color(0xFF00C853),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.star, size: 18, color: Colors.white),
-                          SizedBox(width: 8),
+                          Icon(
+                            Icons.star_outlined,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 6),
                           Text(
                             "Rate This Turf",
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: Colors.white,
                             ),
