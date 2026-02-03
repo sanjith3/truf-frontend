@@ -4,6 +4,7 @@ import 'package:turfzone/features/home/user_home_screen.dart';
 import 'package:turfzone/features/editslottime/edit_turf_screen.dart';
 import 'package:turfzone/my_bookings_screen.dart';
 import 'package:turfzone/features/turfslot/slot_management_screen.dart';
+
 import 'package:turfzone/features/Gallery/gallery_screen.dart';
 import 'package:turfzone/features/partner/join_partner_screen.dart';
 
@@ -746,7 +747,7 @@ class _AdminScreenState extends State<AdminScreen> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) =>
-                                      SlotManagementScreen(turf: turf),
+                                      PremiumSlotManagementScreen(turf: turf),
                                 ),
                               );
                             },

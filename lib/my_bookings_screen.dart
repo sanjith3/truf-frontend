@@ -11,7 +11,7 @@ class MyBookingsScreen extends StatefulWidget {
 class _MyBookingsScreenState extends State<MyBookingsScreen> {
   int _selectedFilter = 0;
   List<String> filters = ['Today', 'Upcoming', 'Past', 'All'];
-  
+
   List<Map<String, dynamic>> allBookings = [
     {
       'id': 'BK001',
@@ -108,7 +108,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       case 0: // Today
         return allBookings.where((b) => b['date'].contains('Today')).toList();
       case 1: // Upcoming
-        return allBookings.where((b) => b['date'].contains('Tomorrow')).toList();
+        return allBookings
+            .where((b) => b['date'].contains('Tomorrow'))
+            .toList();
       case 2: // Past
         return allBookings.where((b) => b['status'] == 'cancelled').toList();
       default:
@@ -119,7 +121,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   double get todayRevenue {
     return filteredBookings
         .where((b) => b['payment'] == 'Paid')
-        .map((b) => double.parse(b['amount'].replaceAll('₹', '').replaceAll(',', '')))
+        .map(
+          (b) =>
+              double.parse(b['amount'].replaceAll('₹', '').replaceAll(',', '')),
+        )
         .fold(0, (sum, amount) => sum + amount);
   }
 
@@ -158,10 +163,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   children: [
                     Text(
                       'Today\'s Revenue',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                     SizedBox(height: 4),
                     Text(
@@ -179,10 +181,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   children: [
                     Text(
                       'Bookings',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                     SizedBox(height: 4),
                     Text(
@@ -219,7 +218,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       },
                       selectedColor: Color(0xFF00C853),
                       labelStyle: TextStyle(
-                        color: _selectedFilter == index ? Colors.white : Colors.grey[700],
+                        color: _selectedFilter == index
+                            ? Colors.white
+                            : Colors.grey[700],
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -245,8 +246,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   }
 
   Widget _buildBookingCard(Map<String, dynamic> booking, int index) {
-    Color statusColor = booking['status'] == 'confirmed' ? Colors.green :
-                       booking['status'] == 'pending' ? Colors.orange : Colors.red;
+    Color statusColor = booking['status'] == 'confirmed'
+        ? Colors.green
+        : booking['status'] == 'pending'
+        ? Colors.orange
+        : Colors.red;
     String statusText = booking['status'].toUpperCase();
 
     return Container(
@@ -357,10 +361,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                     SizedBox(height: 4),
                     Text(
                       booking['date'],
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ),
@@ -422,18 +423,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                           ),
                         )
                       : booking['status'] == 'confirmed'
-                          ? OutlinedButton.icon(
-                              onPressed: () {
-                                _cancelBooking(booking, index);
-                              },
-                              icon: Icon(Icons.cancel, size: 16),
-                              label: Text('Cancel'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: BorderSide(color: Colors.red),
-                              ),
-                            )
-                          : SizedBox(),
+                      ? OutlinedButton.icon(
+                          onPressed: () {
+                            _cancelBooking(booking, index);
+                          },
+                          icon: Icon(Icons.cancel, size: 16),
+                          label: Text('Cancel'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: BorderSide(color: Colors.red),
+                          ),
+                        )
+                      : SizedBox(),
                 ),
               ],
             ),
@@ -448,7 +449,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Confirm Booking'),
-        content: Text('Confirm booking ${booking['id']} for ${booking['customer']}?'),
+        content: Text(
+          'Confirm booking ${booking['id']} for ${booking['customer']}?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -468,9 +471,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 ),
               );
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF00C853),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF00C853)),
             child: Text('Yes, Confirm'),
           ),
         ],
@@ -483,7 +484,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Cancel Booking'),
-        content: Text('Cancel booking ${booking['id']} for ${booking['customer']}?\n\nRefund will be processed.'),
+        content: Text(
+          'Cancel booking ${booking['id']} for ${booking['customer']}?\n\nRefund will be processed.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -503,9 +506,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 ),
               );
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: Text('Yes, Cancel'),
           ),
         ],
