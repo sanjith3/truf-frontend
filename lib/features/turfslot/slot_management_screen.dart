@@ -517,275 +517,215 @@ class _PremiumSlotManagementScreenState
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Compact Stats Cards
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(16),
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _buildCompactStatCard(
-                  'Revenue',
-                  revenue,
-                  Icons.currency_rupee,
-                  _primary,
-                ),
-                _buildCompactStatCard(
-                  'Booked',
-                  '$bookedCount',
-                  Icons.event_available,
-                  _accent,
-                ),
-                _buildCompactStatCard(
-                  'Available',
-                  '$availableCount',
-                  Icons.check_circle,
-                  _success,
-                ),
-                _buildCompactStatCard(
-                  'Disabled',
-                  '$blockedCount',
-                  Icons.block,
-                  _danger,
-                ),
-              ],
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Compact Stats Cards
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _buildCompactStatCard(
+                    'Revenue',
+                    revenue,
+                    Icons.currency_rupee,
+                    _primary,
+                  ),
+                  _buildCompactStatCard(
+                    'Booked',
+                    '$bookedCount',
+                    Icons.event_available,
+                    _accent,
+                  ),
+                  _buildCompactStatCard(
+                    'Available',
+                    '$availableCount',
+                    Icons.check_circle,
+                    _success,
+                  ),
+                  _buildCompactStatCard(
+                    'Disabled',
+                    '$blockedCount',
+                    Icons.block,
+                    _danger,
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          // Date Range Selector
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Select Date Range',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: _textPrimary,
+            // Redesigned Date Range Filter
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Date Filter',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: _textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Viewing ${_endDate.difference(_startDate).inDays + 1} days',
+                        style: TextStyle(fontSize: 12, color: _textSecondary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildDateFilterChip(
+                          'From: ${_formatDate(_startDate)}',
+                          () => _selectStartDate(context),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildDateFilterChip(
+                          'To: ${_formatDate(_endDate)}',
+                          () => _selectEndDate(context),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildQuickRangeChip('Next 7 Days', 7),
+                        const SizedBox(width: 8),
+                        _buildQuickRangeChip('Next 30 Days', 30),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Emergency Mode Toggle
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _emergencyMode ? _danger.withOpacity(0.1) : _bg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _emergencyMode ? _danger : Colors.grey[200]!,
+                    width: 1.5,
                   ),
                 ),
-                const SizedBox(height: 12),
-                Row(
+                child: Row(
                   children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _selectStartDate(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 16,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _bg,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey[300]!),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Start Date',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: _textSecondary,
-                                ),
-                              ),
-                              Text(
-                                _formatDate(_startDate),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: _textPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: _emergencyMode ? _danger : Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Icon(
+                        Icons.emergency,
+                        color: _emergencyMode ? Colors.white : _danger,
+                        size: 20,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: GestureDetector(
-                        onTap: () => _selectEndDate(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 16,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _emergencyMode
+                                ? 'Emergency Mode ON'
+                                : 'Emergency Mode',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: _emergencyMode ? _danger : _textPrimary,
+                            ),
                           ),
-                          decoration: BoxDecoration(
-                            color: _bg,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey[300]!),
+                          const SizedBox(height: 4),
+                          Text(
+                            _emergencyMode
+                                ? 'All available slots are disabled'
+                                : 'Click to disable all available slots',
+                            style: TextStyle(fontSize: 13, color: _textSecondary),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'End Date',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: _textSecondary,
-                                ),
-                              ),
-                              Text(
-                                _formatDate(_endDate),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: _textPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        ],
                       ),
+                    ),
+                    Switch(
+                      value: _emergencyMode,
+                      onChanged: (value) => _toggleEmergencyMode(),
+                      activeColor: _danger,
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Viewing ${_endDate.difference(_startDate).inDays + 1} days',
-                  style: TextStyle(fontSize: 12, color: _textSecondary),
-                ),
-              ],
+              ),
             ),
-          ),
 
-          // Emergency Mode Toggle
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _emergencyMode ? _danger.withOpacity(0.1) : _bg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _emergencyMode ? _danger : Colors.grey[200]!,
-                  width: 1.5,
+            // Filters
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip('All Slots', 'all'),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Available', 'available'),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Booked', 'booked'),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Disabled', 'disabled'),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: _emergencyMode ? _danger : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Icon(
-                      Icons.emergency,
-                      color: _emergencyMode ? Colors.white : _danger,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _emergencyMode
-                              ? 'Emergency Mode ON'
-                              : 'Emergency Mode',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: _emergencyMode ? _danger : _textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _emergencyMode
-                              ? 'All available slots are disabled'
-                              : 'Click to disable all available slots',
-                          style: TextStyle(fontSize: 13, color: _textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Switch(
-                    value: _emergencyMode,
-                    onChanged: (value) => _toggleEmergencyMode(),
-                    activeColor: _danger,
-                  ),
-                ],
-              ),
             ),
-          ),
 
-          // Filters
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildFilterChip('All', 'all'),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Available', 'available'),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Booked', 'booked'),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('Disabled', 'disabled'),
-                ],
-              ),
-            ),
-          ),
-
-          // Slots List
-          Expanded(
-            child: Container(
+            // Slots Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
               color: _bg,
-              child: Column(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Slots Header
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                    color: Colors.white,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Time Slots',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: _textPrimary,
-                          ),
-                        ),
-                        Text(
-                          '${filteredSlots.length} slots',
-                          style: TextStyle(fontSize: 14, color: _textSecondary),
-                        ),
-                      ],
+                  Text(
+                    'Time Slots',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: _textPrimary,
                     ),
                   ),
-
-                  // Slots List
-                  Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: filteredSlots.length,
-                      itemBuilder: (context, index) {
-                        final slot = filteredSlots[index];
-                        return _buildSlotCard(slot, index);
-                      },
-                    ),
+                  Text(
+                    '${filteredSlots.length} slots found',
+                    style: TextStyle(fontSize: 14, color: _textSecondary),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+
+            // Slots List
+            ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filteredSlots.length,
+              itemBuilder: (context, index) {
+                final slot = filteredSlots[index];
+                return _buildSlotCard(slot, index);
+              },
+            ),
+            const SizedBox(height: 40), // Extra bottom padding
+          ],
+        ),
       ),
     );
   }
@@ -1044,6 +984,66 @@ class _PremiumSlotManagementScreenState
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDateFilterChip(String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: _bg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_month, size: 16, color: _primary),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _textPrimary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.arrow_drop_down, size: 20, color: _textSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickRangeChip(String label, int days) {
+    bool isSelected = _endDate.difference(_startDate).inDays == (days - 1);
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _startDate = DateTime.now();
+          _endDate = DateTime.now().add(Duration(days: days - 1));
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? _primary.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? _primary : Colors.grey[300]!,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? _primary : _textSecondary,
+          ),
+        ),
       ),
     );
   }

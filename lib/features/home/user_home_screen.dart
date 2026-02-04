@@ -5,6 +5,7 @@ import 'package:turfzone/models/turf.dart';
 import 'package:turfzone/features/profile/profile_screen.dart';
 import 'package:turfzone/features/Admindashboard/admin_screen.dart';
 import '../../turffdetail/turfdetails_screen.dart';
+import '../../services/turf_data_service.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -16,6 +17,67 @@ class UserHomeScreen extends StatefulWidget {
 class _UserHomeScreenState extends State<UserHomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Turf> _filteredTurfs = [];
+  final TurfDataService _turfService = TurfDataService();
+  String _selectedLocation = "Coimbatore";
+
+  final List<String> _tnCities = [
+    'Ariyalur', 'Chengalpattu', 'Chennai', 'Coimbatore', 'Cuddalore', 'Dharmapuri', 
+    'Dindigul', 'Erode', 'Kallakurichi', 'Kanchipuram', 'Kanyakumari', 'Karur', 
+    'Krishnagiri', 'Madurai', 'Mayiladuthurai', 'Nagapattinam', 'Namakkal', 
+    'Nilgiris', 'Perambalur', 'Pudukkottai', 'Ramanathapuram', 'Ranipet', 
+    'Salem', 'Sivaganga', 'Tenkasi', 'Thanjavur', 'Theni', 'Thoothukudi', 
+    'Tiruchirappalli', 'Tirunelveli', 'Tirupathur', 'Tiruppur', 'Tiruvallur', 
+    'Tiruvannamalai', 'Tiruvarur', 'Vellore', 'Viluppuram', 'Virudhunagar'
+  ];
+
+  void _showLocationPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Select Location",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 15),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _tnCities.length,
+                  itemBuilder: (context, index) {
+                    final city = _tnCities[index];
+                    return ListTile(
+                      title: Text(city),
+                      trailing: _selectedLocation == city 
+                        ? const Icon(Icons.check_circle, color: Color(0xFF1DB954))
+                        : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedLocation = city;
+                          _applyFilters();
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   // Filter variables
   RangeValues _priceRange = const RangeValues(0, 2000);
@@ -38,187 +100,21 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     'Table Tennis': false,
   };
 
-  // Define turfs list as a class member with sports
-  final List<Turf> _turfs = [
-    Turf(
-      id: '1',
-      name: "Green Field Arena",
-      location: "PN Pudur",
-      distance: 2.5,
-      price: 500,
-      rating: 4.8,
-      images: [
-        "https://images.unsplash.com/photo-1531315630201-bb15abeb1653?w=800&q=80", // Cricket
-      ],
-      amenities: ["Flood Lights", "Parking", "Water", "Showers", "Cafeteria"],
-      sports: ["Cricket", "Football", "Basketball"],
-      mapLink: "https://maps.app.goo.gl/xyz123",
-      address: "123 Sports Complex, PN Pudur, Coimbatore",
-      description: "Premium turf with professional-grade facilities",
-    ),
-    Turf(
-      id: '2',
-      name: "City Sports Turf",
-      location: "Gandhipuram",
-      distance: 4.2,
-      price: 650,
-      rating: 4.5,
-      images: [
-        "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800&q=80", // Football
-      ],
-      amenities: ["Cafeteria", "Parking", "Flood Lights", "Changing Rooms"],
-      sports: ["Football", "Volleyball"],
-      mapLink: "https://maps.app.goo.gl/abc456",
-      address: "45 Main Road, Gandhipuram, Coimbatore",
-      description: "City center turf with excellent amenities",
-    ),
-    Turf(
-      id: '3',
-      name: "Elite Football Ground",
-      location: "Race Course",
-      distance: 3.1,
-      price: 800,
-      rating: 4.9,
-      images: [
-        "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&q=80", // Football
-      ],
-      amenities: ["Flood Lights", "Gym", "Parking", "WiFi", "Showers"],
-      sports: ["Football", "Cricket"],
-      mapLink: "https://maps.app.goo.gl/def789",
-      address: "Race Course Road, Coimbatore",
-      description: "Professional football ground with international standards",
-    ),
-    Turf(
-      id: '4',
-      name: "Victory Sports Park",
-      location: "Peelamedu",
-      distance: 5.7,
-      price: 450,
-      rating: 4.3,
-      images: [
-        "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=800&q=80", // Badminton
-      ],
-      amenities: ["Flood Lights", "Parking", "Water", "Equipment Rental"],
-      sports: ["Badminton", "Tennis", "Basketball", "Table Tennis"],
-      mapLink: "https://maps.app.goo.gl/ghi012",
-      address: "Peelamedu Industrial Estate, Coimbatore",
-      description: "Affordable turf with great facilities",
-    ),
-    Turf(
-      id: '5',
-      name: "Premium Sports Arena",
-      location: "Singanallur",
-      distance: 6.2,
-      price: 1200,
-      rating: 4.7,
-      images: [
-        "https://images.unsplash.com/photo-1547347298-4074fc3086f0?w=800&q=80", // Multiple sports
-      ],
-      amenities: [
-        "Flood Lights",
-        "Parking",
-        "Water",
-        "Showers",
-        "Cafeteria",
-        "AC Lounge",
-      ],
-      sports: ["Cricket", "Football", "Tennis", "Badminton", "Table Tennis"],
-      mapLink: "https://maps.app.goo.gl/jkl345",
-      address: "Singanallur Industrial Area, Coimbatore",
-      description: "Luxury turf with premium facilities",
-    ),
-    Turf(
-      id: '6',
-      name: "Budget Sports Ground",
-      location: "Sitra",
-      distance: 7.1,
-      price: 350,
-      rating: 4.0,
-      images: [
-        "https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=800&q=80", // Volleyball
-      ],
-      amenities: ["Parking", "Water", "Basic Lighting"],
-      sports: ["Cricket", "Volleyball"],
-      mapLink: "https://maps.app.goo.gl/mno678",
-      address: "Sitra Main Road, Coimbatore",
-      description: "Affordable ground for casual play",
-    ),
-    Turf(
-      id: '7',
-      name: "Shuttle Masters Academy",
-      location: "RS Puram",
-      distance: 3.5,
-      price: 300,
-      rating: 4.6,
-      images: [
-        "https://images.unsplash.com/photo-1551641506-ee5bf4cb45f1?w=800&q=80", // Badminton
-      ],
-      amenities: ["AC Courts", "Equipment Rental", "Parking", "Coaching"],
-      sports: ["Badminton", "Table Tennis"],
-      mapLink: "https://maps.app.goo.gl/pqr901",
-      address: "RS Puram Main Road, Coimbatore",
-      description: "Specialized badminton courts with professional coaching",
-    ),
-    Turf(
-      id: '8',
-      name: "Hoops Basketball Court",
-      location: "Saibaba Colony",
-      distance: 2.8,
-      price: 400,
-      rating: 4.4,
-      images: [
-        "https://images.unsplash.com/photo-1518310383802-640c2cbb8b5f?w=800&q=80", // Basketball
-      ],
-      amenities: ["Flood Lights", "Parking", "Water", "Scoreboard"],
-      sports: ["Basketball"],
-      mapLink: "https://maps.app.goo.gl/stu234",
-      address: "Saibaba Colony, Coimbatore",
-      description: "Dedicated basketball court with professional flooring",
-    ),
-    Turf(
-      id: '9',
-      name: "Tennis Masters Club",
-      location: "Ramanathapuram",
-      distance: 3.8,
-      price: 550,
-      rating: 4.6,
-      images: [
-        "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=800&q=80", // Tennis
-      ],
-      amenities: ["Flood Lights", "Parking", "Water", "Showers", "Pro Shop"],
-      sports: ["Tennis"],
-      mapLink: "https://maps.app.goo.gl/vwx567",
-      address: "Ramanathapuram Main Road, Coimbatore",
-      description: "Premium tennis courts with professional coaching",
-    ),
-    Turf(
-      id: '10',
-      name: "Table Tennis Zone",
-      location: "Kovaipudur",
-      distance: 4.5,
-      price: 200,
-      rating: 4.2,
-      images: [
-        "https://images.unsplash.com/photo-1546519638-3bb5d5b6c8b5?w=800&q=80", // Table Tennis
-      ],
-      amenities: ["AC Hall", "Equipment Rental", "Parking", "Coaching"],
-      sports: ["Table Tennis"],
-      mapLink: "https://maps.app.goo.gl/yza890",
-      address: "Kovaipudur, Coimbatore",
-      description: "Specialized table tennis facility with professional tables",
-    ),
-  ];
+  List<Turf> get _turfs => _turfService.turfs;
 
   @override
   void initState() {
     super.initState();
     _filteredTurfs = _turfs;
     _searchController.addListener(_searchTurfs);
-    // Find max price from turfs
-    _maxPrice = _turfs
-        .map((t) => t.price.toDouble())
-        .reduce((a, b) => a > b ? a : b);
-    _priceRange = RangeValues(0, _maxPrice);
+    
+    if (_turfs.isNotEmpty) {
+      _maxPrice = _turfs
+          .map((t) => t.price.toDouble())
+          .reduce((a, b) => a > b ? a : b);
+      _priceRange = RangeValues(0, _maxPrice);
+    }
+    _applyFilters();
   }
 
   void _searchTurfs() {
@@ -253,6 +149,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           )
           .toList();
     }
+
+    // Apply city filter
+    filtered = filtered
+        .where((turf) => turf.city.toLowerCase() == _selectedLocation.toLowerCase())
+        .toList();
 
     // Apply price range filter
     filtered = filtered
@@ -348,42 +249,58 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                   Row(
                     children: [
                       // Location
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.location_on_outlined,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      InkWell(
+                        onTap: _showLocationPicker,
+                        borderRadius: BorderRadius.circular(10),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: Row(
                             children: [
-                              Text(
-                                "Coimbatore",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.location_on_outlined,
                                   color: Colors.white,
+                                  size: 18,
                                 ),
                               ),
-                              Text(
-                                "Tamil Nadu",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white.withOpacity(0.9),
-                                ),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        _selectedLocation,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.keyboard_arrow_down,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    "Tamil Nadu",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.white.withOpacity(0.9),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
 
                       const Spacer(),
@@ -898,9 +815,83 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(context); // Close tournament list
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Text("🏏", style: TextStyle(fontSize: 32)),
+                            SizedBox(width: 10),
+                            Text("⚽", style: TextStyle(fontSize: 40)),
+                            SizedBox(width: 10),
+                            Text("🎾", style: TextStyle(fontSize: 32)),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          "Coming Soon!",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1DB954),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          "Tournament registration will be available in our upcoming update. Stay tuned for more sports action!",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                            height: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Text("🏀", style: TextStyle(fontSize: 24)),
+                            SizedBox(width: 15),
+                            Text("🏐", style: TextStyle(fontSize: 24)),
+                            SizedBox(width: 15),
+                            Text("🏸", style: TextStyle(fontSize: 24)),
+                          ],
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      Center(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            "Awesome!",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Color(0xFF1DB954),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               child: const Text("Register"),
             ),
           ],

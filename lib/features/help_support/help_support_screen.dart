@@ -1,7 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'chat_screen.dart';
 
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
+
+  Future<void> _launchCaller(String phoneNumber) async {
+    final Uri url = Uri.parse('tel:$phoneNumber');
+    if (!await launchUrl(url)) {
+      throw 'Could not launch $url';
+    }
+  }
+
+  Future<void> _launchEmail(String email) async {
+    final Uri url = Uri.parse('mailto:$email?subject=Support Request&body=Hi Support Team,');
+    if (!await launchUrl(url)) {
+      throw 'Could not launch $url';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,37 +29,10 @@ class HelpSupportScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // Search Bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: "Search for help...",
-                border: InputBorder.none,
-                icon: const Icon(Icons.search, color: Colors.grey),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.filter_list, color: Colors.grey),
-                  onPressed: () {},
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 30),
-
-          // Common Issues
-          Text(
-            "Common Issues",
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 15),
-          ..._buildCommonIssues(),
+          // ... (Search Bar, Common Issues, FAQ Sections remain the same)
+          // Note: To keep code clean, only showing the updated Contact Us section logic
+          
+          _buildTopContent(),
 
           const SizedBox(height: 30),
 
@@ -67,7 +56,7 @@ class HelpSupportScreen extends StatelessWidget {
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 15),
-          _buildContactOptions(),
+          _buildContactOptions(context),
 
           const SizedBox(height: 40),
 
@@ -95,7 +84,10 @@ class HelpSupportScreen extends StatelessWidget {
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () {
-                    // Navigate to contact form
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LiveChatScreen()),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1DB954),
@@ -111,6 +103,37 @@ class HelpSupportScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  // Helper widget to keep the layout consistent while simplifying edits
+  Widget _buildTopContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Search Bar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: TextField(
+            decoration: InputDecoration(
+              hintText: "Search for help...",
+              border: InputBorder.none,
+              icon: const Icon(Icons.search, color: Colors.grey),
+            ),
+          ),
+        ),
+        const SizedBox(height: 30),
+        const Text(
+          "Common Issues",
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 15),
+        ..._buildCommonIssues(),
+      ],
     );
   }
 
@@ -199,32 +222,34 @@ class HelpSupportScreen extends StatelessWidget {
     }).toList();
   }
 
-  Widget _buildContactOptions() {
+  Widget _buildContactOptions(BuildContext context) {
     return Column(
       children: [
         ListTile(
           leading: const Icon(Icons.phone, color: Color(0xFF1DB954)),
           title: const Text('Call Support'),
           subtitle: const Text('+91 8825934519'),
-          trailing: IconButton(icon: const Icon(Icons.call), onPressed: () {}),
+          onTap: () => _launchCaller('+918825934519'),
+          trailing: const Icon(Icons.call, size: 20, color: Colors.grey),
         ),
         ListTile(
           leading: const Icon(Icons.email, color: Color(0xFF1DB954)),
           title: const Text('Email Support'),
           subtitle: const Text('support@turfzone.com'),
-          trailing: IconButton(
-            icon: const Icon(Icons.email_outlined),
-            onPressed: () {},
-          ),
+          onTap: () => _launchEmail('support@turfzone.com'),
+          trailing: const Icon(Icons.email_outlined, size: 20, color: Colors.grey),
         ),
         ListTile(
           leading: const Icon(Icons.chat, color: Color(0xFF1DB954)),
           title: const Text('Live Chat'),
           subtitle: const Text('Available 24/7'),
-          trailing: IconButton(
-            icon: const Icon(Icons.chat_bubble_outline),
-            onPressed: () {},
-          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const LiveChatScreen()),
+            );
+          },
+          trailing: const Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey),
         ),
       ],
     );

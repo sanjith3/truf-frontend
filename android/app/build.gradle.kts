@@ -32,8 +32,13 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Using debug signing config so the APK is installable on mobile devices for testing.
+            signingConfig = signingConfigs.getByName("debug")
+            
+            minifyEnabled = false
+            shrinkResources = false
+        }
+        debug {
             signingConfig = signingConfigs.getByName("debug")
         }
     }

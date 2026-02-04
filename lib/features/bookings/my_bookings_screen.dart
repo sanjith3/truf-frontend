@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'booking_details_screen.dart';
+import '../../services/turf_data_service.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -13,7 +14,9 @@ class MyBookingsScreen extends StatefulWidget {
 class _MyBookingsScreenState extends State<MyBookingsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final List<Booking> _allBookings = [];
+  final TurfDataService _turfService = TurfDataService();
+
+  List<Booking> get _allBookings => _turfService.bookings;
 
   // Define turf images for each booking
   final Map<String, String> _turfImages = {
@@ -35,103 +38,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-
-    // Initialize with sample bookings
-    final now = DateTime.now();
-    _allBookings.addAll([
-      // Upcoming/Pending - Today's booking
-      Booking(
-        id: '1',
-        turfName: 'Green Field Arena',
-        location: 'PN Pudur',
-        distance: 2.5,
-        rating: 4.8,
-        date: DateTime(now.year, now.month, now.day),
-        startTime: '18:00',
-        endTime: '19:00',
-        amount: 500,
-        status: BookingStatus.upcoming,
-        paymentStatus: 'Paid',
-        bookingId: 'TURF-2024-001',
-        amenities: ["Lights", "Parking", "Water"],
-        mapLink: "https://maps.app.goo.gl/xyz123",
-        address: "123 Sports Complex, PN Pudur, Coimbatore",
-      ),
-      // Upcoming - Tomorrow
-      Booking(
-        id: '2',
-        turfName: 'Elite Football Ground',
-        location: 'Race Course',
-        distance: 3.1,
-        rating: 4.9,
-        date: DateTime(now.year, now.month, now.day + 1),
-        startTime: '17:00',
-        endTime: '18:00',
-        amount: 800,
-        status: BookingStatus.upcoming,
-        paymentStatus: 'Paid',
-        bookingId: 'TURF-2024-002',
-        amenities: ["Flood Lights", "Gym", "Parking", "WiFi", "Showers"],
-        mapLink: "https://maps.app.goo.gl/def789",
-        address: "Race Course Road, Coimbatore",
-      ),
-      // Completed - Yesterday (automatically moved from upcoming)
-      Booking(
-        id: '3',
-        turfName: 'City Sports Turf',
-        location: 'Gandhipuram',
-        distance: 4.2,
-        rating: 4.5,
-        date: DateTime(now.year, now.month, now.day - 1),
-        startTime: '18:00',
-        endTime: '19:00',
-        amount: 650,
-        status: BookingStatus.completed,
-        paymentStatus: 'Paid',
-        bookingId: 'TURF-2024-003',
-        amenities: ["Cafeteria", "Parking"],
-        mapLink: "https://maps.app.goo.gl/abc456",
-        address: "45 Main Road, Gandhipuram, Coimbatore",
-      ),
-      // Completed - 2 days ago
-      Booking(
-        id: '4',
-        turfName: 'Victory Sports Park',
-        location: 'Peelamedu',
-        distance: 5.7,
-        rating: 4.3,
-        date: DateTime(now.year, now.month, now.day - 2),
-        startTime: '19:00',
-        endTime: '20:00',
-        amount: 450,
-        status: BookingStatus.completed,
-        paymentStatus: 'Paid',
-        bookingId: 'TURF-2024-004',
-        amenities: ["Flood Lights", "Parking", "Water"],
-        mapLink: "https://maps.app.goo.gl/ghi012",
-        address: "Peelamedu Industrial Estate, Coimbatore",
-      ),
-      // Cancelled
-      Booking(
-        id: '5',
-        turfName: 'Premium Sports Arena',
-        location: 'Singanallur',
-        distance: 6.2,
-        rating: 4.7,
-        date: DateTime(now.year, now.month, now.day + 2),
-        startTime: '20:00',
-        endTime: '21:00',
-        amount: 1200,
-        status: BookingStatus.cancelled,
-        paymentStatus: 'Refunded',
-        bookingId: 'TURF-2024-005',
-        amenities: ["Flood Lights", "Parking", "Water", "Showers", "Cafeteria"],
-        mapLink: "https://maps.app.goo.gl/jkl345",
-        address: "Singanallur Industrial Area, Coimbatore",
-      ),
-    ]);
-
-    // Start checking for completed bookings
+    _turfService.initDemoBookings();
     _startStatusCheckTimer();
   }
 
@@ -213,8 +120,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
               });
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text("Booking cancelled successfully"),
+                const SnackBar(
+                  content: Text("Booking cancelled successfully"),
                   backgroundColor: Colors.green,
                 ),
               );
@@ -391,7 +298,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               disabledBackgroundColor: Colors.grey[300],
                             ),
-                            child: Text(
+                            child: const Text(
                               "Submit Review",
                               style: TextStyle(
                                 fontSize: 14,
@@ -423,6 +330,20 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           },
         );
       },
+    );
+  }
+
+  void _viewBookingDetails(Booking booking) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BookingDetailsScreen(
+          booking: booking,
+          imageUrl:
+              _turfImages[booking.turfName] ??
+              "https://images.unsplash.com/photo-1531315630201-bb15abeb1653?w=800",
+        ),
+      ),
     );
   }
 
@@ -534,6 +455,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           onCancel: () => _cancelBooking(bookings[index]),
           onOpenMap: (mapLink) => _openMapLocation(mapLink),
           onRate: (turfName) => _showRatingDialog(context, turfName),
+          onViewDetails: () => _viewBookingDetails(bookings[index]),
         );
       },
     );
@@ -547,6 +469,7 @@ class BookingTurfCard extends StatelessWidget {
   final VoidCallback onCancel;
   final Function(String) onOpenMap;
   final Function(String) onRate;
+  final VoidCallback onViewDetails;
 
   const BookingTurfCard({
     super.key,
@@ -556,6 +479,7 @@ class BookingTurfCard extends StatelessWidget {
     required this.onCancel,
     required this.onOpenMap,
     required this.onRate,
+    required this.onViewDetails,
   });
 
   @override
@@ -622,8 +546,8 @@ class BookingTurfCard extends StatelessWidget {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
+                    topLeft: Radius.circular(18),
+                    topRight: Radius.circular(18),
                   ),
                   image: DecorationImage(
                     image: NetworkImage(imageUrl),
@@ -668,8 +592,7 @@ class BookingTurfCard extends StatelessWidget {
                 ),
               ),
 
-              // Paid Status Badge (Top Right)
-              // Paid Status Badge (Top Right)
+              // Paid Status Badge
               if (booking.paymentStatus == 'Paid')
                 Positioned(
                   top: 10,
@@ -694,7 +617,7 @@ class BookingTurfCard extends StatelessWidget {
                   ),
                 ),
 
-              // Refund Status Badge (No else)
+              // Refund Status Badge
               if (booking.paymentStatus.contains('Refund'))
                 Positioned(
                   top: 10,
@@ -718,42 +641,6 @@ class BookingTurfCard extends StatelessWidget {
                     ),
                   ),
                 ),
-
-              // Distance Badge (Moved to bottom when paid status is shown)
-              Positioned(
-                bottom: 10,
-                right: 10,
-                child: GestureDetector(
-                  onTap: () => onOpenMap(booking.mapLink),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.near_me_outlined,
-                          size: 12,
-                          color: Color(0xFF00C853),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          "${booking.distance} km",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
 
@@ -763,7 +650,6 @@ class BookingTurfCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Turf Name and Rating
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -778,21 +664,19 @@ class BookingTurfCard extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                               color: Colors.black87,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 4),
                           Row(
                             children: [
-                              Icon(
-                                Icons.location_on_outlined,
-                                size: 12,
-                                color: Colors.grey[600],
+                              const Icon(
+                                Icons.location_on,
+                                size: 14,
+                                color: Colors.redAccent,
                               ),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  booking.location,
+                                  booking.address,
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[600],
@@ -806,265 +690,142 @@ class BookingTurfCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    GestureDetector(
+                      onTap: () => onOpenMap(booking.mapLink),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00C853).withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.directions,
+                          color: Color(0xFF00C853),
+                          size: 20,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
-                // Price and Rating Row
+                // Date & Time
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.amber[50],
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.star, size: 12, color: Colors.amber[700]),
-                          const SizedBox(width: 4),
-                          Text(
-                            booking.rating.toString(),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.amber[800],
-                            ),
-                          ),
-                        ],
-                      ),
+                    _buildFeatureInfo(
+                      Icons.calendar_today,
+                      dateText,
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00C853).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.currency_rupee_outlined,
-                            size: 12,
-                            color: const Color(0xFF00C853),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            "${booking.amount}/hour",
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF00C853),
-                            ),
-                          ),
-                        ],
-                      ),
+                    const SizedBox(width: 12),
+                    _buildFeatureInfo(
+                      Icons.access_time,
+                      "${booking.startTime} - ${booking.endTime}",
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 12),
-
-                // Booking Date & Time
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey[200]!),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        size: 14,
-                        color: Colors.grey[700],
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            dateText,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[800],
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "${booking.startTime} - ${booking.endTime}",
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      // Payment Status Indicator
-                      if (booking.status != BookingStatus.cancelled)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: booking.paymentStatus == 'Paid'
-                                ? Colors.green[50]
-                                : Colors.orange[50],
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: booking.paymentStatus == 'Paid'
-                                  ? Colors.green[100]!
-                                  : Colors.orange[100]!,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                booking.paymentStatus == 'Paid'
-                                    ? Icons.check_circle_outlined
-                                    : Icons.money_off_outlined,
-                                size: 12,
-                                color: booking.paymentStatus == 'Paid'
-                                    ? Colors.green[600]
-                                    : Colors.orange[600],
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                booking.paymentStatus,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: booking.paymentStatus == 'Paid'
-                                      ? Colors.green[700]
-                                      : Colors.orange[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
                 // Action Buttons
-                if (showCancelButton &&
-                    booking.status == BookingStatus.upcoming)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 36,
-                          child: OutlinedButton(
-                            onPressed: onCancel,
-                            style: OutlinedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              side: BorderSide(color: Colors.red[300]!),
-                              backgroundColor: Colors.red[50],
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 40,
+                        child: OutlinedButton(
+                          onPressed: onViewDetails,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF00C853)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Text(
-                              "Cancel Booking",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.red[800],
-                              ),
+                          ),
+                          child: const Text(
+                            "View Details",
+                            style: TextStyle(
+                              color: Color(0xFF00C853),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                    ),
+                    const SizedBox(width: 12),
+                    if (showCancelButton &&
+                        booking.status == BookingStatus.upcoming)
                       Expanded(
                         child: SizedBox(
-                          height: 36,
+                          height: 40,
                           child: ElevatedButton(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("Viewing booking details"),
-                                  backgroundColor: Color(0xFF00C853),
-                                ),
-                              );
-                            },
+                            onPressed: onCancel,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00C853),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                              backgroundColor: Colors.redAccent,
                               elevation: 0,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
                               ),
                             ),
                             child: const Text(
-                              "View Details",
+                              "Cancel",
                               style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
                                 color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-
-                if (booking.status == BookingStatus.completed)
-                  SizedBox(
-                    height: 36,
-                    child: ElevatedButton(
-                      onPressed: () => onRate(booking.turfName),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00C853),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.star_outlined,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            "Rate This Turf",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                    if (booking.status == BookingStatus.completed)
+                      Expanded(
+                        child: SizedBox(
+                          height: 40,
+                          child: ElevatedButton(
+                            onPressed: () => onRate(booking.turfName),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00C853),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text(
+                              "Rate Now",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                  ],
+                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFeatureInfo(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: Colors.grey[600]),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[700],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,5 +1,6 @@
 // my_bookings_screen.dart - UPDATED
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -12,11 +13,22 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   int _selectedFilter = 0;
   List<String> filters = ['Today', 'Upcoming', 'Past', 'All'];
 
+  Future<void> _launchCaller(String phoneNumber) async {
+    final Uri url = Uri.parse('tel:$phoneNumber');
+    if (!await launchUrl(url)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Could not launch dialer for $phoneNumber")),
+        );
+      }
+    }
+  }
+
   List<Map<String, dynamic>> allBookings = [
     {
       'id': 'BK001',
       'customer': 'Rajesh Kumar',
-      'phone': '9876543210',
+      'phone': '+91 8825934519',
       'date': 'Today, 7:00 AM',
       'duration': '1 hour',
       'amount': '₹500',
@@ -27,7 +39,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     {
       'id': 'BK002',
       'customer': 'Team Alpha',
-      'phone': '9876543211',
+      'phone': '+91 8825934519',
       'date': 'Today, 8:00 AM',
       'duration': '1 hour',
       'amount': '₹500',
@@ -38,7 +50,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     {
       'id': 'BK003',
       'customer': 'Priya Sharma',
-      'phone': '9876543212',
+      'phone': '+91 8825934519',
       'date': 'Today, 10:00 AM',
       'duration': '1 hour',
       'amount': '₹600',
@@ -49,7 +61,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     {
       'id': 'BK004',
       'customer': 'Vikram Singh',
-      'phone': '9876543213',
+      'phone': '+91 8825934519',
       'date': 'Today, 12:00 PM',
       'duration': '2 hours',
       'amount': '₹1,400',
@@ -60,7 +72,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     {
       'id': 'BK005',
       'customer': 'Anita Rao',
-      'phone': '9876543214',
+      'phone': '+91 8825934519',
       'date': 'Tomorrow, 2:00 PM',
       'duration': '1 hour',
       'amount': '₹700',
@@ -71,7 +83,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     {
       'id': 'BK006',
       'customer': 'Rahul Mehta',
-      'phone': '9876543215',
+      'phone': '+91 8825934519',
       'date': 'Tomorrow, 3:00 PM',
       'duration': '2 hours',
       'amount': '₹1,600',
@@ -82,7 +94,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     {
       'id': 'BK007',
       'customer': 'Suresh Kumar',
-      'phone': '9876543216',
+      'phone': '+91 8825934519',
       'date': 'Tomorrow, 4:00 PM',
       'duration': '1 hour',
       'amount': '₹800',
@@ -93,7 +105,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     {
       'id': 'BK008',
       'customer': 'Neha Gupta',
-      'phone': '9876543217',
+      'phone': '+91 8825934519',
       'date': 'Tomorrow, 6:00 PM',
       'duration': '1 hour',
       'amount': '₹900',
@@ -383,58 +395,15 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      // Call customer
-                    },
-                    icon: Icon(Icons.phone, size: 16),
-                    label: Text('Call'),
+                    onPressed: () => _launchCaller(booking['phone']),
+                    icon: const Icon(Icons.phone, size: 16),
+                    label: const Text('Call Customer'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.blue,
-                      side: BorderSide(color: Colors.blue),
+                      side: const BorderSide(color: Colors.blue),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      // Message customer
-                    },
-                    icon: Icon(Icons.message, size: 16),
-                    label: Text('Message'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.green,
-                      side: BorderSide(color: Colors.green),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: booking['status'] == 'pending'
-                      ? ElevatedButton.icon(
-                          onPressed: () {
-                            _confirmBooking(booking, index);
-                          },
-                          icon: Icon(Icons.check, size: 16),
-                          label: Text('Confirm'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF00C853),
-                            foregroundColor: Colors.white,
-                          ),
-                        )
-                      : booking['status'] == 'confirmed'
-                      ? OutlinedButton.icon(
-                          onPressed: () {
-                            _cancelBooking(booking, index);
-                          },
-                          icon: Icon(Icons.cancel, size: 16),
-                          label: Text('Cancel'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: BorderSide(color: Colors.red),
-                          ),
-                        )
-                      : SizedBox(),
                 ),
               ],
             ),

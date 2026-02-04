@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:turfzone/features/partner/join_partner_screen.dart';
 import 'package:turfzone/features/bookings/my_bookings_screen.dart';
@@ -6,9 +7,20 @@ import 'package:turfzone/features/Privacy_policy/privacy_policy_screen.dart';
 import 'package:turfzone/features/Terms_condition/terms_conditions_screen.dart';
 // Add this import:
 import 'package:turfzone/features/credits_rewards/credits_rewards_screen.dart'; // Add this line
+import 'package:turfzone/features/auth/otp_login_screen.dart';
+import 'package:turfzone/features/profile/edit_profile_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  String _userName = "John Doe";
+  String _userEmail = "john.doe@example.com";
+  File? _userImage;
 
   @override
   Widget build(BuildContext context) {
@@ -29,8 +41,24 @@ class ProfileScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined, size: 22),
-            onPressed: () {
-              // Navigate to edit profile
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditProfileScreen(
+                    currentName: _userName,
+                    currentEmail: _userEmail,
+                  ),
+                ),
+              );
+
+              if (result != null && result is Map<String, dynamic>) {
+                setState(() {
+                  _userName = result['name'] ?? _userName;
+                  _userEmail = result['email'] ?? _userEmail;
+                  _userImage = result['image'];
+                });
+              }
             },
           ),
         ],
@@ -94,15 +122,23 @@ class ProfileScreen extends StatelessWidget {
                       Container(
                         width: 94,
                         height: 94,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Color(0xFF1DB954),
+                          color: const Color(0xFF1DB954),
+                          image: _userImage != null
+                              ? DecorationImage(
+                                  image: FileImage(_userImage!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
                         ),
-                        child: const Icon(
-                          Icons.person,
-                          size: 48,
-                          color: Colors.white,
-                        ),
+                        child: _userImage == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 48,
+                                color: Colors.white,
+                              )
+                            : null,
                       ),
                       // Verified badge
                       Positioned(
@@ -137,9 +173,9 @@ class ProfileScreen extends StatelessWidget {
                 // User Info with better typography
                 Column(
                   children: [
-                    const Text(
-                      "John Doe",
-                      style: TextStyle(
+                    Text(
+                      _userName,
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -147,9 +183,9 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      "john.doe@example.com",
-                      style: TextStyle(
+                    Text(
+                      _userEmail,
+                      style: const TextStyle(
                         fontSize: 14,
                         color: Colors.white,
                         fontWeight: FontWeight.w400,
@@ -688,7 +724,7 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) {
+      builder: (modalContext) {
         return Container(
           margin: const EdgeInsets.all(20),
           child: Column(
@@ -799,17 +835,19 @@ class ProfileScreen extends StatelessWidget {
                             color: Colors.transparent,
                             child: InkWell(
                               onTap: () {
-                                Navigator.pop(context);
-                                Navigator.pop(context);
+                                debugPrint("Logout button pressed");
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const OtpLoginScreen(),
+                                  ),
+                                  (route) => false,
+                                );
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                   SnackBar(
+                                  const SnackBar(
                                     content: Text("Logged out successfully"),
                                     backgroundColor: Color(0xFF1DB954),
                                     behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    margin: EdgeInsets.all(20),
                                   ),
                                 );
                               },

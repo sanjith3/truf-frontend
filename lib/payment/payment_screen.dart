@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../features/bookings/my_bookings_screen.dart';
+import '../features/home/user_home_screen.dart';
 import '../models/turf.dart';
+import '../services/turf_data_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Turf turf;
@@ -80,6 +83,26 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   void _showPaymentSuccess() {
+    // Save booking to service
+    final newBooking = Booking(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      turfName: widget.turf.name,
+      location: widget.turf.location,
+      distance: widget.turf.distance,
+      rating: widget.turf.rating,
+      date: widget.selectedDate,
+      startTime: widget.selectedTimeSlots.first.split(" - ")[0],
+      endTime: widget.selectedTimeSlots.last.split(" - ")[1],
+      amount: widget.totalAmount,
+      status: BookingStatus.upcoming,
+      paymentStatus: 'Paid',
+      bookingId: 'TURF-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+      amenities: widget.turf.amenities,
+      mapLink: widget.turf.mapLink,
+      address: widget.turf.address,
+    );
+    TurfDataService().addBooking(newBooking);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -152,7 +175,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.popUntil(context, (route) => route.isFirst);
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const UserHomeScreen(),
+                      ),
+                      (route) => false,
+                    );
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MyBookingsScreen(),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1DB954),
@@ -161,7 +196,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     ),
                   ),
                   child: const Text(
-                    "BACK TO HOME",
+                    "GO TO MY BOOKINGS",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../home/user_home_screen.dart';
 
@@ -32,6 +33,10 @@ class OtpVerifyScreen extends StatelessWidget {
             TextField(
               controller: otpController,
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(6),
+              ],
               decoration: InputDecoration(
                 hintText: "6-digit OTP",
                 border: OutlineInputBorder(
@@ -51,12 +56,22 @@ class OtpVerifyScreen extends StatelessWidget {
                 ),
               ),
               onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const UserHomeScreen(),
-                  ),
-                );
+                if (otpController.text == "123456") {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const UserHomeScreen(),
+                    ),
+                    (route) => false,
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Invalid OTP. Please enter 123456"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               child: const Text(
                 "Verify & Continue",

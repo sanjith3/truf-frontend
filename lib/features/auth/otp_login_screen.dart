@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'otp_verify_screen.dart';
 
@@ -34,7 +35,11 @@ class OtpLoginScreen extends StatelessWidget {
 
             TextField(
               controller: phoneController,
-              keyboardType: TextInputType.phone,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
               decoration: InputDecoration(
                 hintText: "Enter Mobile Number",
                 prefixIcon: const Icon(Icons.phone),
@@ -55,6 +60,25 @@ class OtpLoginScreen extends StatelessWidget {
                 ),
               ),
               onPressed: () {
+                if (phoneController.text.length != 10) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Please enter a valid 10-digit mobile number"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                // Show demo OTP for user convenience
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Demo OTP sent: 123456"),
+                    backgroundColor: Color(0xFF1DB954),
+                    duration: Duration(seconds: 4),
+                  ),
+                );
+
                 Navigator.push(
                   context,
                   MaterialPageRoute(

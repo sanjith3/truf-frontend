@@ -1,5 +1,6 @@
 // turf_details_screen.dart
 import 'dart:async';
+import 'package:turfzone/booking/booking_screen.dart';
 import 'package:flutter/material.dart';
 import '../models/turf.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -18,32 +19,9 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
   final PageController _pageController = PageController();
 
   // Sample turf details - in real app, these would come from the turf model
-  final List<String> _turfImages = [
-    "https://images.unsplash.com/photo-1531315630201-bb15abeb1653?w=800",
-    "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800",
-    "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800",
-    "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800",
-    "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800",
-  ];
-
-  final List<String> _availableGames = [
-    "Football",
-    "Cricket",
-    "Badminton",
-    "Volleyball",
-    "Basketball",
-  ];
-
-  final List<String> _facilities = [
-    "Flood Lights",
-    "Changing Rooms",
-    "Parking (50+ cars)",
-    "Cafeteria",
-    "First Aid",
-    "Water Coolers",
-    "WiFi",
-    "Security",
-  ];
+  List<String> get _turfImages => widget.turf.images;
+  List<String> get _availableGames => widget.turf.sports;
+  List<String> get _facilities => widget.turf.amenities;
 
   @override
   void initState() {
@@ -298,7 +276,9 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Experience world-class sporting facilities at ${widget.turf.name}. Our professionally maintained turf features high-quality artificial grass, professional-grade equipment, and excellent lighting for night games. Perfect for football, cricket, and other sports.",
+                      widget.turf.description.isEmpty 
+                        ? "Experience world-class sporting facilities at ${widget.turf.name}. Our professionally maintained turf features high-quality artificial grass, professional-grade equipment, and excellent lighting for night games. Perfect for football, cricket, and other sports."
+                        : widget.turf.description,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade700,
@@ -478,7 +458,12 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                       height: 56,
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BookingScreen(turf: widget.turf),
+                            ),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1DB954),

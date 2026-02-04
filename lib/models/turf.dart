@@ -9,6 +9,7 @@ class Turf {
   final List<String> amenities;
   final List<String> sports;
 
+  final String city;
   final String mapLink;
   final String address;
   final String description;
@@ -17,6 +18,7 @@ class Turf {
     required this.id,
     required this.name,
     required this.location,
+    required this.city,
     required this.distance,
     required this.price,
     required this.rating,

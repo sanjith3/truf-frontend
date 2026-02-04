@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../../services/turf_data_service.dart';
+import '../../models/turf.dart';
 
 class JoinPartnerScreen extends StatefulWidget {
   const JoinPartnerScreen({super.key});
@@ -48,12 +50,40 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
   bool isConfirmed = false;
 
   void _submitForm() {
+    if (!_formKey.currentState!.validate()) return;
+    if (!isConfirmed) {
+      _showSnackBar('Please confirm the accuracy of information', isError: true);
+      return;
+    }
+
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => const ProcessingDialog(),
     );
+
+    // Create new Turf object
+    final newTurf = Turf(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: _businessNameController.text.trim(),
+      location: _cityController.text.trim(),
+      city: _cityController.text.trim(),
+      distance: 2.0, // Default for demo
+      price: int.tryParse(_priceController.text.trim()) ?? 500,
+      rating: 5.0, // New turfs get 5.0
+      images: [
+        "https://images.unsplash.com/photo-1531315630201-bb15abeb1653?w=800",
+      ],
+      amenities: ["Flood Lights", "Parking", "Water"], // Default for demo
+      sports: [...selectedSports, ...customSports],
+      mapLink: _mapsLinkController.text.trim(),
+      address: _addressController.text.trim(),
+      description: _descriptionController.text.trim(),
+    );
+
+    // Save to service
+    TurfDataService().addTurf(newTurf);
 
     // Simulate API call
     Future.delayed(const Duration(seconds: 2), () {
