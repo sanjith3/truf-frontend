@@ -6,6 +6,7 @@ import 'package:turfzone/features/profile/profile_screen.dart';
 import 'package:turfzone/features/Admindashboard/admin_screen.dart';
 import '../../turffdetail/turfdetails_screen.dart';
 import '../../services/turf_data_service.dart';
+import 'package:geolocator/geolocator.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -19,61 +20,381 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   List<Turf> _filteredTurfs = [];
   final TurfDataService _turfService = TurfDataService();
   String _selectedLocation = "Coimbatore";
+  String _selectedState = "Tamil Nadu";
+  bool _isLocationLoading = false;
 
-  final List<String> _tnCities = [
-    'Ariyalur', 'Chengalpattu', 'Chennai', 'Coimbatore', 'Cuddalore', 'Dharmapuri', 
-    'Dindigul', 'Erode', 'Kallakurichi', 'Kanchipuram', 'Kanyakumari', 'Karur', 
-    'Krishnagiri', 'Madurai', 'Mayiladuthurai', 'Nagapattinam', 'Namakkal', 
-    'Nilgiris', 'Perambalur', 'Pudukkottai', 'Ramanathapuram', 'Ranipet', 
-    'Salem', 'Sivaganga', 'Tenkasi', 'Thanjavur', 'Theni', 'Thoothukudi', 
-    'Tiruchirappalli', 'Tirunelveli', 'Tirupathur', 'Tiruppur', 'Tiruvallur', 
-    'Tiruvannamalai', 'Tiruvarur', 'Vellore', 'Viluppuram', 'Virudhunagar'
-  ];
+  // Offer filter
+  bool _offerFilter = false;
+
+  // Indian states and their major cities
+  final Map<String, List<String>> _indianStates = {
+    'Tamil Nadu': [
+      'Chennai',
+      'Coimbatore',
+      'Madurai',
+      'Tiruchirappalli',
+      'Salem',
+      'Tiruppur',
+      'Erode',
+      'Vellore',
+      'Thoothukudi',
+      'Dindigul',
+    ],
+    'Karnataka': [
+      'Bangalore',
+      'Mysuru',
+      'Hubballi',
+      'Mangaluru',
+      'Belagavi',
+      'Kalaburagi',
+      'Davanagere',
+      'Ballari',
+      'Vijayapura',
+      'Shivamogga',
+    ],
+    'Maharashtra': [
+      'Mumbai',
+      'Pune',
+      'Nagpur',
+      'Nashik',
+      'Aurangabad',
+      'Solapur',
+      'Amravati',
+      'Kolhapur',
+      'Navi Mumbai',
+      'Thane',
+    ],
+    'Delhi': ['New Delhi', 'Delhi'],
+    'Kerala': [
+      'Thiruvananthapuram',
+      'Kochi',
+      'Kozhikode',
+      'Thrissur',
+      'Kollam',
+      'Alappuzha',
+      'Kannur',
+      'Kasaragod',
+      'Palakkad',
+      'Malappuram',
+    ],
+    'Telangana': [
+      'Hyderabad',
+      'Warangal',
+      'Nizamabad',
+      'Khammam',
+      'Karimnagar',
+      'Ramagundam',
+      'Mahbubnagar',
+      'Adilabad',
+      'Nalgonda',
+      'Suryapet',
+    ],
+    'Andhra Pradesh': [
+      'Visakhapatnam',
+      'Vijayawada',
+      'Guntur',
+      'Nellore',
+      'Kurnool',
+      'Rajahmundry',
+      'Kadapa',
+      'Anantapur',
+      'Eluru',
+      'Ongole',
+    ],
+    'Gujarat': [
+      'Ahmedabad',
+      'Surat',
+      'Vadodara',
+      'Rajkot',
+      'Bhavnagar',
+      'Jamnagar',
+      'Gandhinagar',
+      'Junagadh',
+      'Gandhidham',
+      'Anand',
+    ],
+    'Rajasthan': [
+      'Jaipur',
+      'Jodhpur',
+      'Udaipur',
+      'Kota',
+      'Bikaner',
+      'Ajmer',
+      'Bhilwara',
+      'Alwar',
+      'Sikar',
+      'Pali',
+    ],
+    'West Bengal': [
+      'Kolkata',
+      'Howrah',
+      'Durgapur',
+      'Asansol',
+      'Siliguri',
+      'Bardhaman',
+      'Malda',
+      'Baharampur',
+      'Habra',
+      'Kharagpur',
+    ],
+  };
+
+  // Get current location
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      _isLocationLoading = true;
+    });
+
+    try {
+      // Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permission denied')),
+          );
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location permissions are permanently denied.'),
+          ),
+        );
+        return;
+      }
+
+      // Get position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // In a real app, you would reverse geocode to get city and state
+      // For now, we'll simulate with a default
+      setState(() {
+        _selectedState = "Tamil Nadu";
+        _selectedLocation = "Coimbatore";
+        _applyFilters();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Location set to $_selectedLocation, $_selectedState'),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error getting location: $e')));
+    } finally {
+      setState(() {
+        _isLocationLoading = false;
+      });
+    }
+  }
 
   void _showLocationPicker() {
+    String? tempSelectedState = _selectedState;
+    String? tempSelectedCity = _selectedLocation;
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Select Location",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 15),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _tnCities.length,
-                  itemBuilder: (context, index) {
-                    final city = _tnCities[index];
-                    return ListTile(
-                      title: Text(city),
-                      trailing: _selectedLocation == city 
-                        ? const Icon(Icons.check_circle, color: Color(0xFF1DB954))
-                        : null,
-                      onTap: () {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Select Location",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+
+                  // Current Location Button
+                  Container(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isLocationLoading
+                          ? null
+                          : () {
+                              _getCurrentLocation();
+                              Navigator.pop(context);
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[50],
+                        foregroundColor: Colors.green[800],
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 16,
+                        ),
+                      ),
+                      icon: _isLocationLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.my_location, size: 20),
+                      label: Text(
+                        _isLocationLoading
+                            ? 'Detecting Location...'
+                            : 'Use Current Location',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // State and City Selection
+                  Expanded(
+                    child: Row(
+                      children: [
+                        // States List
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border(
+                                right: BorderSide(
+                                  color: Colors.grey[300]!,
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            child: ListView.builder(
+                              itemCount: _indianStates.keys.length,
+                              itemBuilder: (context, index) {
+                                final state = _indianStates.keys.elementAt(
+                                  index,
+                                );
+                                return ListTile(
+                                  title: Text(
+                                    state,
+                                    style: TextStyle(
+                                      fontWeight: tempSelectedState == state
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      color: tempSelectedState == state
+                                          ? Colors.green[800]
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                  trailing: tempSelectedState == state
+                                      ? Icon(
+                                          Icons.check,
+                                          color: Colors.green[800],
+                                          size: 20,
+                                        )
+                                      : null,
+                                  onTap: () {
+                                    setState(() {
+                                      tempSelectedState = state;
+                                      tempSelectedCity =
+                                          _indianStates[state]!.first;
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+
+                        // Cities List
+                        Expanded(
+                          flex: 3,
+                          child: tempSelectedState != null
+                              ? ListView.builder(
+                                  itemCount:
+                                      _indianStates[tempSelectedState]!.length,
+                                  itemBuilder: (context, index) {
+                                    final city =
+                                        _indianStates[tempSelectedState]![index];
+                                    return ListTile(
+                                      title: Text(city),
+                                      trailing: tempSelectedCity == city
+                                          ? Icon(
+                                              Icons.check,
+                                              color: Colors.green[800],
+                                              size: 20,
+                                            )
+                                          : null,
+                                      onTap: () {
+                                        setState(() {
+                                          tempSelectedCity = city;
+                                        });
+                                      },
+                                    );
+                                  },
+                                )
+                              : const Center(
+                                  child: Text("Select a state first"),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Apply Button
+                  Container(
+                    margin: const EdgeInsets.only(top: 20),
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
                         setState(() {
-                          _selectedLocation = city;
+                          _selectedState = tempSelectedState!;
+                          _selectedLocation = tempSelectedCity!;
                           _applyFilters();
                         });
                         Navigator.pop(context);
                       },
-                    );
-                  },
-                ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        "Apply Location",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -89,7 +410,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     'Night': false,
   };
 
-  // Updated category/sport filters
+  // Updated category/sport filters with more sports
   final Map<String, bool> _sportFilters = {
     'Cricket': false,
     'Football': false,
@@ -98,6 +419,19 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     'Basketball': false,
     'Volleyball': false,
     'Table Tennis': false,
+    'Swimming': false,
+    'Gym': false,
+    'Squash': false,
+    'Hockey': false,
+    'Rugby': false,
+    'Baseball': false,
+    'Boxing': false,
+    'MMA': false,
+    'Yoga': false,
+    'Pilates': false,
+    'Karate': false,
+    'Judo': false,
+    'Archery': false,
   };
 
   List<Turf> get _turfs => _turfService.turfs;
@@ -107,7 +441,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     super.initState();
     _filteredTurfs = _turfs;
     _searchController.addListener(_searchTurfs);
-    
+
     if (_turfs.isNotEmpty) {
       _maxPrice = _turfs
           .map((t) => t.price.toDouble())
@@ -152,7 +486,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 
     // Apply city filter
     filtered = filtered
-        .where((turf) => turf.city.toLowerCase() == _selectedLocation.toLowerCase())
+        .where(
+          (turf) => turf.city.toLowerCase() == _selectedLocation.toLowerCase(),
+        )
         .toList();
 
     // Apply price range filter
@@ -198,6 +534,21 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       }).toList();
     }
 
+    // Apply offer filter
+    if (_offerFilter) {
+      // List of turf names that have offers (in real app, this would come from API)
+      final offerTurfNames = [
+        'Green Field Arena',
+        'Elite Football Ground',
+        'Shuttle Masters Academy',
+        'City Sports Complex',
+        'Royal Turf Ground',
+      ];
+      filtered = filtered
+          .where((turf) => offerTurfNames.contains(turf.name))
+          .toList();
+    }
+
     setState(() {
       _filteredTurfs = filtered;
     });
@@ -212,6 +563,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       _sportFilters.forEach((key, value) {
         _sportFilters[key] = false;
       });
+      _offerFilter = false;
       _applyFilters();
     });
   }
@@ -274,13 +626,28 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      Text(
-                                        _selectedLocation,
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _selectedLocation,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          Text(
+                                            _selectedState,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.white.withOpacity(
+                                                0.9,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                       const Icon(
                                         Icons.keyboard_arrow_down,
@@ -288,13 +655,6 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                         size: 16,
                                       ),
                                     ],
-                                  ),
-                                  Text(
-                                    "Tamil Nadu",
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.white.withOpacity(0.9),
-                                    ),
                                   ),
                                 ],
                               ),
@@ -547,7 +907,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     return _priceRange.start > 0 ||
         _priceRange.end < _maxPrice ||
         _timeFilters.values.any((value) => value) ||
-        _sportFilters.values.any((value) => value);
+        _sportFilters.values.any((value) => value) ||
+        _offerFilter;
   }
 
   void _showFilterOptions(BuildContext context) {
@@ -610,6 +971,41 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Special Offers Filter
+                          const Text(
+                            "Special Offers",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          FilterChip(
+                            label: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.local_offer, size: 16),
+                                SizedBox(width: 6),
+                                Text("Show Turfs with Offers"),
+                              ],
+                            ),
+                            selected: _offerFilter,
+                            onSelected: (selected) {
+                              setState(() {
+                                _offerFilter = selected;
+                              });
+                            },
+                            backgroundColor: _offerFilter
+                                ? Colors.red.shade50
+                                : Colors.grey[100],
+                            selectedColor: Colors.red,
+                            labelStyle: TextStyle(
+                              color: _offerFilter ? Colors.white : Colors.black,
+                            ),
+                          ),
+
+                          const SizedBox(height: 25),
+
                           // Sport Category Filter
                           const Text(
                             "Sport Categories",
@@ -625,7 +1021,20 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                             children: _sportFilters.keys.map((sport) {
                               final isSelected = _sportFilters[sport]!;
                               return ChoiceChip(
-                                label: Text(sport),
+                                label: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _getSportIcon(sport),
+                                      size: 16,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : _getSportColor(sport),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(sport),
+                                  ],
+                                ),
                                 selected: isSelected,
                                 onSelected: (selected) {
                                   setState(() {
@@ -633,11 +1042,12 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                   });
                                 },
                                 backgroundColor: Colors.grey[100],
-                                selectedColor: Colors.green,
+                                selectedColor: _getSportColor(sport),
                                 labelStyle: TextStyle(
                                   color: isSelected
                                       ? Colors.white
-                                      : Colors.black,
+                                      : _getSportColor(sport),
+                                  fontWeight: FontWeight.w500,
                                 ),
                               );
                             }).toList(),
@@ -928,6 +1338,101 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       ),
     );
   }
+
+  // Helper method for sport icons in filter chips
+  IconData _getSportIcon(String sport) {
+    switch (sport.toLowerCase()) {
+      case 'cricket':
+        return Icons.sports_cricket;
+      case 'football':
+        return Icons.sports_soccer;
+      case 'badminton':
+        return Icons.sports_tennis;
+      case 'tennis':
+        return Icons.sports_tennis;
+      case 'basketball':
+        return Icons.sports_basketball;
+      case 'volleyball':
+        return Icons.sports_volleyball;
+      case 'table tennis':
+        return Icons.sports_tennis;
+      case 'swimming':
+        return Icons.pool;
+      case 'gym':
+        return Icons.fitness_center;
+      case 'squash':
+        return Icons.sports_tennis;
+      case 'hockey':
+        return Icons.sports_hockey;
+      case 'rugby':
+        return Icons.sports_rugby;
+      case 'baseball':
+        return Icons.sports_baseball;
+      case 'boxing':
+        return Icons.sports_mma;
+      case 'mma':
+        return Icons.sports_mma;
+      case 'yoga':
+        return Icons.self_improvement;
+      case 'pilates':
+        return Icons.accessibility_new;
+      case 'karate':
+        return Icons.sports_kabaddi;
+      case 'judo':
+        return Icons.sports_kabaddi;
+      case 'archery':
+        return Icons.arrow_circle_right;
+      default:
+        return Icons.sports;
+    }
+  }
+
+  Color _getSportColor(String sport) {
+    switch (sport.toLowerCase()) {
+      case 'cricket':
+        return Colors.green;
+      case 'football':
+        return Colors.blue;
+      case 'badminton':
+        return Colors.red;
+      case 'tennis':
+        return Colors.orange;
+      case 'basketball':
+        return Colors.purple;
+      case 'volleyball':
+        return Colors.teal;
+      case 'table tennis':
+        return Colors.pink;
+      case 'swimming':
+        return Colors.cyan;
+      case 'gym':
+        return Colors.purple;
+      case 'squash':
+        return Colors.amber;
+      case 'hockey':
+        return Colors.blueGrey;
+      case 'rugby':
+        return Colors.green;
+      case 'baseball':
+        return Colors.red;
+      case 'boxing':
+        return Colors.brown;
+      case 'mma':
+        return Colors.black;
+      case 'yoga':
+        return Colors.purpleAccent;
+      case 'pilates':
+        return Colors.cyan;
+      case 'karate':
+        return Colors.orangeAccent;
+      case 'judo':
+        return Colors.blueAccent;
+      case 'archery':
+        return Colors.deepOrange;
+      default:
+        return Colors.green;
+    }
+  }
 }
 
 class TurfCard extends StatefulWidget {
@@ -956,6 +1461,24 @@ class _TurfCardState extends State<TurfCard> {
       context,
       MaterialPageRoute(builder: (_) => TurfDetailsScreen(turf: widget.turf)),
     );
+  }
+
+  // Check if turf has an offer (for demo purposes)
+  bool get _hasOffer {
+    // For demo, let's show offer for specific turfs
+    final offerTurfNames = [
+      'Green Field Arena',
+      'Elite Football Ground',
+      'Shuttle Masters Academy',
+      'City Sports Complex',
+      'Royal Turf Ground',
+    ];
+    return offerTurfNames.contains(widget.turf.name);
+  }
+
+  // Calculate offer price (for demo)
+  double get _offerPrice {
+    return widget.turf.price * 0.8; // 20% discount
   }
 
   @override
@@ -1038,6 +1561,50 @@ class _TurfCardState extends State<TurfCard> {
                       ),
                     ),
 
+                    // Offer badge (top right)
+                    if (_hasOffer)
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.red[600]!, Colors.red[400]!],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.local_offer,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                "20% OFF",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
                     // Rating badge with smaller padding
                     Positioned(
                       top: 12,
@@ -1078,46 +1645,90 @@ class _TurfCardState extends State<TurfCard> {
                     ),
 
                     // Distance badge
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: GestureDetector(
-                        onTap: _openMapLocation,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 6,
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.location_on,
-                                color: Colors.green,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                "${widget.turf.distance} km",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                    if (!_hasOffer)
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: GestureDetector(
+                          onTap: _openMapLocation,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 6,
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on,
+                                  color: Colors.green,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "${widget.turf.distance} km",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
+
+                    // Distance badge for offer cards (moved to left when offer exists)
+                    if (_hasOffer)
+                      Positioned(
+                        top: 48,
+                        left: 12,
+                        child: GestureDetector(
+                          onTap: _openMapLocation,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on,
+                                  color: Colors.green,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "${widget.turf.distance} km",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -1172,25 +1783,87 @@ class _TurfCardState extends State<TurfCard> {
                         ],
                       ),
                     ),
+                    // Price with offer
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          "₹${widget.turf.price}",
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.green,
-                          ),
-                        ),
-                        Text(
-                          "/hour",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
+                      children: _hasOffer
+                          ? [
+                              // Original price with strikethrough
+                              Text(
+                                "₹${widget.turf.price}",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[500],
+                                  decoration: TextDecoration.lineThrough,
+                                  decorationColor: Colors.red,
+                                  decorationThickness: 2,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              // Offer price
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    "₹${_offerPrice.toInt()}",
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red[50],
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: Colors.red[100]!,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      "SAVE ${(widget.turf.price - _offerPrice).toInt()}",
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.red[700],
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                "/hour",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ]
+                          : [
+                              // Normal price without offer
+                              Text(
+                                "₹${widget.turf.price}",
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.green,
+                                ),
+                              ),
+                              Text(
+                                "/hour",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
                     ),
                   ],
                 ),
@@ -1254,7 +1927,7 @@ class _TurfCardState extends State<TurfCard> {
 
                 const SizedBox(height: 16),
 
-                // Book Button
+                // Book Button with special offer text
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -1267,7 +1940,7 @@ class _TurfCardState extends State<TurfCard> {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      backgroundColor: _hasOffer ? Colors.red : Colors.green,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -1275,18 +1948,21 @@ class _TurfCardState extends State<TurfCard> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       elevation: 2,
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.calendar_month, size: 20),
-                        SizedBox(width: 10),
+                        const Icon(Icons.calendar_month, size: 20),
+                        const SizedBox(width: 10),
                         Text(
-                          "Book Now",
-                          style: TextStyle(
+                          _hasOffer ? "Book Now & Save" : "Book Now",
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        if (_hasOffer) const SizedBox(width: 4),
+                        if (_hasOffer)
+                          const Icon(Icons.bolt, size: 16, color: Colors.amber),
                       ],
                     ),
                   ),
@@ -1315,6 +1991,32 @@ class _TurfCardState extends State<TurfCard> {
         return Colors.teal;
       case 'table tennis':
         return Colors.pink;
+      case 'swimming':
+        return Colors.cyan;
+      case 'gym':
+        return Colors.purple;
+      case 'squash':
+        return Colors.amber;
+      case 'hockey':
+        return Colors.blueGrey;
+      case 'rugby':
+        return Colors.green;
+      case 'baseball':
+        return Colors.red;
+      case 'boxing':
+        return Colors.brown;
+      case 'mma':
+        return Colors.black;
+      case 'yoga':
+        return Colors.purpleAccent;
+      case 'pilates':
+        return Colors.cyan;
+      case 'karate':
+        return Colors.orangeAccent;
+      case 'judo':
+        return Colors.blueAccent;
+      case 'archery':
+        return Colors.deepOrange;
       default:
         return Colors.green;
     }
@@ -1335,7 +2037,33 @@ class _TurfCardState extends State<TurfCard> {
       case 'volleyball':
         return Icons.sports_volleyball;
       case 'table tennis':
-        return Icons.sports_tennis; // Using same icon for both tennis types
+        return Icons.sports_tennis;
+      case 'swimming':
+        return Icons.pool;
+      case 'gym':
+        return Icons.fitness_center;
+      case 'squash':
+        return Icons.sports_tennis;
+      case 'hockey':
+        return Icons.sports_hockey;
+      case 'rugby':
+        return Icons.sports_rugby;
+      case 'baseball':
+        return Icons.sports_baseball;
+      case 'boxing':
+        return Icons.sports_mma;
+      case 'mma':
+        return Icons.sports_mma;
+      case 'yoga':
+        return Icons.self_improvement;
+      case 'pilates':
+        return Icons.accessibility_new;
+      case 'karate':
+        return Icons.sports_kabaddi;
+      case 'judo':
+        return Icons.sports_kabaddi;
+      case 'archery':
+        return Icons.arrow_circle_right;
       default:
         return Icons.sports;
     }

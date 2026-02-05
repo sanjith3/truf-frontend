@@ -35,8 +35,9 @@ android {
             // Using debug signing config so the APK is installable on mobile devices for testing.
             signingConfig = signingConfigs.getByName("debug")
             
-            minifyEnabled = false
-            shrinkResources = false
+            isMinifyEnabled = false
+isShrinkResources = false
+
         }
         debug {
             signingConfig = signingConfigs.getByName("debug")

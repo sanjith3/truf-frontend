@@ -19,11 +19,20 @@ class _PremiumSlotManagementScreenState
   String _selectedFilter = 'all';
   bool _isTurfDisabled = false;
   bool _emergencyMode = false;
+  DateTime? _emergencyStartDate;
+  DateTime? _emergencyEndDate;
+  String _emergencyReason = '';
+
+  // Time filter variables
+  TimeOfDay? _filterStartTime;
+  TimeOfDay? _filterEndTime;
+  String _selectedTimeFilter = 'all';
 
   // Slot data
   List<Map<String, dynamic>> slots = [
     {
       'time': '6:00 AM',
+      'endTime': '7:00 AM',
       'status': 'available',
       'price': '₹500',
       'customer': null,
@@ -32,6 +41,7 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '7:00 AM',
+      'endTime': '8:00 AM',
       'status': 'booked',
       'price': '₹500',
       'customer': 'Rajesh Kumar',
@@ -40,6 +50,7 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '8:00 AM',
+      'endTime': '9:00 AM',
       'status': 'booked',
       'price': '₹500',
       'customer': 'Team Alpha',
@@ -48,6 +59,7 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '9:00 AM',
+      'endTime': '10:00 AM',
       'status': 'available',
       'price': '₹600',
       'customer': null,
@@ -56,6 +68,7 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '10:00 AM',
+      'endTime': '11:00 AM',
       'status': 'booked',
       'price': '₹600',
       'customer': 'Priya Sharma',
@@ -64,14 +77,16 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '11:00 AM',
+      'endTime': '12:00 PM',
       'status': 'available',
       'price': '₹600',
       'customer': null,
       'bookingId': null,
-      'disabled': true, // Manually disabled
+      'disabled': true,
     },
     {
       'time': '12:00 PM',
+      'endTime': '1:00 PM',
       'status': 'booked',
       'price': '₹700',
       'customer': 'Vikram Singh',
@@ -80,6 +95,7 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '1:00 PM',
+      'endTime': '2:00 PM',
       'status': 'available',
       'price': '₹700',
       'customer': null,
@@ -88,6 +104,7 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '2:00 PM',
+      'endTime': '3:00 PM',
       'status': 'booked',
       'price': '₹700',
       'customer': 'Anita Rao',
@@ -96,6 +113,7 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '3:00 PM',
+      'endTime': '4:00 PM',
       'status': 'booked',
       'price': '₹800',
       'customer': 'Rahul Mehta',
@@ -104,6 +122,7 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '4:00 PM',
+      'endTime': '5:00 PM',
       'status': 'booked',
       'price': '₹800',
       'customer': 'Suresh Kumar',
@@ -112,6 +131,7 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '5:00 PM',
+      'endTime': '6:00 PM',
       'status': 'available',
       'price': '₹800',
       'customer': null,
@@ -120,6 +140,7 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '6:00 PM',
+      'endTime': '7:00 PM',
       'status': 'booked',
       'price': '₹900',
       'customer': 'Neha Gupta',
@@ -128,6 +149,7 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '7:00 PM',
+      'endTime': '8:00 PM',
       'status': 'available',
       'price': '₹900',
       'customer': null,
@@ -136,6 +158,7 @@ class _PremiumSlotManagementScreenState
     },
     {
       'time': '8:00 PM',
+      'endTime': '9:00 PM',
       'status': 'booked',
       'price': '₹1000',
       'customer': 'Amit Sharma',
@@ -212,7 +235,6 @@ class _PremiumSlotManagementScreenState
 
   void _toggleSlotDisabled(int index, bool value) {
     setState(() {
-      // Only allow toggling if slot is available (not booked)
       if (slots[index]['status'] == 'available') {
         slots[index]['disabled'] = value;
       }
@@ -221,10 +243,11 @@ class _PremiumSlotManagementScreenState
 
   void _toggleEmergencyMode() {
     if (_emergencyMode) {
-      // Turn off emergency mode
       setState(() {
         _emergencyMode = false;
-        // Re-enable all slots that were disabled by emergency mode
+        _emergencyStartDate = null;
+        _emergencyEndDate = null;
+        _emergencyReason = '';
         for (var slot in slots) {
           if (slot['status'] == 'available') {
             slot['disabled'] = false;
@@ -232,7 +255,6 @@ class _PremiumSlotManagementScreenState
         }
       });
     } else {
-      // Check if there are upcoming bookings
       bool hasUpcomingBookings = slots.any(
         (slot) => slot['status'] == 'booked',
       );
@@ -240,16 +262,257 @@ class _PremiumSlotManagementScreenState
       if (hasUpcomingBookings) {
         _showEmergencyWarningDialog();
       } else {
-        setState(() {
-          _emergencyMode = true;
-          // Disable all available slots
-          for (var slot in slots) {
-            if (slot['status'] == 'available') {
-              slot['disabled'] = true;
-            }
-          }
-        });
+        _showEmergencyDateRangeDialog();
       }
+    }
+  }
+
+  void _showEmergencyDateRangeDialog() {
+    DateTime tempStartDate = DateTime.now();
+    DateTime tempEndDate = DateTime.now().add(const Duration(days: 1));
+    String tempReason = _emergencyReason;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Emergency Mode - Select Date Range'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Disable all available slots for the selected date range:',
+                    style: TextStyle(fontSize: 14, color: _textSecondary),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Start Date
+                  GestureDetector(
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: tempStartDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null && picked != tempStartDate) {
+                        setState(() {
+                          tempStartDate = picked;
+                          if (tempEndDate.isBefore(tempStartDate)) {
+                            tempEndDate = tempStartDate.add(
+                              const Duration(days: 1),
+                            );
+                          }
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _bg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 18, color: _primary),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Start Date',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _textSecondary,
+                                  ),
+                                ),
+                                Text(
+                                  '${tempStartDate.day} ${_getMonthName(tempStartDate.month)} ${tempStartDate.year}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // End Date
+                  GestureDetector(
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: tempEndDate,
+                        firstDate: tempStartDate,
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null && picked != tempEndDate) {
+                        setState(() {
+                          tempEndDate = picked;
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _bg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 18, color: _primary),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'End Date',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _textSecondary,
+                                  ),
+                                ),
+                                Text(
+                                  '${tempEndDate.day} ${_getMonthName(tempEndDate.month)} ${tempEndDate.year}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Date Range: ${tempStartDate.day}${_getOrdinalSuffix(tempStartDate.day)} ${_getMonthName(tempStartDate.month)} to ${tempEndDate.day}${_getOrdinalSuffix(tempEndDate.day)} ${_getMonthName(tempEndDate.month)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Total Days: ${tempEndDate.difference(tempStartDate).inDays + 1}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Reason/Description
+                  Text(
+                    'Emergency Reason',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Enter reason for emergency mode (optional)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: _primary),
+                      ),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                    maxLines: 3,
+                    onChanged: (value) {
+                      tempReason = value;
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _emergencyMode = true;
+                    _emergencyStartDate = tempStartDate;
+                    _emergencyEndDate = tempEndDate;
+                    _emergencyReason = tempReason;
+                    for (var slot in slots) {
+                      if (slot['status'] == 'available') {
+                        slot['disabled'] = true;
+                      }
+                    }
+                  });
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _danger,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Confirm Emergency'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return months[month - 1];
+  }
+
+  String _getOrdinalSuffix(int day) {
+    if (day >= 11 && day <= 13) return 'th';
+    switch (day % 10) {
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
     }
   }
 
@@ -283,6 +546,1102 @@ class _PremiumSlotManagementScreenState
         ],
       ),
     );
+  }
+
+  void _showFilterDialog() {
+    DateTime tempStartDate = _startDate;
+    DateTime tempEndDate = _endDate;
+    String tempSelectedFilter = _selectedFilter;
+    TimeOfDay? tempStartTime = _filterStartTime;
+    TimeOfDay? tempEndTime = _filterEndTime;
+    String tempTimeFilter = _selectedTimeFilter;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Advanced Filters'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Date Range Section
+                  Text(
+                    'Date Range',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Start Date
+                  GestureDetector(
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: tempStartDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null && picked != tempStartDate) {
+                        setState(() {
+                          tempStartDate = picked;
+                          if (tempEndDate.isBefore(tempStartDate)) {
+                            tempEndDate = tempStartDate.add(
+                              const Duration(days: 1),
+                            );
+                          }
+                        });
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _bg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Start Date',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _textSecondary,
+                                ),
+                              ),
+                              Text(
+                                '${tempStartDate.day} ${_getMonthName(tempStartDate.month)}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Icon(Icons.calendar_today, color: _primary),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // End Date
+                  GestureDetector(
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: tempEndDate,
+                        firstDate: tempStartDate,
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null && picked != tempEndDate) {
+                        setState(() {
+                          tempEndDate = picked;
+                        });
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _bg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'End Date',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _textSecondary,
+                                ),
+                              ),
+                              Text(
+                                '${tempEndDate.day} ${_getMonthName(tempEndDate.month)}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Icon(Icons.calendar_today, color: _primary),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${tempEndDate.difference(tempStartDate).inDays + 1} days (${tempStartDate.day}${_getOrdinalSuffix(tempStartDate.day)} ${_getMonthName(tempStartDate.month)} - ${tempEndDate.day}${_getOrdinalSuffix(tempEndDate.day)} ${_getMonthName(tempEndDate.month)})',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Quick Date Range Buttons
+                  Text(
+                    'Quick Range',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildQuickDateRangeButton(
+                        'Today',
+                        1,
+                        tempStartDate,
+                        tempEndDate,
+                        setState,
+                      ),
+                      _buildQuickDateRangeButton(
+                        'Next 7 Days',
+                        7,
+                        tempStartDate,
+                        tempEndDate,
+                        setState,
+                      ),
+                      _buildQuickDateRangeButton(
+                        'Next 30 Days',
+                        30,
+                        tempStartDate,
+                        tempEndDate,
+                        setState,
+                      ),
+                      _buildQuickDateRangeButton(
+                        'Next 90 Days',
+                        90,
+                        tempStartDate,
+                        tempEndDate,
+                        setState,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Time Filter Section
+                  Text(
+                    'Time Filter',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Time Range Selection
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final TimeOfDay? picked = await showTimePicker(
+                              context: context,
+                              initialTime:
+                                  tempStartTime ??
+                                  const TimeOfDay(hour: 9, minute: 0),
+                            );
+                            if (picked != null) {
+                              setState(() {
+                                tempStartTime = picked;
+                              });
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: _bg,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Start Time',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _textSecondary,
+                                  ),
+                                ),
+                                Text(
+                                  tempStartTime != null
+                                      ? tempStartTime!.format(context)
+                                      : 'Select time',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final TimeOfDay? picked = await showTimePicker(
+                              context: context,
+                              initialTime:
+                                  tempEndTime ??
+                                  const TimeOfDay(hour: 18, minute: 0),
+                            );
+                            if (picked != null) {
+                              setState(() {
+                                tempEndTime = picked;
+                              });
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: _bg,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'End Time',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _textSecondary,
+                                  ),
+                                ),
+                                Text(
+                                  tempEndTime != null
+                                      ? tempEndTime!.format(context)
+                                      : 'Select time',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Quick Time Filters
+                  Text(
+                    'Quick Time Filters',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildQuickTimeFilter(
+                        'Morning',
+                        '6:00 AM',
+                        '12:00 PM',
+                        tempTimeFilter,
+                        setState,
+                      ),
+                      _buildQuickTimeFilter(
+                        'Afternoon',
+                        '12:00 PM',
+                        '5:00 PM',
+                        tempTimeFilter,
+                        setState,
+                      ),
+                      _buildQuickTimeFilter(
+                        'Evening',
+                        '5:00 PM',
+                        '9:00 PM',
+                        tempTimeFilter,
+                        setState,
+                      ),
+                      _buildQuickTimeFilter(
+                        'Night',
+                        '9:00 PM',
+                        '12:00 AM',
+                        tempTimeFilter,
+                        setState,
+                      ),
+                      _buildQuickTimeFilter(
+                        'All Day',
+                        'all',
+                        'all',
+                        tempTimeFilter,
+                        setState,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Status Filter
+                  Text(
+                    'Slot Status',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildFilterOption(
+                        'All Slots',
+                        'all',
+                        tempSelectedFilter,
+                        setState,
+                      ),
+                      _buildFilterOption(
+                        'Available',
+                        'available',
+                        tempSelectedFilter,
+                        setState,
+                      ),
+                      _buildFilterOption(
+                        'Booked',
+                        'booked',
+                        tempSelectedFilter,
+                        setState,
+                      ),
+                      _buildFilterOption(
+                        'Disabled',
+                        'disabled',
+                        tempSelectedFilter,
+                        setState,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _filterStartTime = null;
+                    _filterEndTime = null;
+                    _selectedTimeFilter = 'all';
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text('Clear All'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _startDate = tempStartDate;
+                    _endDate = tempEndDate;
+                    _selectedFilter = tempSelectedFilter;
+                    _filterStartTime = tempStartTime;
+                    _filterEndTime = tempEndTime;
+                    _selectedTimeFilter = tempTimeFilter;
+                  });
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Apply Filters'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildQuickDateRangeButton(
+    String label,
+    int days,
+    DateTime tempStartDate,
+    DateTime tempEndDate,
+    Function(void Function()) setState,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          tempStartDate = DateTime.now();
+          tempEndDate = DateTime.now().add(Duration(days: days - 1));
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 13, color: _textSecondary),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickTimeFilter(
+    String label,
+    String startTime,
+    String endTime,
+    String tempTimeFilter,
+    Function(void Function()) setState,
+  ) {
+    bool selected = tempTimeFilter == label.toLowerCase();
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (startTime == 'all') {
+            tempTimeFilter = 'all';
+          } else {
+            tempTimeFilter = label.toLowerCase();
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? _primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: selected ? _primary : Colors.grey.shade300),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: selected ? Colors.white : _textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterOption(
+    String label,
+    String value,
+    String tempSelectedFilter,
+    Function(void Function()) setState,
+  ) {
+    bool selected = tempSelectedFilter == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          tempSelectedFilter = value;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? _primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? _primary : Colors.grey.shade300,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            color: selected ? Colors.white : _textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddSlotDialog() {
+    TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
+    String price = '500';
+    bool isDisabled = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.9,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: _primary,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.add,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Add New Time Slot',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Create a new booking slot',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.white.withOpacity(0.9),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Time Selection
+                            Text(
+                              'SELECT TIME',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _textSecondary,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              onTap: () async {
+                                final TimeOfDay? picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: selectedTime,
+                                  builder: (context, child) {
+                                    return Theme(
+                                      data: ThemeData.light().copyWith(
+                                        colorScheme: ColorScheme.light(
+                                          primary: _primary,
+                                          onPrimary: Colors.white,
+                                          surface: Colors.white,
+                                          onSurface: _textPrimary,
+                                        ),
+                                      ),
+                                      child: child!,
+                                    );
+                                  },
+                                );
+                                if (picked != null) {
+                                  setState(() => selectedTime = picked);
+                                }
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: _bg,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.grey.shade200,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Time',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: _textSecondary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          selectedTime.format(context),
+                                          style: TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w700,
+                                            color: _textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Slot will be: ${selectedTime.format(context)} - ${_calculateEndTime(selectedTime).format(context)}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: _textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Container(
+                                      width: 48,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        color: _primary.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        Icons.access_time,
+                                        color: _primary,
+                                        size: 24,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            // Price Input
+                            Text(
+                              'HOURLY PRICE',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _textSecondary,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _bg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '₹',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                      color: _primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: TextEditingController(
+                                        text: price,
+                                      ),
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        hintText: 'Enter amount',
+                                        hintStyle: TextStyle(
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w700,
+                                        color: _textPrimary,
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      onChanged: (value) {
+                                        setState(() => price = value);
+                                      },
+                                    ),
+                                  ),
+                                  Text(
+                                    '/hour',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: _textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            // Status Toggle
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: _bg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'SLOT STATUS',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: _textSecondary,
+                                          letterSpacing: 1,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        isDisabled ? 'Disabled' : 'Available',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDisabled
+                                              ? _danger
+                                              : _success,
+                                        ),
+                                      ),
+                                      Text(
+                                        isDisabled
+                                            ? 'Slot will not be bookable'
+                                            : 'Slot will be available for booking',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: _textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Transform.scale(
+                                    scale: 1.2,
+                                    child: Switch(
+                                      value: !isDisabled,
+                                      onChanged: (value) {
+                                        setState(() => isDisabled = !value);
+                                      },
+                                      activeColor: _success,
+                                      inactiveThumbColor: _danger,
+                                      activeTrackColor: _success.withOpacity(
+                                        0.3,
+                                      ),
+                                      inactiveTrackColor: _danger.withOpacity(
+                                        0.3,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            // Preview
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: _primary.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _primary.withOpacity(0.2),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'PREVIEW',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: _primary,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${selectedTime.format(context)} - ${_calculateEndTime(selectedTime).format(context)}',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                              color: _textPrimary,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.currency_rupee,
+                                                size: 16,
+                                                color: _primary,
+                                              ),
+                                              Text(
+                                                '$price/hour',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: _primary,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isDisabled
+                                              ? _danger.withOpacity(0.1)
+                                              : _success.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                          border: Border.all(
+                                            color: isDisabled
+                                                ? _danger.withOpacity(0.3)
+                                                : _success.withOpacity(0.3),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              isDisabled
+                                                  ? Icons.block
+                                                  : Icons.check_circle,
+                                              size: 14,
+                                              color: isDisabled
+                                                  ? _danger
+                                                  : _success,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              isDisabled
+                                                  ? 'DISABLED'
+                                                  : 'AVAILABLE',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: isDisabled
+                                                    ? _danger
+                                                    : _success,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            // Actions
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
+                                      side: BorderSide(
+                                        color: Colors.grey.shade400,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'CANCEL',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: _textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        slots.add({
+                                          'time': selectedTime.format(context),
+                                          'endTime': _calculateEndTime(
+                                            selectedTime,
+                                          ).format(context),
+                                          'status': 'available',
+                                          'price': '₹$price',
+                                          'customer': null,
+                                          'bookingId': null,
+                                          'disabled': isDisabled,
+                                        });
+                                        slots.sort((a, b) {
+                                          int hourA = _parseTimeTo24Hour(
+                                            a['time'],
+                                          );
+                                          int hourB = _parseTimeTo24Hour(
+                                            b['time'],
+                                          );
+                                          return hourA.compareTo(hourB);
+                                        });
+                                      });
+                                      Navigator.pop(context);
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _primary,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 2,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.add, size: 20),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'ADD SLOT',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  TimeOfDay _calculateEndTime(TimeOfDay startTime) {
+    int hour = startTime.hour + 1;
+    int minute = startTime.minute;
+
+    if (hour >= 24) {
+      hour = hour % 24;
+    }
+
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  int _parseTimeTo24Hour(String time) {
+    List<String> parts = time.split(' ');
+    String timePart = parts[0];
+    String period = parts[1];
+
+    List<String> timeParts = timePart.split(':');
+    int hour = int.parse(timeParts[0]);
+    int minute = int.parse(timeParts[1]);
+
+    if (period == 'PM' && hour != 12) hour += 12;
+    if (period == 'AM' && hour == 12) hour = 0;
+
+    return hour * 100 + minute;
   }
 
   void _showBookingDetails(Map<String, dynamic> slot) {
@@ -359,7 +1718,10 @@ class _PremiumSlotManagementScreenState
               const SizedBox(height: 24),
 
               // Details
-              _buildDetailRow('Time', slot['time']),
+              _buildDetailRow(
+                'Time Slot',
+                '${slot['time']} - ${slot['endTime']}',
+              ),
               _buildDetailRow('Price', slot['price']),
               _buildDetailRow('Customer', slot['customer'] ?? 'N/A'),
               _buildDetailRow('Status', 'Confirmed'),
@@ -437,39 +1799,29 @@ class _PremiumSlotManagementScreenState
     );
   }
 
-  Future<void> _selectStartDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _startDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null && picked != _startDate) {
-      setState(() {
-        _startDate = picked;
-        if (_endDate.isBefore(_startDate)) {
-          _endDate = _startDate.add(const Duration(days: 1));
-        }
-      });
-    }
-  }
-
-  Future<void> _selectEndDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _endDate,
-      firstDate: _startDate,
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null && picked != _endDate) {
-      setState(() {
-        _endDate = picked;
-      });
-    }
-  }
-
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+    final monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${date.day} ${monthNames[date.month - 1]}';
+  }
+
+  String _formatEmergencyDateRange() {
+    if (_emergencyStartDate == null || _emergencyEndDate == null) {
+      return 'Select date range';
+    }
+    return '${_emergencyStartDate!.day}${_getOrdinalSuffix(_emergencyStartDate!.day)} ${_getMonthName(_emergencyStartDate!.month)} - ${_emergencyEndDate!.day}${_getOrdinalSuffix(_emergencyEndDate!.day)} ${_getMonthName(_emergencyEndDate!.month)}';
   }
 
   @override
@@ -481,6 +1833,14 @@ class _PremiumSlotManagementScreenState
 
     return Scaffold(
       backgroundColor: _bg,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddSlotDialog,
+        backgroundColor: _primary,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+        child: const Icon(Icons.add, size: 28),
+      ),
       appBar: AppBar(
         backgroundColor: _primary,
         foregroundColor: Colors.white,
@@ -508,8 +1868,9 @@ class _PremiumSlotManagementScreenState
         ),
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: _showFilterDialog,
             icon: const Icon(Icons.filter_list, color: Colors.white),
+            tooltip: 'Advanced Filters',
           ),
           IconButton(
             onPressed: () {},
@@ -556,56 +1917,7 @@ class _PremiumSlotManagementScreenState
               ),
             ),
 
-            // Redesigned Date Range Filter
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Date Filter',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _textPrimary,
-                        ),
-                      ),
-                      Text(
-                        'Viewing ${_endDate.difference(_startDate).inDays + 1} days',
-                        style: TextStyle(fontSize: 12, color: _textSecondary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildDateFilterChip(
-                          'From: ${_formatDate(_startDate)}',
-                          () => _selectStartDate(context),
-                        ),
-                        const SizedBox(width: 8),
-                        _buildDateFilterChip(
-                          'To: ${_formatDate(_endDate)}',
-                          () => _selectEndDate(context),
-                        ),
-                        const SizedBox(width: 8),
-                        _buildQuickRangeChip('Next 7 Days', 7),
-                        const SizedBox(width: 8),
-                        _buildQuickRangeChip('Next 30 Days', 30),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Emergency Mode Toggle
+            // Emergency Mode Toggle with Date Range
             Container(
               color: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -619,71 +1931,136 @@ class _PremiumSlotManagementScreenState
                     width: 1.5,
                   ),
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: _emergencyMode ? _danger : Colors.transparent,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Icon(
-                        Icons.emergency,
-                        color: _emergencyMode ? Colors.white : _danger,
-                        size: 20,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _emergencyMode
+                                ? _danger
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Icon(
+                            Icons.emergency,
+                            color: _emergencyMode ? Colors.white : _danger,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _emergencyMode
+                                    ? 'Emergency Mode ON'
+                                    : 'Emergency Mode',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: _emergencyMode
+                                      ? _danger
+                                      : _textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _emergencyMode
+                                    ? 'All available slots are disabled'
+                                    : 'Click to disable slots for date range',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: _emergencyMode,
+                          onChanged: (value) => _toggleEmergencyMode(),
+                          activeColor: _danger,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _emergencyMode
-                                ? 'Emergency Mode ON'
-                                : 'Emergency Mode',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: _emergencyMode ? _danger : _textPrimary,
+                    // Show emergency date range when active
+                    if (_emergencyMode &&
+                        _emergencyStartDate != null &&
+                        _emergencyEndDate != null)
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: _danger.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                  color: _danger,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Emergency Active For:',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: _danger,
+                                        ),
+                                      ),
+                                      Text(
+                                        _formatEmergencyDateRange(),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: _danger,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: _toggleEmergencyMode,
+                                  icon: Icon(
+                                    Icons.close,
+                                    size: 18,
+                                    color: _danger,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _emergencyMode
-                                ? 'All available slots are disabled'
-                                : 'Click to disable all available slots',
-                            style: TextStyle(fontSize: 13, color: _textSecondary),
-                          ),
-                        ],
+                            if (_emergencyReason.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  'Reason: $_emergencyReason',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _danger,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Switch(
-                      value: _emergencyMode,
-                      onChanged: (value) => _toggleEmergencyMode(),
-                      activeColor: _danger,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Filters
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip('All Slots', 'all'),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Available', 'available'),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Booked', 'booked'),
-                    const SizedBox(width: 8),
-                    _buildFilterChip('Disabled', 'disabled'),
                   ],
                 ),
               ),
@@ -705,8 +2082,8 @@ class _PremiumSlotManagementScreenState
                     ),
                   ),
                   Text(
-                    '${filteredSlots.length} slots found',
-                    style: TextStyle(fontSize: 14, color: _textSecondary),
+                    '${filteredSlots.length} slots • ${_selectedFilter.toUpperCase()}',
+                    style: TextStyle(fontSize: 12, color: _textSecondary),
                   ),
                 ],
               ),
@@ -723,7 +2100,7 @@ class _PremiumSlotManagementScreenState
                 return _buildSlotCard(slot, index);
               },
             ),
-            const SizedBox(height: 40), // Extra bottom padding
+            const SizedBox(height: 80),
           ],
         ),
       ),
@@ -781,36 +2158,6 @@ class _PremiumSlotManagementScreenState
     );
   }
 
-  Widget _buildFilterChip(String label, String value) {
-    bool selected = _selectedFilter == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedFilter = value;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? _primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? _primary : Colors.grey[300]!,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-            color: selected ? Colors.white : _textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildSlotCard(Map<String, dynamic> slot, int index) {
     Color statusColor = _getStatusColor(slot);
     bool isBooked = slot['status'] == 'booked';
@@ -843,7 +2190,7 @@ class _PremiumSlotManagementScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        slot['time'],
+                        '${slot['time']} - ${slot['endTime']}',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
@@ -963,10 +2310,10 @@ class _PremiumSlotManagementScreenState
                             color: isDisabled ? _disabledColor : _textSecondary,
                           ),
                         ),
-                        if (isDisabled)
+                        if (isDisabled && _emergencyMode)
                           Text(
-                            'Emergency maintenance',
-                            style: TextStyle(fontSize: 12, color: _danger),
+                            'Emergency: ${_formatEmergencyDateRange()}',
+                            style: TextStyle(fontSize: 11, color: _danger),
                           ),
                       ],
                     ),
@@ -984,66 +2331,6 @@ class _PremiumSlotManagementScreenState
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildDateFilterChip(String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: _bg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.calendar_month, size: 16, color: _primary),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: _textPrimary,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.arrow_drop_down, size: 20, color: _textSecondary),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickRangeChip(String label, int days) {
-    bool isSelected = _endDate.difference(_startDate).inDays == (days - 1);
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _startDate = DateTime.now();
-          _endDate = DateTime.now().add(Duration(days: days - 1));
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? _primary.withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? _primary : Colors.grey[300]!,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? _primary : _textSecondary,
-          ),
-        ),
       ),
     );
   }

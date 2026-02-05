@@ -15,11 +15,18 @@ class _BookingScreenState extends State<BookingScreen> {
   DateTime _selectedDate = DateTime.now();
   List<String> _selectedTimeSlots = [];
   List<TimeSlot> _availableTimeSlots = [];
+
+  // Offer slots defined by admin (These would come from your backend/API)
+  final List<String> _offerSlots = [
+    '10:00 AM - 11:00 AM', // Morning offer
+    '03:00 PM - 04:00 PM', // Afternoon offer
+    '07:00 PM - 08:00 PM', // Evening offer
+    '11:00 PM - 12:00 AM', // Night offer
+  ];
+
   final List<String> _bookedSlots = [
-    '10:00 AM - 11:00 AM',
     '02:00 PM - 03:00 PM',
-    '07:00 PM - 08:00 PM',
-    '11:00 PM - 12:00 AM',
+    '09:00 PM - 10:00 PM',
   ];
 
   @override
@@ -50,8 +57,14 @@ class _BookingScreenState extends State<BookingScreen> {
       String endTime = '$nextDisplayHour:00 $nextPeriod';
       String slot = '$startTime - $endTime';
 
+      bool hasOffer = _offerSlots.contains(slot);
+
       slots.add(
-        TimeSlot(time: slot, isAvailable: !_bookedSlots.contains(slot)),
+        TimeSlot(
+          time: slot,
+          isAvailable: !_bookedSlots.contains(slot),
+          hasOffer: hasOffer,
+        ),
       );
     }
 
@@ -60,6 +73,7 @@ class _BookingScreenState extends State<BookingScreen> {
       TimeSlot(
         time: '12:00 AM - 01:00 AM',
         isAvailable: !_bookedSlots.contains('12:00 AM - 01:00 AM'),
+        hasOffer: _offerSlots.contains('12:00 AM - 01:00 AM'),
       ),
     );
 
@@ -237,7 +251,7 @@ class _BookingScreenState extends State<BookingScreen> {
         border: Border.all(color: Colors.grey[300]!),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Available indicator
           Row(
@@ -262,9 +276,7 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
             ],
           ),
-          const SizedBox(width: 20),
 
-          // Booked indicator
           // Booked indicator
           Row(
             children: [
@@ -289,8 +301,6 @@ class _BookingScreenState extends State<BookingScreen> {
             ],
           ),
 
-          const SizedBox(width: 20),
-
           // Selected indicator
           Row(
             children: [
@@ -310,6 +320,33 @@ class _BookingScreenState extends State<BookingScreen> {
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+
+          // Offer slot indicator
+          Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.red.shade400,
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: Colors.red.shade700),
+                ),
+                child: const Center(
+                  child: Icon(Icons.local_offer, size: 8, color: Colors.white),
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                "Offer",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.red,
                 ),
               ),
             ],
@@ -507,8 +544,6 @@ class _BookingScreenState extends State<BookingScreen> {
         border: Border(
           top: BorderSide(color: Colors.grey.shade200, width: 0.6),
         ),
-
-        // REMOVED: boxShadow
       ),
       child: SizedBox(
         width: double.infinity,
@@ -520,8 +555,6 @@ class _BookingScreenState extends State<BookingScreen> {
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(0),
-
-              // Changed from 14 to 10
             ),
             elevation: 0,
             disabledBackgroundColor: Colors.grey.shade300,
@@ -686,8 +719,13 @@ class TurfInfoCard extends StatelessWidget {
 class TimeSlot {
   final String time;
   final bool isAvailable;
+  final bool hasOffer;
 
-  TimeSlot({required this.time, required this.isAvailable});
+  TimeSlot({
+    required this.time,
+    required this.isAvailable,
+    this.hasOffer = false,
+  });
 }
 
 class TimeSlotCard extends StatelessWidget {
@@ -714,7 +752,6 @@ class TimeSlotCard extends StatelessWidget {
       textColor = Colors.grey.shade600;
     } else if (isSelected) {
       bgColor = Colors.blue;
-
       borderColor = Colors.blue;
       textColor = Colors.white;
     } else {
@@ -725,35 +762,96 @@ class TimeSlotCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: slot.isAvailable ? onTap : null,
-      child: Container(
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: borderColor, width: 1.5),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                slot.time.split(" - ")[0],
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: borderColor, width: 1.5),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    slot.time.split(" - ")[0],
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    slot.time.split(" - ")[1],
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: textColor.withOpacity(0.9),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 2),
-              Text(
-                slot.time.split(" - ")[1],
-                style: TextStyle(
-                  fontSize: 10,
-                  color: textColor.withOpacity(0.9),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+
+          // Offer Badge - Only show if slot has offer and is available
+          if (slot.hasOffer && slot.isAvailable)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.red.shade600, Colors.orange.shade600],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.local_offer, size: 10, color: Colors.white),
+                    SizedBox(width: 2),
+                    Text(
+                      "OFFER",
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Additional visual indicator for offer slots (small corner marker)
+          if (slot.hasOffer && slot.isAvailable && !isSelected)
+            Positioned(
+              top: 2,
+              left: 2,
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Colors.red.shade500,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

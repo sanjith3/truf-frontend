@@ -4,6 +4,7 @@ import 'package:turfzone/booking/booking_screen.dart';
 import 'package:flutter/material.dart';
 import '../models/turf.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TurfDetailsScreen extends StatefulWidget {
   final Turf turf;
@@ -18,8 +19,23 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
   late Timer _timer;
   final PageController _pageController = PageController();
 
-  // Sample turf details - in real app, these would come from the turf model
-  List<String> get _turfImages => widget.turf.images;
+  // Ensure we have at least 5 images (admin will provide)
+  List<String> get _turfImages {
+    // If admin provides less than 5 images, duplicate existing ones or use placeholders
+    List<String> images = widget.turf.images;
+    if (images.length < 5) {
+      // For demo: if less than 5 images, duplicate or add placeholders
+      while (images.length < 5) {
+        images.add(
+          images.isNotEmpty
+              ? images[images.length % images.length]
+              : 'https://via.placeholder.com/800x600?text=Turf+Image+${images.length + 1}',
+        );
+      }
+    }
+    return images.take(5).toList(); // Ensure exactly 5 images
+  }
+
   List<String> get _availableGames => widget.turf.sports;
   List<String> get _facilities => widget.turf.amenities;
 
@@ -46,6 +62,22 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
         );
       }
     });
+  }
+
+  // Open Google Maps with turf location
+  Future<void> _openGoogleMaps() async {
+    try {
+      final Uri uri = Uri.parse(widget.turf.mapLink);
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not open Google Maps")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error opening maps: $e")));
+    }
   }
 
   @override
@@ -95,6 +127,18 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
+              // Direction Button
+              IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.directions, color: Colors.white),
+                ),
+                onPressed: _openGoogleMaps,
+              ),
               IconButton(
                 icon: Container(
                   padding: const EdgeInsets.all(8),
@@ -184,33 +228,81 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Location
-                    Row(
-                      children: [
-                        Icon(Icons.location_on, color: Colors.red.shade600),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.turf.location,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                "2.5 km from your location",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
+                    // Location with Get Directions button
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.shade100),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.location_on,
+                              size: 20,
+                              color: Colors.blue.shade800,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Location",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.turf.location,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "${widget.turf.distance} km from your location",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          ElevatedButton.icon(
+                            onPressed: _openGoogleMaps,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                            ),
+                            icon: const Icon(Icons.directions, size: 16),
+                            label: const Text(
+                              "Directions",
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 20),
@@ -276,9 +368,9 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      widget.turf.description.isEmpty 
-                        ? "Experience world-class sporting facilities at ${widget.turf.name}. Our professionally maintained turf features high-quality artificial grass, professional-grade equipment, and excellent lighting for night games. Perfect for football, cricket, and other sports."
-                        : widget.turf.description,
+                      widget.turf.description.isEmpty
+                          ? "Experience world-class sporting facilities at ${widget.turf.name}. Our professionally maintained turf features high-quality artificial grass, professional-grade equipment, and excellent lighting for night games. Perfect for football, cricket, and other sports."
+                          : widget.turf.description,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade700,
@@ -315,7 +407,7 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.sports_soccer,
+                                _getGameIcon(game),
                                 size: 18,
                                 color: Colors.blue.shade700,
                               ),
@@ -389,66 +481,8 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
 
                     const SizedBox(height: 30),
 
-                    // Gallery
-                    const Text(
-                      "Gallery",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      "Minimum 5 photos uploaded by admin",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    SizedBox(
-                      height: 100,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _turfImages.length,
-                        itemBuilder: (context, index) {
-                          return GestureDetector(
-                            onTap: () {
-                              _showFullScreenGallery(index);
-                            },
-                            child: Container(
-                              width: 120,
-                              margin: const EdgeInsets.only(right: 10),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                image: DecorationImage(
-                                  image: NetworkImage(_turfImages[index]),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              child: index == 4
-                                  ? Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.4),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          "+${_turfImages.length - 5}",
-                                          style: const TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                    // Photo Gallery Section
+                    _buildPhotoGallerySection(),
 
                     const SizedBox(height: 30),
 
@@ -496,49 +530,121 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
   }
 
   Widget _buildImageCarousel() {
-    return Stack(
-      children: [
-        PageView.builder(
-          controller: _pageController,
-          itemCount: _turfImages.length,
-          onPageChanged: (index) {
-            setState(() {
-              _currentImageIndex = index;
-            });
-          },
-          itemBuilder: (context, index) {
-            return CachedNetworkImage(
-              imageUrl: _turfImages[index],
-              fit: BoxFit.cover,
-              width: double.infinity,
-              placeholder: (context, url) => Container(
-                color: Colors.grey.shade300,
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-              errorWidget: (context, url, error) => const Icon(Icons.error),
-            );
-          },
-        ),
-        Positioned(
-          bottom: 20,
-          left: 0,
-          right: 0,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              _turfImages.length,
-              (index) => Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _currentImageIndex == index
-                      ? Colors.white
-                      : Colors.white.withOpacity(0.5),
+    return GestureDetector(
+      onTap: () => _showFullScreenGallery(_currentImageIndex),
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            itemCount: _turfImages.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentImageIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return Hero(
+                // 修复：使用唯一的标签前缀
+                tag: 'carousel_image_${widget.turf.id}_$index',
+                child: CachedNetworkImage(
+                  imageUrl: _turfImages[index],
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey.shade300,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey.shade200,
+                    child: const Center(
+                      child: Icon(Icons.image, size: 60, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                _turfImages.length,
+                (index) => Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentImageIndex == index
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.5),
+                  ),
                 ),
               ),
             ),
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${_currentImageIndex + 1}/${_turfImages.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhotoGallerySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Photo Gallery",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "Minimum 5 photos uploaded by admin",
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 15),
+        SizedBox(
+          height: 100,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _turfImages.length,
+            itemBuilder: (context, index) {
+              return GestureDetector(
+                onTap: () => _showFullScreenGallery(index),
+                child: Container(
+                  width: 120,
+                  margin: const EdgeInsets.only(right: 10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    image: DecorationImage(
+                      image: NetworkImage(_turfImages[index]),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -546,37 +652,73 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
   }
 
   void _showFullScreenGallery(int initialIndex) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+    // Pause the auto-slide timer when viewing gallery
+    _timer.cancel();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FullScreenGallery(
+          images: _turfImages,
+          initialIndex: initialIndex,
+          turfId: widget.turf.id,
+          onClose: () {
+            // Restart auto-slide timer when returning
+            _startAutoSlide();
+          },
+        ),
       ),
-      builder: (context) {
-        return GalleryViewer(images: _turfImages, initialIndex: initialIndex);
-      },
     );
+  }
+
+  IconData _getGameIcon(String game) {
+    switch (game.toLowerCase()) {
+      case 'cricket':
+        return Icons.sports_cricket;
+      case 'football':
+        return Icons.sports_soccer;
+      case 'badminton':
+        return Icons.sports_tennis;
+      case 'tennis':
+        return Icons.sports_tennis;
+      case 'basketball':
+        return Icons.sports_basketball;
+      case 'volleyball':
+        return Icons.sports_volleyball;
+      case 'table tennis':
+        return Icons.sports_tennis;
+      case 'swimming':
+        return Icons.pool;
+      case 'gym':
+        return Icons.fitness_center;
+      default:
+        return Icons.sports;
+    }
   }
 }
 
-class GalleryViewer extends StatefulWidget {
+class FullScreenGallery extends StatefulWidget {
   final List<String> images;
   final int initialIndex;
+  final String turfId;
+  final VoidCallback onClose;
 
-  const GalleryViewer({
+  const FullScreenGallery({
     super.key,
     required this.images,
     required this.initialIndex,
+    required this.turfId,
+    required this.onClose,
   });
 
   @override
-  State<GalleryViewer> createState() => _GalleryViewerState();
+  State<FullScreenGallery> createState() => _FullScreenGalleryState();
 }
 
-class _GalleryViewerState extends State<GalleryViewer> {
+class _FullScreenGalleryState extends State<FullScreenGallery> {
   late PageController _pageController;
   late int _currentIndex;
+  bool _showControls = true;
 
   @override
   void initState() {
@@ -591,41 +733,22 @@ class _GalleryViewerState extends State<GalleryViewer> {
     super.dispose();
   }
 
+  void _toggleControls() {
+    setState(() {
+      _showControls = !_showControls;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.85,
-      child: Column(
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                Text(
-                  '${_currentIndex + 1}/${widget.images.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.download, color: Colors.white),
-                  onPressed: () {},
-                ),
-              ],
-            ),
-          ),
-
-          // Image Viewer
-          Expanded(
-            child: PageView.builder(
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: GestureDetector(
+        onTap: _toggleControls,
+        child: Stack(
+          children: [
+            // Image Viewer
+            PageView.builder(
               controller: _pageController,
               itemCount: widget.images.length,
               onPageChanged: (index) {
@@ -639,66 +762,211 @@ class _GalleryViewerState extends State<GalleryViewer> {
                   scaleEnabled: true,
                   maxScale: 3,
                   minScale: 1,
-                  child: CachedNetworkImage(
-                    imageUrl: widget.images[index],
-                    fit: BoxFit.contain,
-                    placeholder: (context, url) =>
-                        const Center(child: CircularProgressIndicator()),
-                    errorWidget: (context, url, error) =>
-                        const Icon(Icons.error, color: Colors.white),
+                  child: Hero(
+                    // 修复：保持与carousel相同的标签
+                    tag: 'carousel_image_${widget.turfId}_$index',
+                    child: CachedNetworkImage(
+                      imageUrl: widget.images[index],
+                      fit: BoxFit.contain,
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey.shade900,
+                        child: const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: Colors.grey.shade800,
+                        child: const Center(
+                          child: Icon(
+                            Icons.image,
+                            size: 60,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 );
               },
             ),
-          ),
 
-          // Thumbnails
-          SizedBox(
-            height: 80,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: widget.images.length,
-              itemBuilder: (context, index) {
-                return GestureDetector(
-                  onTap: () {
-                    _pageController.animateToPage(
-                      index,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  },
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    margin: const EdgeInsets.all(8),
+            // Controls (Only show when _showControls is true)
+            if (_showControls)
+              Column(
+                children: [
+                  // Top Bar
+                  Container(
+                    height: 80,
+                    padding: const EdgeInsets.only(
+                      top: 40,
+                      left: 16,
+                      right: 16,
+                    ),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: _currentIndex == index
-                            ? Colors.white
-                            : Colors.transparent,
-                        width: 2,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.8),
+                          Colors.transparent,
+                        ],
                       ),
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: CachedNetworkImage(
-                        imageUrl: widget.images[index],
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            Container(color: Colors.grey.shade300),
-                        errorWidget: (context, url, error) =>
-                            const Icon(Icons.error),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          onPressed: () {
+                            widget.onClose();
+                            Navigator.pop(context);
+                          },
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${_currentIndex + 1}/${widget.images.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.share,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          onPressed: () {},
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Bottom Thumbnails
+                  Expanded(
+                    child: Container(
+                      alignment: Alignment.bottomCenter,
+                      child: Container(
+                        height: 100,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.black.withOpacity(0.8),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: widget.images.length,
+                          itemBuilder: (context, index) {
+                            return GestureDetector(
+                              onTap: () {
+                                _pageController.animateToPage(
+                                  index,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut,
+                                );
+                              },
+                              child: Container(
+                                width: 80,
+                                height: 80,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: _currentIndex == index
+                                        ? Colors.white
+                                        : Colors.transparent,
+                                    width: 3,
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: CachedNetworkImage(
+                                    imageUrl: widget.images[index],
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) =>
+                                        Container(color: Colors.grey.shade700),
+                                    errorWidget: (context, url, error) =>
+                                        Container(
+                                          color: Colors.grey.shade700,
+                                          child: const Icon(
+                                            Icons.image,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
-                );
-              },
-            ),
-          ),
+                ],
+              ),
 
-          const SizedBox(height: 20),
-        ],
+            // Tap indicator (Only show when controls are hidden)
+            if (!_showControls)
+              Positioned(
+                top: 40,
+                right: 20,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_currentIndex + 1}/${widget.images.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

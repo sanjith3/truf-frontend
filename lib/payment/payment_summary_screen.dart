@@ -21,22 +21,12 @@ class PaymentSummaryScreen extends StatefulWidget {
 }
 
 class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
-  final double _convenienceFeePercentage = 5.0;
-  final double _maxConvenienceFee = 80.0;
-
-  double _calculateConvenienceFee() {
-    double calculatedFee =
-        widget.totalAmount * (_convenienceFeePercentage / 100);
-    return calculatedFee > _maxConvenienceFee
-        ? _maxConvenienceFee
-        : calculatedFee;
-  }
+  final double _fixedConvenienceFee = 20.0; // Fixed fee of ₹20
 
   @override
   Widget build(BuildContext context) {
-    final convenienceFee = _calculateConvenienceFee();
+    final convenienceFee = _fixedConvenienceFee;
     final finalAmount = widget.totalAmount + convenienceFee;
-    final isCapped = convenienceFee >= _maxConvenienceFee;
 
     return Scaffold(
       appBar: AppBar(
@@ -173,11 +163,9 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
                       "₹${widget.totalAmount.toStringAsFixed(0)}",
                     ),
                     _buildPaymentRow(
-                      "Convenience Fee (${_convenienceFeePercentage}%${isCapped ? ', max ₹${_maxConvenienceFee.toInt()}' : ''})",
+                      "Platform Fee",
                       "₹${convenienceFee.toStringAsFixed(0)}",
-                      description: isCapped
-                          ? "Capped at ₹${_maxConvenienceFee.toInt()} (${_convenienceFeePercentage}% would be ₹${(widget.totalAmount * (_convenienceFeePercentage / 100)).toStringAsFixed(0)})"
-                          : "${_convenienceFeePercentage}% of base amount",
+                      description: "Fixed service charge per booking",
                     ),
                     const Divider(height: 25),
                     _buildPaymentRow(
@@ -210,7 +198,7 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        "Convenience fee is ${_convenienceFeePercentage}% of booking amount, capped at ₹${_maxConvenienceFee.toInt()}.",
+                        "A fixed platform fee of ₹20 is charged per booking for maintenance and support services.",
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.blue.shade800,
@@ -235,9 +223,9 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "• ${_convenienceFeePercentage}% convenience fee is non-refundable",
-                      style: const TextStyle(fontSize: 12, height: 1.5),
+                    const Text(
+                      "• Platform fee is non-refundable",
+                      style: TextStyle(fontSize: 12, height: 1.5),
                     ),
                     const Text(
                       "• Cancellation allowed up to 2 hours before booking",
@@ -246,6 +234,15 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
                     const Text(
                       "• All payments are secure and encrypted",
                       style: TextStyle(fontSize: 12, height: 1.5),
+                    ),
+                    Text(
+                      "• Platform fee: Fixed ₹20 per booking",
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.5,
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
