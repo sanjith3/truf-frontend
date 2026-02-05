@@ -7,6 +7,7 @@ import 'package:turfzone/features/Admindashboard/admin_screen.dart';
 import '../../turffdetail/turfdetails_screen.dart';
 import '../../services/turf_data_service.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Add this import
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -186,12 +187,233 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error getting location: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error getting location: $e')),
+      );
     } finally {
       setState(() {
         _isLocationLoading = false;
+      });
+    }
+  }
+
+  // Welcome popup function
+  Future<void> _showWelcomePopup() async {
+    // Check if popup has been shown before
+    final prefs = await SharedPreferences.getInstance();
+    final hasShownWelcome = prefs.getBool('hasShownWelcome') ?? false;
+
+    // If not shown before, show the popup
+    if (!hasShownWelcome) {
+      // Wait for the screen to build first
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          barrierColor: Colors.black.withOpacity(0.5),
+          builder: (context) {
+            String name = '';
+            
+            return Container(
+              margin: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag Handle
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.25),
+                          blurRadius: 30,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // Decorative top
+                        Container(
+                          height: 100,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.green[700]!,
+                                Colors.green[600]!,
+                              ],
+                            ),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20),
+                            ),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.emoji_events,
+                                  color: Colors.white,
+                                  size: 40,
+                                ),
+                                const SizedBox(height: 10),
+                                const Text(
+                                  "Welcome to TurfZone!",
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        
+                        Padding(
+                          padding: const EdgeInsets.all(25),
+                          child: Column(
+                            children: [
+                              const Text(
+                                "Enter Your Name",
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 15),
+                              const Text(
+                                "We're excited to have you on board! Please tell us your name to personalize your experience.",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey,
+                                  height: 1.5,
+                                ),
+                              ),
+                              
+                              const SizedBox(height: 25),
+                              
+                              // Name Input Field
+                              TextField(
+                                onChanged: (value) {
+                                  name = value;
+                                },
+                                decoration: InputDecoration(
+                                  hintText: "Enter your full name",
+                                  prefixIcon: const Icon(
+                                    Icons.person,
+                                    color: Colors.green,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Colors.green,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                ),
+                              ),
+                              
+                              const SizedBox(height: 30),
+                              
+                              // Action Buttons
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                      },
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        side: BorderSide(color: Colors.grey.shade300),
+                                      ),
+                                      child: const Text(
+                                        "Skip",
+                                        style: TextStyle(fontSize: 16),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: () async {
+                                        if (name.isNotEmpty) {
+                                          // Save name to shared preferences
+                                          final prefs = await SharedPreferences.getInstance();
+                                          await prefs.setString('userName', name);
+                                          await prefs.setBool('hasShownWelcome', true);
+                                          
+                                          // Update profile screen if needed
+                                          // You can add a callback or use state management here
+                                          
+                                          // Show success message
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Welcome, $name!'),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        }
+                                        Navigator.pop(context);
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        "Continue",
+                                        style: TextStyle(fontSize: 16),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            );
+          },
+        );
       });
     }
   }
@@ -291,9 +513,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                             child: ListView.builder(
                               itemCount: _indianStates.keys.length,
                               itemBuilder: (context, index) {
-                                final state = _indianStates.keys.elementAt(
-                                  index,
-                                );
+                                final state = _indianStates.keys.elementAt(index);
                                 return ListTile(
                                   title: Text(
                                     state,
@@ -449,6 +669,11 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       _priceRange = RangeValues(0, _maxPrice);
     }
     _applyFilters();
+    
+    // Show welcome popup after a short delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _showWelcomePopup();
+    });
   }
 
   void _searchTurfs() {
@@ -642,9 +867,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                             _selectedState,
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: Colors.white.withOpacity(
-                                                0.9,
-                                              ),
+                                              color: Colors.white.withOpacity(0.9),
                                             ),
                                           ),
                                         ],
@@ -872,12 +1095,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       ),
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(
-                        20,
-                        16,
-                        20,
-                        20,
-                      ), // Reduced bottom padding to 20
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                       itemCount: _filteredTurfs.length,
                       itemBuilder: (context, index) {
                         return Column(
@@ -1540,7 +1758,7 @@ class _TurfCardState extends State<TurfCard> {
                           child: CircularProgressIndicator(
                             value: loadingProgress.expectedTotalBytes != null
                                 ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
+                                    loadingProgress.expectedTotalBytes!
                                 : null,
                           ),
                         );

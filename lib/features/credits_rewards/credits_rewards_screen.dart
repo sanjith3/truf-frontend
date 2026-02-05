@@ -8,130 +8,125 @@ class CreditsRewardsScreen extends StatefulWidget {
 }
 
 class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
-  bool _isEarnExpanded = false;
-  bool _isRewardsExpanded = false;
-  String _selectedTurf = '';
-  TimeOfDay? _selectedTime;
-  bool _showBookingDialog = false;
+  int _selectedCategory = 0; // 0: Earned, 1: Used
+  int _currentTarget = 10; // Current booking target for free booking
+  int _bookingsMade = 7; // Bookings made towards current target
+  bool _showRedeemDialog = false;
+  String? _selectedTurf;
+  String? _selectedSlot;
+
+  // Professional color scheme
+  final Color primaryColor = const Color(0xFF4CAF50); // Professional Green
+  final Color backgroundColor = const Color(0xFFF8F9FA);
+  final Color cardColor = Colors.white;
 
   // Mock data - replace with actual data
   final Map<String, int> userCredits = {
     'totalCredits': 1250,
     'availableCredits': 850,
     'usedCredits': 400,
-    'nextReward': 10,
-    'currentProgress': 7,
   };
 
-  final List<Map<String, dynamic>> creditHistory = [
+  // User's frequently played turfs
+  final List<Map<String, dynamic>> frequentTurfs = [
+    {
+      'id': '1',
+      'name': 'Redhills Arena',
+      'location': 'Redhills, Chennai',
+      'image': 'https://images.unsplash.com/photo-1575361204480-aadea25e6e68',
+      'bookings': 12,
+      'rating': 4.8,
+    },
+    {
+      'id': '2',
+      'name': 'Elite Football Ground',
+      'location': 'Race Course, Coimbatore',
+      'image': 'https://images.unsplash.com/photo-1511886929837-354d827aae26',
+      'bookings': 8,
+      'rating': 4.9,
+    },
+    {
+      'id': '3',
+      'name': 'Sports Hub Arena',
+      'location': 'Peelamedu, Coimbatore',
+      'image': 'https://images.unsplash.com/photo-1531315630201-bb15abeb1653',
+      'bookings': 5,
+      'rating': 4.6,
+    },
+  ];
+
+  // Available time slots
+  final List<Map<String, dynamic>> timeSlots = [
+    {'time': '06:00 AM', 'available': true},
+    {'time': '08:00 AM', 'available': true},
+    {'time': '10:00 AM', 'available': false},
+    {'time': '12:00 PM', 'available': true},
+    {'time': '02:00 PM', 'available': true},
+    {'time': '04:00 PM', 'available': false},
+    {'time': '06:00 PM', 'available': true},
+    {'time': '08:00 PM', 'available': true},
+  ];
+
+  // Credit transactions
+  final List<Map<String, dynamic>> creditTransactions = [
     {
       'type': 'earned',
-      'title': 'Turf Booking - Mumbai FC',
-      'description': 'Completed booking on Jan 15',
-      'credits': '+50',
-      'date': 'Jan 15, 2024',
+      'title': 'Redhills Arena',
+      'description': 'Booking completed • Jan 15, 2024',
+      'credits': '+1',
       'icon': Icons.check_circle_outline,
-      'color': Colors.green,
+      'color': Color(0xFF4CAF50),
+    },
+    {
+      'type': 'earned',
+      'title': 'Elite Football Ground',
+      'description': 'Booking completed • Jan 12, 2024',
+      'credits': '+1',
+      'icon': Icons.check_circle_outline,
+      'color': Color(0xFF4CAF50),
+    },
+    {
+      'type': 'earned',
+      'title': 'Weekend Bonus',
+      'description': 'Weekend booking • Jan 8, 2024',
+      'credits': '+2',
+      'icon': Icons.celebration_outlined,
+      'color': Color(0xFF2196F3),
     },
     {
       'type': 'lost',
-      'title': 'Cancelled Booking',
-      'description': 'Late cancellation penalty',
-      'credits': '-25',
-      'date': 'Jan 10, 2024',
+      'title': 'Late Cancellation',
+      'description': 'Sports Hub Arena • Jan 10, 2024',
+      'credits': '-2',
       'icon': Icons.cancel_outlined,
-      'color': Colors.orange,
-    },
-    {
-      'type': 'earned',
-      'title': 'Weekend Special',
-      'description': 'Weekend booking bonus',
-      'credits': '+20',
-      'date': 'Jan 8, 2024',
-      'icon': Icons.celebration_outlined,
-      'color': Colors.purple,
+      'color': Color(0xFFF44336),
     },
     {
       'type': 'earned',
       'title': 'Referral Bonus',
-      'description': 'Referred a friend',
-      'credits': '+100',
-      'date': 'Jan 5, 2024',
+      'description': 'Friend referral • Jan 5, 2024',
+      'credits': '+5',
       'icon': Icons.people_outline,
-      'color': Colors.blue,
+      'color': Color(0xFF9C27B0),
+    },
+    {
+      'type': 'used',
+      'title': 'Free Booking Redeemed',
+      'description': 'Redhills Arena • Dec 28, 2023',
+      'credits': '-10',
+      'icon': Icons.sports_soccer,
+      'color': Color(0xFFFF9800),
     },
   ];
 
-  final List<Map<String, dynamic>> availableTurfs = [
-    {
-      'name': 'Mumbai FC Turf',
-      'location': 'Bandra, Mumbai',
-      'credits': 500,
-      'rating': 4.5,
-      'image': 'assets/turf1.jpg',
-    },
-    {
-      'name': 'Sports Arena',
-      'location': 'Andheri, Mumbai',
-      'credits': 500,
-      'rating': 4.2,
-      'image': 'assets/turf2.jpg',
-    },
-    {
-      'name': 'Goal Post Arena',
-      'location': 'Powai, Mumbai',
-      'credits': 500,
-      'rating': 4.7,
-      'image': 'assets/turf3.jpg',
-    },
-  ];
-
-  final List<TimeOfDay> availableTimes = [
-    const TimeOfDay(hour: 6, minute: 0),
-    const TimeOfDay(hour: 8, minute: 0),
-    const TimeOfDay(hour: 10, minute: 0),
-    const TimeOfDay(hour: 12, minute: 0),
-    const TimeOfDay(hour: 14, minute: 0),
-    const TimeOfDay(hour: 16, minute: 0),
-    const TimeOfDay(hour: 18, minute: 0),
-    const TimeOfDay(hour: 20, minute: 0),
-  ];
-
-  Future<void> _selectTime() async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
-      builder: (BuildContext context, Widget? child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF1DB954),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black,
-            ),
-            dialogBackgroundColor: Colors.white,
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null && picked != _selectedTime) {
-      setState(() {
-        _selectedTime = picked;
-      });
-    }
-  }
-
-  void _showRedeemBookingDialog() {
-    if (userCredits['availableCredits']! < 500) {
+  void _showRedeemScreen() {
+    if (_bookingsMade < _currentTarget) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text(
-            'You need at least 500 credits to redeem a free booking',
+          content: Text(
+            'You need ${_currentTarget - _bookingsMade} more bookings to redeem a free booking',
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -152,6 +147,7 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -159,7 +155,7 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                       'Redeem Free Booking',
                       style: TextStyle(
                         fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         color: Colors.black87,
                       ),
                     ),
@@ -171,7 +167,7 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  'Book your favorite turf using 500 credits',
+                  'Book your favorite turf using your credits',
                   style: TextStyle(color: Colors.grey, fontSize: 14),
                 ),
                 const SizedBox(height: 20),
@@ -188,19 +184,20 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                 const SizedBox(height: 12),
                 Expanded(
                   child: ListView.builder(
-                    itemCount: availableTurfs.length,
+                    itemCount: frequentTurfs.length,
                     itemBuilder: (context, index) {
-                      final turf = availableTurfs[index];
+                      final turf = frequentTurfs[index];
+                      final isSelected = _selectedTurf == turf['id'];
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: _selectedTurf == turf['name']
-                                ? const Color(0xFF1DB954)
+                            color: isSelected
+                                ? primaryColor
                                 : Colors.grey.shade200,
-                            width: _selectedTurf == turf['name'] ? 2 : 1,
+                            width: isSelected ? 2 : 1,
                           ),
                           boxShadow: [
                             BoxShadow(
@@ -215,10 +212,10 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                             width: 50,
                             height: 50,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1DB954).withOpacity(0.1),
+                              color: primaryColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                               image: DecorationImage(
-                                image: AssetImage(turf['image'] as String),
+                                image: NetworkImage(turf['image'] as String),
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -255,13 +252,13 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                                   ),
                                   const SizedBox(width: 12),
                                   Icon(
-                                    Icons.credit_score_outlined,
-                                    color: const Color(0xFF1DB954),
+                                    Icons.event,
+                                    color: Colors.blue,
                                     size: 16,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '${turf['credits']} credits',
+                                    '${turf['bookings']} bookings',
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: Colors.grey.shade600,
@@ -271,15 +268,12 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                               ),
                             ],
                           ),
-                          trailing: _selectedTurf == turf['name']
-                              ? const Icon(
-                                  Icons.check_circle,
-                                  color: Color(0xFF1DB954),
-                                )
+                          trailing: isSelected
+                              ? Icon(Icons.check_circle, color: primaryColor)
                               : null,
                           onTap: () {
                             setState(() {
-                              _selectedTurf = turf['name'] as String;
+                              _selectedTurf = turf['id'] as String;
                             });
                           },
                         ),
@@ -290,7 +284,7 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
 
                 const SizedBox(height: 20),
 
-                // Time Selection
+                // Time Slot Selection
                 const Text(
                   'Select Time Slot',
                   style: TextStyle(
@@ -304,34 +298,49 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                   height: 70,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    itemCount: availableTimes.length,
+                    itemCount: timeSlots.length,
                     itemBuilder: (context, index) {
-                      final time = availableTimes[index];
-                      final isSelected = _selectedTime == time;
+                      final slot = timeSlots[index];
+                      final isSelected = _selectedSlot == slot['time'];
+                      final isAvailable = slot['available'] as bool;
+
                       return Container(
                         margin: const EdgeInsets.only(right: 10),
                         child: ChoiceChip(
                           label: Text(
-                            '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+                            slot['time'] as String,
                             style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black87,
+                              color: isSelected
+                                  ? Colors.white
+                                  : isAvailable
+                                  ? Colors.black87
+                                  : Colors.grey,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           selected: isSelected,
-                          selectedColor: const Color(0xFF1DB954),
-                          backgroundColor: Colors.grey.shade100,
-                          onSelected: (selected) {
-                            setState(() {
-                              _selectedTime = selected ? time : null;
-                            });
-                          },
+                          selectedColor: primaryColor,
+                          backgroundColor: isAvailable
+                              ? Colors.grey.shade100
+                              : Colors.grey.shade200,
+                          disabledColor: Colors.grey.shade200,
+                          onSelected: isAvailable
+                              ? (selected) {
+                                  setState(() {
+                                    _selectedSlot = selected
+                                        ? slot['time'] as String
+                                        : null;
+                                  });
+                                }
+                              : null,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                             side: BorderSide(
                               color: isSelected
-                                  ? const Color(0xFF1DB954)
-                                  : Colors.grey.shade300,
+                                  ? primaryColor
+                                  : isAvailable
+                                  ? Colors.grey.shade300
+                                  : Colors.grey.shade200,
                             ),
                           ),
                         ),
@@ -342,12 +351,73 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
 
                 const SizedBox(height: 30),
 
+                // Redeem Summary
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: primaryColor.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Your Booking Target:',
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                          Text(
+                            '$_bookingsMade/$_currentTarget bookings',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Status:',
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: primaryColor,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              'ELIGIBLE',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
                 // Redeem Button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      if (_selectedTurf.isEmpty) {
+                      if (_selectedTurf == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Please select a turf'),
@@ -356,7 +426,7 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                         );
                         return;
                       }
-                      if (_selectedTime == null) {
+                      if (_selectedSlot == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Please select a time slot'),
@@ -366,19 +436,19 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                         return;
                       }
 
-                      // Handle booking confirmation
+                      // Handle redemption
                       Navigator.pop(context);
-                      _showBookingConfirmation();
+                      _showConfirmationDialog();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1DB954),
+                      backgroundColor: primaryColor,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: const Text(
-                      "Confirm Booking - 500 Credits",
+                      "Redeem Free Booking",
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -395,48 +465,43 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
     );
   }
 
-  void _showBookingConfirmation() {
+  void _showConfirmationDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Icon(
           Icons.check_circle,
-          color: Color(0xFF1DB954),
+          color: Color(0xFF4CAF50),
           size: 60,
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Booking Confirmed!',
+              'Booking Redeemed!',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 15),
-            Text(
-              'Your booking at $_selectedTurf has been confirmed.',
+            const Text(
+              'Your free booking has been confirmed.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.grey, fontSize: 15),
+              style: TextStyle(color: Colors.grey, fontSize: 15),
             ),
             const SizedBox(height: 10),
-            if (_selectedTime != null)
-              Text(
-                'Time: ${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                  color: Colors.black87,
-                ),
+            Text(
+              'Next Target: ${_currentTarget + 10} bookings',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: primaryColor,
               ),
-            const SizedBox(height: 10),
-            const Text(
-              '500 credits have been deducted from your account.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
           ],
         ),
@@ -444,14 +509,15 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
+              // Update state after redemption
+              setState(() {
+                _bookingsMade = 0;
+                _currentTarget += 10;
+              });
             },
             child: const Text(
               'Done',
-              style: TextStyle(
-                color: Color(0xFF1DB954),
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -462,100 +528,93 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text("Credits & Rewards"),
-        backgroundColor: const Color(0xFF1DB954),
+        title: const Text(
+          "Credits & Rewards",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: primaryColor,
         centerTitle: true,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text("How Credits Work"),
-                  content: const Text(
-                    "• 50 credits = 1 completed booking\n"
-                    "• 500 credits = 1 free booking\n"
-                    "• Credits expire after 1 year\n"
-                    "• Weekend bookings earn extra credits\n"
-                    "• Refer friends for bonus credits",
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text("OK"),
-                    ),
-                  ],
-                ),
-              );
-            },
+        iconTheme: const IconThemeData(color: Colors.white),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
           ),
-        ],
+        ),
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Column(
           children: [
-            // Total Credits Card
+            // Main Credit Balance Card
             Container(
-              padding: const EdgeInsets.all(20),
+              margin: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(25),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFF1DB954).withOpacity(0.9),
-                    const Color(0xFF1DB954),
-                  ],
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(25),
-                  bottomRight: Radius.circular(25),
-                ),
+                color: cardColor,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
                   const Text(
-                    "Available Credits",
+                    "BOOKINGS MADE",
                     style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey,
+                      letterSpacing: 1,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 15),
                   Text(
-                    userCredits['availableCredits'].toString(),
+                    _bookingsMade.toString(),
                     style: const TextStyle(
                       fontSize: 48,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 5),
-                  const Text(
-                    "Credits",
-                    style: TextStyle(fontSize: 16, color: Colors.white70),
+                  Text(
+                    "out of $_currentTarget needed",
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey,
+                    ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 25),
 
-                  // Credits Breakdown
+                  // Stats Row
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildCreditStat(
-                        title: "Total Earned",
+                      _buildStatItem(
+                        title: "Credits Earned",
                         value: userCredits['totalCredits'].toString(),
-                        icon: Icons.trending_up_outlined,
-                        color: Colors.green,
+                        color: Colors.green[700]!,
+                        icon: Icons.add_circle_outline,
                       ),
-                      _buildCreditStat(
-                        title: "Used Credits",
+                      Container(width: 1, height: 40, color: Colors.grey[200]),
+                      _buildStatItem(
+                        title: "Credits Used",
                         value: userCredits['usedCredits'].toString(),
-                        icon: Icons.shopping_bag_outlined,
-                        color: Colors.blue,
+                        color: Colors.orange[700]!,
+                        icon: Icons.remove_circle_outline,
                       ),
                     ],
                   ),
@@ -563,311 +622,21 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
               ),
             ),
 
-            const SizedBox(height: 20),
-
-            // Next Reward Progress
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Next Reward",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Earn 10 more credits to get a FREE booking!",
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Progress Bar
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "Progress",
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            Text(
-                              "${userCredits['currentProgress']}/${userCredits['nextReward']} credits",
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1DB954),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Stack(
-                            children: [
-                              Container(
-                                width:
-                                    (MediaQuery.of(context).size.width - 80) *
-                                    ((userCredits['currentProgress']! /
-                                            userCredits['nextReward']!)
-                                        .toDouble()),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF1DB954),
-                                      Color(0xFF17A34A),
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "You need ${(userCredits['nextReward'] ?? 0) - (userCredits['currentProgress'] ?? 0)} more credits for your next reward",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+            // Progress to Free Booking
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // How to Earn Credits (Expandable)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // Header
-                    ListTile(
-                      leading: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1DB954).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.school_outlined,
-                          color: Color(0xFF1DB954),
-                          size: 22,
-                        ),
-                      ),
-                      title: const Text(
-                        "How to Earn Credits",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      trailing: IconButton(
-                        icon: Icon(
-                          _isEarnExpanded
-                              ? Icons.keyboard_arrow_up
-                              : Icons.keyboard_arrow_down,
-                          color: const Color(0xFF1DB954),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _isEarnExpanded = !_isEarnExpanded;
-                          });
-                        },
-                      ),
-                    ),
-
-                    // Expandable Content
-                    if (_isEarnExpanded)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(72, 0, 16, 16),
-                        child: Column(
-                          children: [
-                            _buildEarningMethod(
-                              icon: Icons.sports_soccer,
-                              title: "Complete Bookings",
-                              description:
-                                  "Earn 50 credits for every completed booking",
-                              color: const Color(0xFF1DB954),
-                            ),
-                            const SizedBox(height: 10),
-                            _buildEarningMethod(
-                              icon: Icons.people_outline,
-                              title: "Refer Friends",
-                              description:
-                                  "Earn 100 credits for every successful referral",
-                              color: Colors.blue,
-                            ),
-                            const SizedBox(height: 10),
-                            _buildEarningMethod(
-                              icon: Icons.star_outline,
-                              title: "Weekend Bonus",
-                              description:
-                                  "Earn extra 20 credits on weekend bookings",
-                              color: Colors.purple,
-                            ),
-                            const SizedBox(height: 10),
-                            _buildEarningMethod(
-                              icon: Icons.rate_review_outlined,
-                              title: "Write Reviews",
-                              description:
-                                  "Earn 10 credits for each turf review",
-                              color: Colors.orange,
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // How Rewards Work (Expandable)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // Header
-                    ListTile(
-                      leading: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1DB954).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.card_giftcard,
-                          color: Color(0xFF1DB954),
-                          size: 22,
-                        ),
-                      ),
-                      title: const Text(
-                        "How Rewards Work",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      trailing: IconButton(
-                        icon: Icon(
-                          _isRewardsExpanded
-                              ? Icons.keyboard_arrow_up
-                              : Icons.keyboard_arrow_down,
-                          color: const Color(0xFF1DB954),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _isRewardsExpanded = !_isRewardsExpanded;
-                          });
-                        },
-                      ),
-                    ),
-
-                    // Expandable Content
-                    if (_isRewardsExpanded)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(72, 0, 16, 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildRewardPoint(
-                              "• Every completed booking earns you 50 credits",
-                            ),
-                            const SizedBox(height: 8),
-                            _buildRewardPoint(
-                              "• When you reach 500 credits, you get 1 FREE booking",
-                            ),
-                            const SizedBox(height: 8),
-                            _buildRewardPoint(
-                              "• Free booking can be redeemed at any available turf",
-                            ),
-                            const SizedBox(height: 8),
-                            _buildRewardPoint(
-                              "• Credits are deducted for late cancellations",
-                            ),
-                            const SizedBox(height: 8),
-                            _buildRewardPoint(
-                              "• Credits expire after 1 year of inactivity",
-                            ),
-                            const SizedBox(height: 8),
-                            _buildRewardPoint(
-                              "• Weekend bookings earn extra 20 credits",
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 25),
-
-            // Credits History
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -875,328 +644,489 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        "Credits History",
+                        "Free Booking Progress",
                         style: TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                           color: Colors.black87,
                         ),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          // View all history
-                        },
-                        child: const Text(
-                          "View All",
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          "$_bookingsMade/$_currentTarget",
                           style: TextStyle(
-                            color: Color(0xFF1DB954),
-                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: primaryColor,
                           ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  ...creditHistory
-                      .map(
-                        (history) => _buildHistoryItem(
-                          icon: history['icon'] as IconData,
-                          title: history['title'] as String,
-                          description: history['description'] as String,
-                          credits: history['credits'] as String,
-                          date: history['date'] as String,
-                          color: history['color'] as Color,
+                  Text(
+                    _bookingsMade >= _currentTarget
+                        ? "You're eligible for a free booking!"
+                        : "Complete ${_currentTarget - _bookingsMade} more bookings for a free slot",
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Progress Bar
+                  Container(
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Stack(
+                      children: [
+                        Container(
+                          width:
+                              (MediaQuery.of(context).size.width - 80) *
+                              (_bookingsMade / _currentTarget),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                primaryColor,
+                                primaryColor.withOpacity(0.8),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
                         ),
-                      )
-                      .toList(),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "$_bookingsMade bookings made",
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      ),
+                      Text(
+                        "$_currentTarget target",
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 25),
 
-            // Redeem Button
+            // How It Works Section
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.info_outline,
+                          color: primaryColor,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          "How It Works",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  _buildInfoPoint("• 1 booking = 1 credit"),
+                  const SizedBox(height: 8),
+                  _buildInfoPoint("• Complete 10 bookings = 1 free booking"),
+                  const SizedBox(height: 8),
+                  _buildInfoPoint("• After redemption, target increases by 10"),
+                  const SizedBox(height: 8),
+                  _buildInfoPoint("• Weekend bookings earn 2 credits each"),
+                  const SizedBox(height: 8),
+                  _buildInfoPoint("• Refer friends for 5 credit bonus"),
+                  const SizedBox(height: 8),
+                  _buildInfoPoint("• Late cancellations deduct 2 credits"),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            // Credit Activity
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF1DB954), Color(0xFF17A34A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Credit Activity",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF1DB954).withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
+                  const SizedBox(height: 5),
+                  const Text(
+                    "Track your credits earned and used",
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 15),
+
+                  // Category Tabs
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          const Icon(
-                            Icons.celebration,
-                            color: Colors.white,
-                            size: 40,
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            "Ready to Redeem?",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "You have ${userCredits['availableCredits']} credits available",
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            "500 credits = 1 Free Booking",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withOpacity(0.9),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _showRedeemBookingDialog,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(16),
-                              bottomRight: Radius.circular(16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedCategory = 0;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _selectedCategory == 0
+                                    ? primaryColor
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  "Earned",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _selectedCategory == 0
+                                        ? Colors.white
+                                        : Colors.grey[700],
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                        child: Text(
-                          userCredits['availableCredits']! >= 500
-                              ? "Redeem Free Booking"
-                              : "Need ${500 - userCredits['availableCredits']!} more credits",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: userCredits['availableCredits']! >= 500
-                                ? const Color(0xFF1DB954)
-                                : Colors.orange,
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedCategory = 1;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _selectedCategory == 1
+                                    ? primaryColor
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  "Used",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: _selectedCategory == 1
+                                        ? Colors.white
+                                        : Colors.grey[700],
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Transactions List
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: creditTransactions
+                    .where(
+                      (transaction) => _selectedCategory == 0
+                          ? transaction['type'] == 'earned' ||
+                                transaction['type'] == 'lost'
+                          : transaction['type'] == 'used',
+                    )
+                    .map(
+                      (transaction) => _buildTransactionItem(
+                        icon: transaction['icon'] as IconData,
+                        title: transaction['title'] as String,
+                        description: transaction['description'] as String,
+                        credits: transaction['credits'] as String,
+                        color: transaction['color'] as Color,
+                      ),
+                    )
+                    .toList(),
               ),
             ),
 
             const SizedBox(height: 30),
+
+            // Redeem CTA
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.all(25),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [primaryColor, primaryColor.withOpacity(0.8)],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryColor.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    _bookingsMade >= _currentTarget
+                        ? Icons.celebration
+                        : Icons.timeline,
+                    color: Colors.white,
+                    size: 40,
+                  ),
+                  const SizedBox(height: 15),
+                  Text(
+                    _bookingsMade >= _currentTarget
+                        ? "Ready to Redeem!"
+                        : "Keep Going!",
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _bookingsMade >= _currentTarget
+                        ? "You've completed $_currentTarget bookings"
+                        : "$_bookingsMade/$_currentTarget bookings completed",
+                    style: const TextStyle(fontSize: 16, color: Colors.white70),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    "Next Target: ${_currentTarget + 10} bookings",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _showRedeemScreen,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        _bookingsMade >= _currentTarget
+                            ? "REDEEM FREE BOOKING"
+                            : "NEED ${_currentTarget - _bookingsMade} MORE BOOKINGS",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: _bookingsMade >= _currentTarget
+                              ? primaryColor
+                              : Colors.orange[700],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCreditStat({
+  Widget _buildStatItem({
     required String title,
     required String value,
-    required IconData icon,
     required Color color,
+    required IconData icon,
   }) {
     return Column(
       children: [
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: Colors.white, size: 24),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 8),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Colors.black87,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 4),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 12, color: Colors.white70),
-        ),
+        Text(title, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
       ],
     );
   }
 
-  Widget _buildEarningMethod({
-    required IconData icon,
-    required String title,
-    required String description,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  description,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRewardPoint(String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Icon(Icons.circle, size: 6, color: Colors.grey),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade700,
-              height: 1.4,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHistoryItem({
+  Widget _buildTransactionItem({
     required IconData icon,
     required String title,
     required String description,
     required String credits,
-    required String date,
     required Color color,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade100),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      credits,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: credits.startsWith('+')
-                            ? Colors.green
-                            : Colors.orange,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
                 Text(
-                  description,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  date,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  description,
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                 ),
               ],
             ),
           ),
+          Text(
+            credits,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: credits.startsWith('+')
+                  ? Colors.green[700]
+                  : credits.startsWith('-')
+                  ? Colors.red[700]
+                  : Colors.grey[700],
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildInfoPoint(String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.circle, size: 8, color: primaryColor),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey[700],
+              height: 1.5,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -27,6 +27,19 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _mapsLinkController = TextEditingController();
   final TextEditingController _customSportController = TextEditingController();
+  final TextEditingController _customAmenityController =
+      TextEditingController();
+
+  // Bank Details Controllers
+  final TextEditingController _accountHolderNameController =
+      TextEditingController();
+  final TextEditingController _accountNumberController =
+      TextEditingController();
+  final TextEditingController _confirmAccountNumberController =
+      TextEditingController(); // New confirmation field
+  final TextEditingController _bankNameController = TextEditingController();
+  final TextEditingController _ifscCodeController = TextEditingController();
+  final TextEditingController _branchNameController = TextEditingController();
 
   // Sports
   List<String> availableSports = [
@@ -41,18 +54,72 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     'Table Tennis',
     'Rugby',
     'Baseball',
+    'Swimming',
+    'Athletics',
+    'Boxing',
+    'Golf',
   ];
   List<String> selectedSports = [];
   List<String> customSports = [];
+  bool showAllSports = false;
+
+  // Amenities
+  List<String> availableAmenities = [
+    'Flood Lights',
+    'Parking',
+    'Water',
+    'Changing Rooms',
+    'Showers',
+    'Restrooms',
+    'First Aid',
+    'Cafeteria',
+    'Equipment Rental',
+    'WiFi',
+    'Lockers',
+    'Coach Available',
+    'Spectator Seating',
+    'Club House',
+    'Power Backup',
+  ];
+  List<String> selectedAmenities = [];
+  List<String> customAmenities = [];
+  bool showAllAmenities = false;
 
   // Photos
   List<File> selectedPhotos = [];
   bool isConfirmed = false;
 
+  // Step tracking for better UX
+  int _currentStep = 0;
+  final List<String> _stepTitles = [
+    'Contact Info',
+    'Business Details',
+    'Location',
+    'Bank Details',
+    'Photos & Terms',
+  ];
+
   void _submitForm() {
     if (!_formKey.currentState!.validate()) return;
+
+    // Validate bank details
+    if (_accountHolderNameController.text.isEmpty ||
+        _accountNumberController.text.isEmpty ||
+        _confirmAccountNumberController.text.isEmpty ||
+        _bankNameController.text.isEmpty ||
+        _ifscCodeController.text.isEmpty) {
+      _showSnackBar('Please fill all bank details', isError: true);
+      return;
+    }
+
+    // Validate account number confirmation
+    if (_accountNumberController.text != _confirmAccountNumberController.text) {
+      _showSnackBar('Account numbers do not match', isError: true);
+      return;
+    }
+
     if (!isConfirmed) {
-      _showSnackBar('Please confirm the accuracy of information', isError: true);
+      _showSnackBar('Please confirm the terms and conditions', isError: true);
       return;
     }
 
@@ -69,13 +136,13 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
       name: _businessNameController.text.trim(),
       location: _cityController.text.trim(),
       city: _cityController.text.trim(),
-      distance: 2.0, // Default for demo
+      distance: 2.0,
       price: int.tryParse(_priceController.text.trim()) ?? 500,
-      rating: 5.0, // New turfs get 5.0
+      rating: 5.0,
       images: [
         "https://images.unsplash.com/photo-1531315630201-bb15abeb1653?w=800",
       ],
-      amenities: ["Flood Lights", "Parking", "Water"], // Default for demo
+      amenities: selectedAmenities,
       sports: [...selectedSports, ...customSports],
       mapLink: _mapsLinkController.text.trim(),
       address: _addressController.text.trim(),
@@ -87,7 +154,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
 
     // Simulate API call
     Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
       _showReviewDialog();
     });
   }
@@ -99,7 +166,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
       builder: (context) => ReviewDialog(
         onClose: () {
           Navigator.pop(context);
-          Navigator.pop(context); // Go back to previous screen
+          Navigator.pop(context);
         },
       ),
     );
@@ -111,7 +178,8 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
       final List<XFile> pickedFiles = await _picker.pickMultiImage(
         maxWidth: 1920,
         maxHeight: 1080,
-        imageQuality: 90,
+        imageQuality: 85,
+        // Limit to 6 images
       );
 
       if (pickedFiles.isNotEmpty && mounted) {
@@ -119,6 +187,10 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           selectedPhotos.addAll(
             pickedFiles.map((file) => File(file.path)).toList(),
           );
+          if (selectedPhotos.length > 10) {
+            selectedPhotos = selectedPhotos.sublist(0, 10);
+            _showSnackBar('Maximum 10 photos allowed. Only first 10 selected.');
+          }
         });
       }
     } catch (e) {
@@ -133,18 +205,39 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
   }
 
   void _addCustomSport() {
-    if (_customSportController.text.trim().isNotEmpty) {
+    String sport = _customSportController.text.trim();
+    if (sport.isNotEmpty) {
+      sport = sport
+          .split(' ')
+          .map((word) {
+            if (word.isEmpty) return '';
+            return word[0].toUpperCase() + word.substring(1).toLowerCase();
+          })
+          .join(' ');
+
       setState(() {
-        customSports.add(_customSportController.text.trim());
+        customSports.add(sport);
         _customSportController.clear();
       });
     }
   }
 
-  void _removeCustomSport(int index) {
-    setState(() {
-      customSports.removeAt(index);
-    });
+  void _addCustomAmenity() {
+    String amenity = _customAmenityController.text.trim();
+    if (amenity.isNotEmpty) {
+      amenity = amenity
+          .split(' ')
+          .map((word) {
+            if (word.isEmpty) return '';
+            return word[0].toUpperCase() + word.substring(1).toLowerCase();
+          })
+          .join(' ');
+
+      setState(() {
+        customAmenities.add(amenity);
+        _customAmenityController.clear();
+      });
+    }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -154,17 +247,65 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
         backgroundColor: isError ? Colors.red : Colors.green,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 3),
       ),
     );
+  }
+
+  String _capitalizeWords(String text) {
+    return text
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return '';
+          return word[0].toUpperCase() + word.substring(1).toLowerCase();
+        })
+        .join(' ');
+  }
+
+  void _nextStep() {
+    if (_currentStep < _stepTitles.length - 1) {
+      setState(() {
+        _currentStep++;
+      });
+      _scrollToTop();
+    }
+  }
+
+  void _previousStep() {
+    if (_currentStep > 0) {
+      setState(() {
+        _currentStep--;
+      });
+      _scrollToTop();
+    }
+  }
+
+  void _scrollToTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PrimaryScrollController.of(context)?.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          "Partner Registration",
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
+        title: Column(
+          children: [
+            Text(
+              "Partner Registration",
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              "Complete in 3-5 minutes",
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -176,357 +317,789 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
         color: Colors.grey[50],
         child: Form(
           key: _formKey,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              // Progress Steps
+              _buildProgressSteps(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Show different content based on current step
+                      if (_currentStep == 0) _buildStep1ContactInfo(),
+                      if (_currentStep == 1) _buildStep2BusinessDetails(),
+                      if (_currentStep == 2) _buildStep3Location(),
+                      if (_currentStep == 3) _buildStep4BankDetails(),
+                      if (_currentStep == 4) _buildStep5PhotosTerms(),
+
+                      const SizedBox(height: 20),
+
+                      // Navigation Buttons
+                      _buildNavigationButtons(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressSteps() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(_stepTitles.length, (index) {
+          bool isActive = index == _currentStep;
+          bool isCompleted = index < _currentStep;
+
+          return Expanded(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? const Color(0xFF00C853)
+                            : isCompleted
+                            ? const Color(0xFF00C853)
+                            : Colors.grey[300],
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: isCompleted
+                            ? const Icon(
+                                Icons.check,
+                                size: 16,
+                                color: Colors.white,
+                              )
+                            : Text(
+                                '${index + 1}',
+                                style: TextStyle(
+                                  color: isActive
+                                      ? Colors.white
+                                      : Colors.grey[600],
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                      ),
+                    ),
+                    if (index < _stepTitles.length - 1)
+                      Expanded(
+                        child: Container(
+                          height: 2,
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: isCompleted
+                                ? const Color(0xFF00C853)
+                                : Colors.grey[300],
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _stepTitles[index],
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    color: isActive
+                        ? const Color(0xFF00C853)
+                        : isCompleted
+                        ? const Color(0xFF00C853)
+                        : Colors.grey[500],
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildStep1ContactInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          icon: Icons.person_outline,
+          title: "Contact Information",
+          subtitle: "We'll use this to contact you about your application",
+        ),
+        const SizedBox(height: 20),
+        _buildCompactTextField(
+          controller: _fullNameController,
+          label: "Full Name",
+          hint: "Enter your full name",
+          icon: Icons.person,
+          isRequired: true,
+        ),
+        const SizedBox(height: 16),
+        _buildCompactTextField(
+          controller: _phoneController,
+          label: "Phone Number",
+          hint: "10-digit mobile number",
+          icon: Icons.phone,
+          keyboardType: TextInputType.phone,
+          isRequired: true,
+        ),
+        const SizedBox(height: 16),
+        _buildCompactTextField(
+          controller: _emailController,
+          label: "Email Address",
+          hint: "Enter official email",
+          icon: Icons.email_outlined,
+          keyboardType: TextInputType.emailAddress,
+          isRequired: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep2BusinessDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          icon: Icons.business_outlined,
+          title: "Business Details",
+          subtitle: "Basic information about your turf",
+        ),
+        const SizedBox(height: 20),
+        _buildCompactTextField(
+          controller: _businessNameController,
+          label: "Turf Name",
+          hint: "e.g., Green Field Arena",
+          icon: Icons.stadium_outlined,
+          isRequired: true,
+        ),
+        const SizedBox(height: 16),
+        _buildCompactTextField(
+          controller: _priceController,
+          label: "Price Per Hour",
+          hint: "Enter price in ₹",
+          icon: Icons.currency_rupee_outlined,
+          prefixText: "₹ ",
+          keyboardType: TextInputType.number,
+          isRequired: true,
+        ),
+        const SizedBox(height: 24),
+
+        // Sports - Compact Version
+        _buildCompactSectionTitle("Sports Available"),
+        const SizedBox(height: 12),
+        _buildSportsGridCompact(),
+
+        const SizedBox(height: 24),
+
+        // Amenities - Compact Version
+        _buildCompactSectionTitle("Amenities"),
+        const SizedBox(height: 12),
+        _buildAmenitiesGridCompact(),
+
+        const SizedBox(height: 16),
+        _buildCompactTextField(
+          controller: _descriptionController,
+          label: "Brief Description (Optional)",
+          hint: "Describe your turf in 2-3 lines",
+          icon: Icons.description_outlined,
+          maxLines: 2,
+          isRequired: false,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep3Location() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          icon: Icons.location_on_outlined,
+          title: "Location Details",
+          subtitle: "Where is your turf located?",
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: _buildCompactTextField(
+                controller: _cityController,
+                label: "City",
+                hint: "e.g., Coimbatore",
+                icon: Icons.location_city_outlined,
+                isRequired: true,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildCompactTextField(
+                controller: _zipCodeController,
+                label: "PIN Code",
+                hint: "6-digit code",
+                icon: Icons.pin_outlined,
+                keyboardType: TextInputType.number,
+                isRequired: true,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildCompactTextField(
+          controller: _addressController,
+          label: "Full Address",
+          hint: "Street, area, landmark",
+          icon: Icons.home_outlined,
+          maxLines: 2,
+          isRequired: true,
+        ),
+        const SizedBox(height: 16),
+        _buildCompactTextField(
+          controller: _mapsLinkController,
+          label: "Google Maps Link",
+          hint: "Paste shareable link",
+          icon: Icons.map_outlined,
+          isRequired: true,
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue[100]!),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "Open Maps → Search your turf → Tap 'Share' → Copy link",
+                  style: TextStyle(fontSize: 12, color: Colors.blue[800]),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep4BankDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          icon: Icons.account_balance_outlined,
+          title: "Bank Details",
+          subtitle: "For commission payments",
+        ),
+        const SizedBox(height: 20),
+        _buildCompactTextField(
+          controller: _accountHolderNameController,
+          label: "Account Holder Name",
+          hint: "As per bank records",
+          icon: Icons.person_outline,
+          isRequired: true,
+        ),
+        const SizedBox(height: 16),
+        _buildCompactTextField(
+          controller: _accountNumberController,
+          label: "Account Number",
+          hint: "Enter account number",
+          icon: Icons.credit_card_outlined,
+          keyboardType: TextInputType.number,
+          isRequired: true,
+        ),
+        const SizedBox(height: 16),
+        _buildCompactTextField(
+          controller: _confirmAccountNumberController,
+          label: "Confirm Account Number",
+          hint: "Re-enter account number",
+          icon: Icons.credit_card_outlined,
+          keyboardType: TextInputType.number,
+          isRequired: true,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildCompactTextField(
+                controller: _bankNameController,
+                label: "Bank Name",
+                hint: "e.g., SBI",
+                icon: Icons.business_outlined,
+                isRequired: true,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildCompactTextField(
+                controller: _ifscCodeController,
+                label: "IFSC Code",
+                hint: "11 characters",
+                icon: Icons.code_outlined,
+                isRequired: true,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildCompactTextField(
+          controller: _branchNameController,
+          label: "Branch Name (Optional)",
+          hint: "Enter branch name",
+          icon: Icons.location_city_outlined,
+          isRequired: false,
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.green[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.green[100]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 16,
+                    color: Colors.green[700],
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Payment Information",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green[700],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "• We deduct 10% commission from each booking\n• 90% is transferred INSTANTLY to your account\n• Payments processed after each booking",
+                style: TextStyle(fontSize: 11, color: Colors.green[800]),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep5PhotosTerms() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          icon: Icons.photo_library_outlined,
+          title: "Photos & Final Steps",
+          subtitle: "Almost done! Just need a few more details",
+        ),
+        const SizedBox(height: 20),
+
+        // Photo Upload - Simplified
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[300]!),
+            color: Colors.white,
+          ),
+          child: InkWell(
+            onTap: _pickImages,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 36,
+                    color: const Color(0xFF00C853),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    selectedPhotos.isEmpty
+                        ? "Upload Turf Photos"
+                        : "${selectedPhotos.length} Photos Selected",
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    selectedPhotos.isEmpty
+                        ? "Tap to add photos (3-6 recommended)"
+                        : "Tap to add/remove photos",
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (selectedPhotos.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 60,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: selectedPhotos.length,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    image: DecorationImage(
+                                      image: FileImage(selectedPhotos[index]),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: -4,
+                                  right: -4,
+                                  child: IconButton(
+                                    icon: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.1,
+                                            ),
+                                            blurRadius: 4,
+                                          ),
+                                        ],
+                                      ),
+                                      padding: const EdgeInsets.all(2),
+                                      child: Icon(
+                                        Icons.close,
+                                        size: 14,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                    onPressed: () => _removePhoto(index),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Compact Terms & Conditions
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Card
-                _buildHeaderCard(),
-                const SizedBox(height: 24),
-
-                // Section 1: Contact Details
-                _buildSectionCard(
-                  title: "Contact Information",
-                  icon: Icons.person_outline,
-                  content: Column(
-                    children: [
-                      _buildModernTextField(
-                        controller: _fullNameController,
-                        label: "Full Name",
-                        hint: "Enter your full name",
-                        icon: Icons.person,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.verified_outlined,
+                      size: 20,
+                      color: const Color(0xFF00C853),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Terms & Conditions",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
                       ),
-                      const SizedBox(height: 16),
-                      _buildModernTextField(
-                        controller: _phoneController,
-                        label: "Phone Number",
-                        hint: "Enter 10-digit mobile number",
-                        icon: Icons.phone,
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildModernTextField(
-                        controller: _emailController,
-                        label: "Email Address",
-                        hint: "Enter official email",
-                        icon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 12),
 
-                const SizedBox(height: 24),
-
-                // Section 2: Business Details
-                _buildSectionCard(
-                  title: "Business Details",
-                  icon: Icons.business_outlined,
-                  content: Column(
-                    children: [
-                      _buildModernTextField(
-                        controller: _businessNameController,
-                        label: "Turf Name",
-                        hint: "Enter your turf/business name",
-                        icon: Icons.stadium_outlined,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildModernTextField(
-                        controller: _priceController,
-                        label: "Price Per Hour",
-                        hint: "Enter price in ₹",
-                        icon: Icons.currency_rupee_outlined,
-                        prefixText: "₹ ",
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildSportsSection(),
-                    ],
+                // Scrollable Terms
+                Container(
+                  height: 160,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!),
                   ),
-                ),
-
-                // Selected Sports Display Card
-                if (selectedSports.isNotEmpty || customSports.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _buildSelectedSportsCard(),
-                ],
-
-                const SizedBox(height: 24),
-
-                // Section 3: Description
-                _buildSectionCard(
-                  title: "Turf Description",
-                  icon: Icons.description_outlined,
-                  content: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Describe your turf facilities, amenities, and special features",
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey[300]!),
-                          color: Colors.white,
-                        ),
-                        child: TextFormField(
-                          controller: _descriptionController,
-                          maxLines: 5,
-                          minLines: 3,
-                          decoration: const InputDecoration(
-                            hintText: "",
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.all(16),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildTermItem("✓ I own/manage this turf facility"),
+                        _buildTermItem("✓ Information provided is accurate"),
+                        _buildTermItem("✓ Approval process takes 48 hours"),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange[50],
+                            borderRadius: BorderRadius.circular(6),
                           ),
-                          style: const TextStyle(fontSize: 15),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.account_balance_wallet_outlined,
+                                    size: 14,
+                                    color: Colors.orange[700],
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "Commission Agreement",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.orange[700],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                "• 10% commission on each booking\n• 90% transferred INSTANTLY after booking\n• Fixed, non-negotiable structure",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.orange[800],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Transform.scale(
+                      scale: 1.1,
+                      child: Checkbox(
+                        value: isConfirmed,
+                        onChanged: (value) {
+                          setState(() {
+                            isConfirmed = value ?? false;
+                          });
+                        },
+                        activeColor: const Color(0xFF00C853),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Tip: Include details about facilities, capacity, equipment, and amenities",
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "I have read and agree to all terms and conditions",
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                          height: 1.3,
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-
-                const SizedBox(height: 24),
-
-                // Section 4: Location
-                _buildSectionCard(
-                  title: "Location Details",
-                  icon: Icons.location_on_outlined,
-                  content: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildModernTextField(
-                              controller: _cityController,
-                              label: "City",
-                              hint: "Enter city",
-                              icon: Icons.location_city_outlined,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _buildModernTextField(
-                              controller: _zipCodeController,
-                              label: "PIN Code",
-                              hint: "6-digit PIN",
-                              icon: Icons.pin_outlined,
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _buildModernTextField(
-                        controller: _addressController,
-                        label: "Full Address",
-                        hint: "Enter complete address",
-                        icon: Icons.home_outlined,
-                        maxLines: 2,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildModernTextField(
-                        controller: _mapsLinkController,
-                        label: "Google Maps Link",
-                        hint: "Paste Google Maps share link",
-                        icon: Icons.map_outlined,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildMapsHelpCard(),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Section 5: Photos
-                _buildSectionCard(
-                  title: "Turf Photos",
-                  icon: Icons.photo_library_outlined,
-                  content: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Upload high-quality photos of your turf",
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildPhotoUploadSection(),
-                      const SizedBox(height: 12),
-                      _buildPhotoGrid(),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Section 6: Confirmation
-                _buildConfirmationSection(),
-
-                const SizedBox(height: 32),
-
-                // Submit Button
-                _buildSubmitButton(),
-
-                const SizedBox(height: 40),
               ],
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 
-  // Helper Widgets
-  Widget _buildHeaderCard() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF00C853).withOpacity(0.1),
-            const Color(0xFF00E676).withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF00C853).withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF00C853).withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.handshake_outlined,
-              size: 40,
-              color: const Color(0xFF00C853),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            "Become a TurfSpot Partner",
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Join India's premier sports platform. Fill in the details below to register your turf business.",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[700],
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF00C853).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color(0xFF00C853).withOpacity(0.3),
+  Widget _buildNavigationButtons() {
+    return Row(
+      children: [
+        if (_currentStep > 0)
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _previousStep,
+              icon: const Icon(Icons.arrow_back, size: 16),
+              label: const Text("Back"),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.grey[700],
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                side: BorderSide(color: Colors.grey[400]!),
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 14,
-                  color: const Color(0xFF00C853),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  "Approval within 48 hours",
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF00C853),
-                  ),
-                ),
-              ],
+          ),
+        if (_currentStep > 0) const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _currentStep == _stepTitles.length - 1
+                ? _submitForm
+                : _nextStep,
+            icon: Icon(
+              _currentStep == _stepTitles.length - 1
+                  ? Icons.send_outlined
+                  : Icons.arrow_forward,
+              size: 16,
+            ),
+            label: Text(
+              _currentStep == _stepTitles.length - 1
+                  ? "Submit Application"
+                  : "Next",
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00C853),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionCard({
-    required String title,
-    required IconData icon,
-    required Widget content,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF00C853).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, size: 22, color: const Color(0xFF00C853)),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            content,
-          ],
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildModernTextField({
+  Widget _buildSectionHeader({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF00C853).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 20, color: const Color(0xFF00C853)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactSectionTitle(String title) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[800],
+          ),
+        ),
+        const SizedBox(width: 8),
+        if (title.contains("Sports"))
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00C853).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '${selectedSports.length + customSports.length} selected',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF00C853),
+              ),
+            ),
+          ),
+        if (title.contains("Amenities"))
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '${selectedAmenities.length + customAmenities.length} selected',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Colors.orange[700],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCompactTextField({
     required TextEditingController controller,
     required String label,
     required String hint,
@@ -534,45 +1107,59 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     String? prefixText,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
+    bool isRequired = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[800],
-          ),
+        Row(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800],
+              ),
+            ),
+            if (isRequired)
+              Text(
+                " *",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red[400],
+                ),
+              ),
+          ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.grey[300]!),
             color: Colors.white,
           ),
           child: Row(
             children: [
               Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: Icon(icon, size: 20, color: Colors.grey[500]),
+                padding: const EdgeInsets.only(left: 12),
+                child: Icon(icon, size: 18, color: Colors.grey[500]),
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 12, right: 16),
+                  padding: const EdgeInsets.only(left: 8, right: 12),
                   child: TextFormField(
                     controller: controller,
                     keyboardType: keyboardType,
                     maxLines: maxLines,
-                    style: const TextStyle(fontSize: 15),
+                    style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
                       hintText: hint,
                       border: InputBorder.none,
                       prefixText: prefixText,
                       hintStyle: TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         color: Colors.grey[500],
                       ),
                     ),
@@ -586,44 +1173,17 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     );
   }
 
-  Widget _buildSportsSection() {
+  Widget _buildSportsGridCompact() {
+    List<String> displayedSports = showAllSports
+        ? availableSports
+        : availableSports.take(6).toList();
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              "Available Sports",
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[800],
-              ),
-            ),
-            const SizedBox(width: 8),
-            if (selectedSports.isNotEmpty || customSports.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00C853).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '${selectedSports.length + customSports.length} selected',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF00C853),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
         Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: availableSports.map((sport) {
+          spacing: 6,
+          runSpacing: 6,
+          children: displayedSports.map((sport) {
             final isSelected = selectedSports.contains(sport);
             return GestureDetector(
               onTap: () {
@@ -636,83 +1196,99 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                 });
               },
               child: Container(
-                width: (MediaQuery.of(context).size.width - 70) / 3, // Roughly 3 columns
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected ? const Color(0xFF00C853) : Colors.white,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isSelected
                         ? const Color(0xFF00C853)
                         : Colors.grey[300]!,
-                    width: isSelected ? 1.5 : 1,
+                    width: 1,
                   ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: const Color(0xFF00C853).withOpacity(0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : [],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      isSelected ? Icons.check_circle : Icons.sports,
-                      size: 20,
-                      color: isSelected ? Colors.white : Colors.grey[600],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      sport,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : Colors.grey[700],
-                      ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(isSelected ? 0.1 : 0.03),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
                     ),
                   ],
+                ),
+                child: Text(
+                  sport,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected ? Colors.white : Colors.grey[700],
+                  ),
                 ),
               ),
             );
           }).toList(),
         ),
-        const SizedBox(height: 16),
+        if (!showAllSports && availableSports.length > 6) ...[
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                showAllSports = true;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.expand_more, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 6),
+                  Text(
+                    "Show More (${availableSports.length - 6})",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.grey[300]!),
                   color: Colors.white,
                 ),
                 child: Row(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16),
-                      child: Icon(
-                        Icons.sports,
-                        size: 20,
-                        color: Colors.grey[500],
-                      ),
-                    ),
+                    const SizedBox(width: 10),
+                    Icon(Icons.sports, size: 16, color: Colors.grey[500]),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(left: 12, right: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         child: TextField(
                           controller: _customSportController,
-                          decoration: const InputDecoration(
-                            hintText: "Add custom sport...",
+                          decoration: InputDecoration(
+                            hintText: "Add sport...",
                             border: InputBorder.none,
-                            hintStyle: TextStyle(fontSize: 14),
+                            hintStyle: const TextStyle(fontSize: 12),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 10,
+                            ),
+                            isDense: true,
                           ),
                           onSubmitted: (_) => _addCustomSport(),
                         ),
@@ -722,22 +1298,20 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: _addCustomSport,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text("Add"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue[600],
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 60,
+              child: ElevatedButton(
+                onPressed: _addCustomSport,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
-                ),
-                elevation: 1,
+                child: const Text("Add"),
               ),
             ),
           ],
@@ -746,595 +1320,174 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     );
   }
 
-  Widget _buildSelectedSportsCard() {
-    final allSports = [...selectedSports, ...customSports];
-    if (allSports.isEmpty) return const SizedBox();
+  Widget _buildAmenitiesGridCompact() {
+    List<String> displayedAmenities = showAllAmenities
+        ? availableAmenities
+        : availableAmenities.take(6).toList();
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green[100]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.green[50]!,
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.sports, size: 18, color: const Color(0xFF00C853)),
-              const SizedBox(width: 8),
-              Text(
-                "Selected Sports",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[800],
-                ),
-              ),
-              const Spacer(),
-              Container(
+    return Column(
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: displayedAmenities.map((amenity) {
+            final isSelected = selectedAmenities.contains(amenity);
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    selectedAmenities.remove(amenity);
+                  } else {
+                    selectedAmenities.add(amenity);
+                  }
+                });
+              },
+              child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00C853).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${allSports.length} sports',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF00C853),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: allSports.map((sport) {
-              final isCustom = customSports.contains(sport);
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: isCustom ? Colors.blue[50] : Colors.green[50],
-                  borderRadius: BorderRadius.circular(20),
+                  color: isSelected ? Colors.orange[400] : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: isCustom ? Colors.blue[100]! : Colors.green[100]!,
+                    color: isSelected ? Colors.orange[400]! : Colors.grey[300]!,
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(isSelected ? 0.1 : 0.03),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  amenity.length > 12
+                      ? '${amenity.substring(0, 10)}...'
+                      : amenity,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected ? Colors.white : Colors.grey[700],
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isCustom ? Icons.star_outline : Icons.sports,
-                      size: 14,
-                      color: isCustom
-                          ? Colors.blue[600]
-                          : const Color(0xFF00C853),
+              ),
+            );
+          }).toList(),
+        ),
+        if (!showAllAmenities && availableAmenities.length > 6) ...[
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                showAllAmenities = true;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.expand_more, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 6),
+                  Text(
+                    "Show More (${availableAmenities.length - 6})",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      sport,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: isCustom ? Colors.blue[800] : Colors.green[800],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
+                  color: Colors.white,
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 10),
+                    Icon(
+                      Icons.add_circle_outline,
+                      size: 16,
+                      color: Colors.grey[500],
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: TextField(
+                          controller: _customAmenityController,
+                          decoration: InputDecoration(
+                            hintText: "Add amenity...",
+                            border: InputBorder.none,
+                            hintStyle: const TextStyle(fontSize: 12),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 10,
+                            ),
+                            isDense: true,
+                          ),
+                          onSubmitted: (_) => _addCustomAmenity(),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMapsHelpCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[100]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.help_outline, size: 18, color: Colors.blue[700]),
-              const SizedBox(width: 8),
-              Text(
-                "How to get Google Maps link",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue[700],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildStepRow("1. Open Google Maps on your device", Icons.map),
-          _buildStepRow("2. Search for your turf location", Icons.search),
-          _buildStepRow("3. Tap 'Share' and copy the link", Icons.share),
-          _buildStepRow(
-            "4. Paste the link in the field above",
-            Icons.content_paste,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStepRow(String text, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: Colors.blue[600]),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: 13, color: Colors.blue[800]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPhotoUploadSection() {
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: _pickImages,
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFF00C853),
-                width: 2,
-                style: BorderStyle.solid,
-              ),
-              color: const Color(0xFF00C853).withOpacity(0.03),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFF00C853).withOpacity(0.03),
-                  Colors.white,
-                ],
-              ),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF00C853).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.cloud_upload_outlined,
-                    size: 40,
-                    color: const Color(0xFF00C853),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "Click to Upload Photos",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Upload at least 3 high-quality photos showing:\n• Playing area\n• Facilities\n• Parking space",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xFF00C853),
-                        const Color(0xFF00E676),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(25),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF00C853).withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.photo_library, size: 18, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Browse Photos",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (selectedPhotos.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.orange[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.orange[100]!),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, size: 20, color: Colors.orange[700]),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    "Please upload at least 3 photos for better approval chances",
-                    style: TextStyle(fontSize: 13, color: Colors.orange[800]),
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildPhotoGrid() {
-    if (selectedPhotos.isEmpty) return const SizedBox();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              "Selected Photos",
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[800],
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFF00C853).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '${selectedPhotos.length}/10',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF00C853),
+            SizedBox(
+              width: 60,
+              child: ElevatedButton(
+                onPressed: _addCustomAmenity,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                 ),
+                child: const Text("Add"),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1,
-          ),
-          itemCount: selectedPhotos.length,
-          itemBuilder: (context, index) {
-            return Stack(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    image: DecorationImage(
-                      image: FileImage(selectedPhotos[index]),
-                      fit: BoxFit.cover,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 6,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: GestureDetector(
-                    onTap: () => _removePhoto(index),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.close,
-                        size: 14,
-                        color: Colors.red[400],
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 6,
-                  left: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${index + 1}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 8),
-        if (selectedPhotos.length < 3)
-          Text(
-            "Add ${3 - selectedPhotos.length} more photos for best results",
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.orange[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
       ],
     );
   }
 
-  Widget _buildConfirmationSection() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+  Widget _buildTermItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.check_circle, size: 14, color: Colors.green[600]),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+            ),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF00C853).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.verified_outlined,
-                    size: 22,
-                    color: const Color(0xFF00C853),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "Terms & Confirmation",
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Transform.scale(
-                    scale: 1.2,
-                    child: Checkbox(
-                      value: isConfirmed,
-                      onChanged: (value) {
-                        setState(() {
-                          isConfirmed = value ?? false;
-                        });
-                      },
-                      activeColor: const Color(0xFF00C853),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "I confirm that I own or manage this turf facility and all information provided is accurate and complete.",
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[700],
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "I understand that this application will undergo a verification process by our professional team, and approval may take up to 48 hours.",
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[700],
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        if (!isConfirmed)
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.orange[50],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.orange[100]!),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.warning_amber_outlined,
-                                  size: 16,
-                                  color: Colors.orange[700],
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    "Please confirm to submit your application",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.orange[700],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
-  }
-
-  Widget _buildSubmitButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _submitForm,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF00C853),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          elevation: 0,
-          shadowColor: const Color(0xFF00C853).withOpacity(0.3),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.send_outlined, size: 20),
-            SizedBox(width: 12),
-            Text(
-              "Submit Partner Application",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _fullNameController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    _businessNameController.dispose();
-    _priceController.dispose();
-    _descriptionController.dispose();
-    _cityController.dispose();
-    _zipCodeController.dispose();
-    _addressController.dispose();
-    _mapsLinkController.dispose();
-    _customSportController.dispose();
-    super.dispose();
   }
 }
 
@@ -1346,15 +1499,15 @@ class ProcessingDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 60,
-              height: 60,
+              width: 50,
+              height: 50,
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(
                   const Color(0xFF00C853),
@@ -1362,20 +1515,20 @@ class ProcessingDialog extends StatelessWidget {
                 strokeWidth: 3,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             Text(
-              "Processing Your Application",
+              "Processing Application",
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: Colors.black,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
-              "Submitting your partner registration...",
+              "Please wait...",
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -1384,7 +1537,7 @@ class ProcessingDialog extends StatelessWidget {
   }
 }
 
-// Review Dialog - Updated with new message
+// Review Dialog
 class ReviewDialog extends StatelessWidget {
   final VoidCallback onClose;
 
@@ -1394,107 +1547,69 @@ class ReviewDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 100,
-              height: 100,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
                 color: const Color(0xFF00C853).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.check_circle_outline,
-                size: 48,
+                size: 40,
                 color: Color(0xFF00C853),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             Text(
-              "Application Submitted Successfully!",
+              "Application Submitted!",
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: Colors.black,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.green[50],
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.green[100]!),
               ),
               child: Column(
                 children: [
                   Text(
-                    "✓ Application Received",
+                    "✓ Successfully Submitted",
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: Colors.green[800],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
-                    "Our team will approve soon or within 10 hours",
+                    "Our team will review within 48 hours",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: Colors.green[700]),
+                    style: TextStyle(fontSize: 12, color: Colors.green[700]),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Text(
-              "You'll receive admin dashboard access after approval. Keep checking your email for notifications.",
+              "You'll receive email updates on approval status",
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-                height: 1.6,
-              ),
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             ),
             const SizedBox(height: 24),
-            Column(
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.email_outlined,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Check your email for updates",
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time_outlined,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Approval typically takes 2-10 hours",
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -1502,14 +1617,14 @@ class ReviewDialog extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00C853),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 child: Text(
-                  "Close",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  "Done",
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                 ),
               ),
             ),

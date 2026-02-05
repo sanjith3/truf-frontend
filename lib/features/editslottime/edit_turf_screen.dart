@@ -10,14 +10,23 @@ class EditTurfScreen extends StatefulWidget {
 
 class _EditTurfScreenState extends State<EditTurfScreen> {
   // Sports Selection
-  List<bool> selectedSports = [true, true, false, false, false];
-  List<String> sports = [
-    'Football',
-    'Cricket',
-    'Badminton',
-    'Tennis',
-    'Basketball',
-  ];
+  Map<String, bool> selectedSports = {
+    'Football': true,
+    'Cricket': true,
+    'Badminton': false,
+    'Tennis': false,
+    'Basketball': false,
+    'Volleyball': false,
+    'Hockey': false,
+    'Rugby': false,
+    'Baseball': false,
+    'Handball': false,
+    'Table Tennis': false,
+    'Squash': false,
+    'Netball': false,
+    'Futsal': false,
+  };
+  bool showAllSports = false;
 
   // Controllers
   TextEditingController amenitiesController = TextEditingController(
@@ -41,9 +50,14 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
   TextEditingController operatingHoursController = TextEditingController(
     text: '6:00 AM - 10:00 PM',
   );
+  TextEditingController changeReasonController = TextEditingController();
+
+  // Location Selection
+  String? selectedState;
+  String? selectedCity;
+  List<String> cityList = [];
 
   // Operating Hours
-  String selectedCity = 'Coimbatore';
   String selectedOpenTime = '06:00';
   String selectedCloseTime = '22:00';
 
@@ -59,6 +73,7 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
 
   // Time Lists
   final List<String> timeSlots = [
+    '05:00',
     '06:00',
     '07:00',
     '08:00',
@@ -77,7 +92,367 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
     '21:00',
     '22:00',
     '23:00',
+    '00:00',
   ];
+
+  // Indian States and Major Cities
+  final Map<String, List<String>> indianStatesCities = {
+    'Tamil Nadu': [
+      'Chennai',
+      'Coimbatore',
+      'Madurai',
+      'Tiruchirappalli',
+      'Salem',
+      'Tiruppur',
+      'Erode',
+      'Vellore',
+      'Thoothukudi',
+      'Dindigul',
+    ],
+    'Karnataka': [
+      'Bengaluru',
+      'Mysuru',
+      'Hubballi-Dharwad',
+      'Mangaluru',
+      'Belagavi',
+      'Kalaburagi',
+      'Davangere',
+      'Ballari',
+      'Shivamogga',
+      'Tumakuru',
+    ],
+    'Maharashtra': [
+      'Mumbai',
+      'Pune',
+      'Nagpur',
+      'Nashik',
+      'Aurangabad',
+      'Solapur',
+      'Amravati',
+      'Kolhapur',
+      'Navi Mumbai',
+      'Thane',
+    ],
+    'Delhi': ['New Delhi', 'Delhi'],
+    'Uttar Pradesh': [
+      'Lucknow',
+      'Kanpur',
+      'Ghaziabad',
+      'Agra',
+      'Varanasi',
+      'Prayagraj',
+      'Meerut',
+      'Bareilly',
+      'Aligarh',
+      'Moradabad',
+    ],
+    'Gujarat': [
+      'Ahmedabad',
+      'Surat',
+      'Vadodara',
+      'Rajkot',
+      'Bhavnagar',
+      'Jamnagar',
+      'Junagadh',
+      'Gandhinagar',
+      'Anand',
+      'Navsari',
+    ],
+    'Rajasthan': [
+      'Jaipur',
+      'Jodhpur',
+      'Udaipur',
+      'Kota',
+      'Bikaner',
+      'Ajmer',
+      'Bhilwara',
+      'Alwar',
+      'Bharatpur',
+      'Sikar',
+    ],
+    'West Bengal': [
+      'Kolkata',
+      'Asansol',
+      'Siliguri',
+      'Durgapur',
+      'Bardhaman',
+      'Malda',
+      'Baharampur',
+      'Habra',
+      'Kharagpur',
+      'Shantipur',
+    ],
+    'Telangana': [
+      'Hyderabad',
+      'Warangal',
+      'Nizamabad',
+      'Khammam',
+      'Karimnagar',
+      'Ramagundam',
+      'Mahabubnagar',
+      'Adilabad',
+      'Suryapet',
+      'Miryalaguda',
+    ],
+    'Andhra Pradesh': [
+      'Visakhapatnam',
+      'Vijayawada',
+      'Guntur',
+      'Nellore',
+      'Kurnool',
+      'Rajahmundry',
+      'Tirupati',
+      'Kakinada',
+      'Kadapa',
+      'Anantapur',
+    ],
+    'Kerala': [
+      'Thiruvananthapuram',
+      'Kochi',
+      'Kozhikode',
+      'Kollam',
+      'Thrissur',
+      'Kannur',
+      'Alappuzha',
+      'Kottayam',
+      'Palakkad',
+      'Manjeri',
+    ],
+    'Punjab': [
+      'Ludhiana',
+      'Amritsar',
+      'Jalandhar',
+      'Patiala',
+      'Bathinda',
+      'Hoshiarpur',
+      'Mohali',
+      'Batala',
+      'Pathankot',
+      'Moga',
+    ],
+    'Haryana': [
+      'Faridabad',
+      'Gurugram',
+      'Panipat',
+      'Ambala',
+      'Yamunanagar',
+      'Rohtak',
+      'Hisar',
+      'Karnal',
+      'Sonipat',
+      'Panchkula',
+    ],
+  };
+
+  // Common amenities
+  final List<String> commonAmenities = [
+    'Floodlights',
+    'Parking',
+    'Water',
+    'WiFi',
+    'Changing Rooms',
+    'Lockers',
+    'Showers',
+    'Cafeteria',
+    'First Aid',
+    'CCTV',
+    'Equipment Rental',
+    'Seating Area',
+    'Restrooms',
+    'Drinking Water',
+    'Power Backup',
+    'Music System',
+    'Scoreboard',
+    'Coach Available',
+    'Spectator Stands',
+    'Medical Room',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Set initial state to Tamil Nadu
+    selectedState = 'Tamil Nadu';
+    updateCityList();
+    selectedCity = 'Coimbatore';
+  }
+
+  void updateCityList() {
+    setState(() {
+      cityList = indianStatesCities[selectedState] ?? [];
+      selectedCity = cityList.isNotEmpty ? cityList[0] : null;
+    });
+  }
+
+  void _addCustomSport() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        TextEditingController customSportController = TextEditingController();
+        return AlertDialog(
+          title: Text('Add Custom Sport'),
+          content: TextField(
+            controller: customSportController,
+            decoration: InputDecoration(
+              hintText: 'Enter sport name',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (customSportController.text.isNotEmpty) {
+                  setState(() {
+                    selectedSports[customSportController.text] = false;
+                  });
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Sport added successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+              child: Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _addCustomAmenity() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        TextEditingController customAmenityController = TextEditingController();
+        return AlertDialog(
+          title: Text('Add Custom Amenity'),
+          content: TextField(
+            controller: customAmenityController,
+            decoration: InputDecoration(
+              hintText: 'Enter amenity name',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (customAmenityController.text.isNotEmpty) {
+                  setState(() {
+                    final currentText = amenitiesController.text;
+                    amenitiesController.text = currentText.isEmpty
+                        ? customAmenityController.text
+                        : '$currentText, ${customAmenityController.text}';
+                  });
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Amenity added successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+              child: Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSubmitDialog() {
+    // Collect changed data
+    final changes = <String, String>{};
+    if (nameController.text != 'final') changes['name'] = nameController.text;
+    if (priceController.text != '799.00')
+      changes['price'] = priceController.text;
+    if (selectedState != 'Tamil Nadu' || selectedCity != 'Coimbatore') {
+      changes['location'] = '$selectedCity, $selectedState';
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.verified_user, color: Colors.blue),
+            SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                'Submit Changes for Review',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your changes will be reviewed by our team before they go live.',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+              SizedBox(height: 20),
+              Text(
+                'Changes Summary:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 10),
+              ...changes.entries.map(
+                (entry) => Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '• ${entry.key}: ${entry.value}',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                  ),
+                ),
+              ),
+              SizedBox(height: 20),
+              TextField(
+                controller: changeReasonController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Reason for changes (optional)',
+                  border: OutlineInputBorder(),
+                  hintText: 'Why are you making these changes?',
+                ),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Note: This helps our team verify the changes faster',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: _saveChanges,
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: Text('Submit for Review'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,9 +478,7 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
           Container(
             margin: EdgeInsets.only(right: 16),
             child: ElevatedButton.icon(
-              onPressed: () {
-                _saveChanges();
-              },
+              onPressed: _showSubmitDialog,
               icon: Icon(Icons.save, size: 18),
               label: Text('Save'),
               style: ElevatedButton.styleFrom(
@@ -146,22 +519,35 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
                   keyboardType: TextInputType.number,
                 ),
                 SizedBox(height: 16),
-                _buildDropdownField(
-                  label: 'City',
-                  value: selectedCity,
-                  items: [
-                    'Coimbatore',
-                    'Chennai',
-                    'Bangalore',
-                    'Hyderabad',
-                    'Mumbai',
-                    'Delhi',
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDropdownField(
+                        label: 'State',
+                        value: selectedState,
+                        items: indianStatesCities.keys.toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedState = value!;
+                            updateCityList();
+                          });
+                        },
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: _buildDropdownField(
+                        label: 'City',
+                        value: selectedCity,
+                        items: cityList,
+                        onChanged: (value) {
+                          setState(() {
+                            selectedCity = value!;
+                          });
+                        },
+                      ),
+                    ),
                   ],
-                  onChanged: (value) {
-                    setState(() {
-                      selectedCity = value!;
-                    });
-                  },
                 ),
               ],
             ),
@@ -214,11 +600,12 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
                     controller: descriptionController,
                     maxLines: 5,
                     minLines: 3,
-                    style: TextStyle(fontSize: 15),
+                    style: TextStyle(fontSize: 14),
                     decoration: InputDecoration(
                       hintText: 'Enter detailed description...',
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.all(16),
+                      hintStyle: TextStyle(fontSize: 14),
                     ),
                   ),
                 ),
@@ -232,61 +619,222 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
 
             SizedBox(height: 20),
 
-            // Features & Sports Card
+            // Features & Sports Card - FIXED VERSION
             _buildSectionCard(
               title: 'Features & Sports',
               icon: Icons.sports,
               children: [
-                Text(
-                  'Available Sports',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Available Sports',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ),
+                    Flexible(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Flexible(
+                            child: TextButton.icon(
+                              onPressed: _addCustomSport,
+                              icon: Icon(Icons.add, size: 16),
+                              label: Flexible(
+                                child: Text(
+                                  'Add Custom',
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Color(0xFF00C853),
+                                minimumSize: Size.zero,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 4,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Flexible(
+                            child: TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  showAllSports = !showAllSports;
+                                });
+                              },
+                              child: Text(
+                                showAllSports ? 'Show Less' : 'Show More',
+                                style: TextStyle(
+                                  color: Color(0xFF00C853),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: sports.asMap().entries.map((entry) {
-                    return ChoiceChip(
-                      label: Text(entry.value),
-                      selected: selectedSports[entry.key],
-                      onSelected: (selected) {
-                        setState(() {
-                          selectedSports[entry.key] = selected;
-                        });
-                      },
-                      selectedColor: Color(0xFF00C853),
-                      backgroundColor: Colors.grey[100],
-                      labelStyle: TextStyle(
-                        color: selectedSports[entry.key]
-                            ? Colors.white
-                            : Colors.grey[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: selectedSports.keys
+                          .toList()
+                          .sublist(0, showAllSports ? selectedSports.length : 5)
+                          .asMap()
+                          .entries
+                          .map((entry) {
+                            return ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: constraints.maxWidth * 0.45,
+                              ),
+                              child: ChoiceChip(
+                                label: Text(
+                                  entry.value,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                                selected: selectedSports[entry.value] ?? false,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    selectedSports[entry.value] = selected;
+                                  });
+                                },
+                                selectedColor: Color(0xFF00C853),
+                                backgroundColor: Colors.grey[100],
+                                labelStyle: TextStyle(
+                                  color: (selectedSports[entry.value] ?? false)
+                                      ? Colors.white
+                                      : Colors.grey[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            );
+                          })
+                          .toList(),
                     );
-                  }).toList(),
+                  },
                 ),
                 SizedBox(height: 24),
-                Text(
-                  'Amenities',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Amenities',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ),
+                    Flexible(
+                      child: TextButton.icon(
+                        onPressed: _addCustomAmenity,
+                        icon: Icon(Icons.add, size: 16),
+                        label: Flexible(
+                          child: Text(
+                            'Add Custom',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Color(0xFF00C853),
+                          minimumSize: Size.zero,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: 8),
-                Text(
-                  'e.g. Floodlights, Parking, Water',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: commonAmenities.take(10).map((amenity) {
+                        return ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: constraints.maxWidth * 0.45,
+                          ),
+                          child: FilterChip(
+                            label: Text(
+                              amenity,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: TextStyle(fontSize: 13),
+                            ),
+                            selected: amenitiesController.text
+                                .toLowerCase()
+                                .contains(amenity.toLowerCase()),
+                            onSelected: (selected) {
+                              setState(() {
+                                final currentText = amenitiesController.text;
+                                if (selected) {
+                                  amenitiesController.text = currentText.isEmpty
+                                      ? amenity
+                                      : '$currentText, $amenity';
+                                } else {
+                                  amenitiesController.text = currentText
+                                      .replaceAll('$amenity, ', '')
+                                      .replaceAll(', $amenity', '')
+                                      .replaceAll(amenity, '')
+                                      .replaceAll(' ,', ',')
+                                      .trim();
+                                }
+                              });
+                            },
+                            selectedColor: Color(0xFF00C853).withOpacity(0.2),
+                            checkmarkColor: Color(0xFF00C853),
+                            backgroundColor: Colors.grey[100],
+                            labelStyle: TextStyle(
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
                 ),
                 SizedBox(height: 12),
+                Text(
+                  'Selected:',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                SizedBox(height: 8),
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
@@ -296,12 +844,13 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
                   child: TextField(
                     controller: amenitiesController,
                     maxLines: 3,
-                    style: TextStyle(fontSize: 15),
+                    minLines: 2,
+                    style: TextStyle(fontSize: 14),
                     decoration: InputDecoration(
-                      hintText:
-                          'Comma separated (e.g. WiFi, Locker, Floodlight)',
+                      hintText: 'Comma separated amenities...',
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.all(16),
+                      hintStyle: TextStyle(fontSize: 14),
                     ),
                   ),
                 ),
@@ -362,7 +911,7 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
                 ),
                 SizedBox(height: 16),
                 Container(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.blue[50],
                     borderRadius: BorderRadius.circular(12),
@@ -372,18 +921,20 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
                     children: [
                       Icon(
                         Icons.info_outline,
-                        size: 20,
+                        size: 18,
                         color: Colors.blue[700],
                       ),
-                      SizedBox(width: 12),
+                      SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Current Hours: $selectedOpenTime to $selectedCloseTime',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             color: Colors.blue[800],
                             fontWeight: FontWeight.w500,
                           ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
                         ),
                       ),
                     ],
@@ -459,8 +1010,8 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
                   physics: NeverScrollableScrollPhysics(),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
                     childAspectRatio: 1,
                   ),
                   itemCount: existingPhotos.length,
@@ -483,12 +1034,12 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
 
             SizedBox(height: 20),
 
-            // Save Button
+            // Submit Button
             SizedBox(
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: _saveChanges,
+                onPressed: _showSubmitDialog,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Color(0xFF00C853),
                   foregroundColor: Colors.white,
@@ -501,13 +1052,16 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.save, size: 20),
-                    SizedBox(width: 12),
-                    Text(
-                      'Save All Changes',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                    Icon(Icons.send, size: 20),
+                    SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Submit for Review',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -554,12 +1108,15 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
                 child: Icon(icon, size: 24, color: Color(0xFF00C853)),
               ),
               SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -611,7 +1168,7 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
                     controller: controller,
                     enabled: enabled,
                     keyboardType: keyboardType,
-                    style: TextStyle(fontSize: 15),
+                    style: TextStyle(fontSize: 14),
                     decoration: InputDecoration(
                       hintText: hintText,
                       border: InputBorder.none,
@@ -633,7 +1190,7 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
 
   Widget _buildDropdownField({
     required String label,
-    required String value,
+    required String? value,
     required List<String> items,
     required Function(String?) onChanged,
   }) {
@@ -669,7 +1226,7 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
                       value: item,
                       child: Padding(
                         padding: EdgeInsets.only(left: 16),
-                        child: Text(item),
+                        child: Text(item, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                   )
@@ -734,7 +1291,7 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
 
   Widget _buildMapsHelpCard() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.blue[50],
         borderRadius: BorderRadius.circular(12),
@@ -745,19 +1302,22 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.help_outline, size: 18, color: Colors.blue[700]),
+              Icon(Icons.help_outline, size: 16, color: Colors.blue[700]),
               SizedBox(width: 8),
-              Text(
-                "How to get Google Maps link",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue[700],
+              Flexible(
+                child: Text(
+                  "How to get Google Maps link",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue[700],
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          SizedBox(height: 12),
+          SizedBox(height: 8),
           _buildStepRow("1. Open Google Maps on your device", Icons.map),
           _buildStepRow("2. Search for your turf location", Icons.search),
           _buildStepRow("3. Tap 'Share' and copy the link", Icons.share),
@@ -772,16 +1332,16 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
 
   Widget _buildStepRow(String text, IconData icon) {
     return Padding(
-      padding: EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.only(bottom: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: Colors.blue[600]),
-          SizedBox(width: 12),
+          Icon(icon, size: 14, color: Colors.blue[600]),
+          SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: 13, color: Colors.blue[800]),
+              style: TextStyle(fontSize: 12, color: Colors.blue[800]),
             ),
           ),
         ],
@@ -802,8 +1362,8 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
-                blurRadius: 6,
-                offset: Offset(0, 3),
+                blurRadius: 4,
+                offset: Offset(0, 2),
               ),
             ],
           ),
@@ -812,18 +1372,18 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
         // Cover Image Badge
         if (selectedCoverIndex == index)
           Positioned(
-            top: 8,
-            left: 8,
+            top: 4,
+            left: 4,
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: Colors.blue.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 'Cover',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 8,
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
@@ -834,8 +1394,8 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
         // Default Image Badge
         if (index == 0)
           Positioned(
-            top: 8,
-            right: 8,
+            top: 4,
+            right: 4,
             child: GestureDetector(
               onTap: () {
                 setState(() {
@@ -843,20 +1403,20 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
                 });
               },
               child: Container(
-                padding: EdgeInsets.all(6),
+                padding: EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 4,
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 2,
                     ),
                   ],
                 ),
                 child: Icon(
                   selectedCoverIndex == 0 ? Icons.star : Icons.star_border,
-                  size: 16,
+                  size: 12,
                   color: selectedCoverIndex == 0 ? Colors.amber : Colors.grey,
                 ),
               ),
@@ -865,23 +1425,23 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
 
         // Delete Button
         Positioned(
-          bottom: 8,
-          right: 8,
+          bottom: 4,
+          right: 4,
           child: GestureDetector(
             onTap: () => _deletePhoto(index),
             child: Container(
-              padding: EdgeInsets.all(6),
+              padding: EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 4,
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 2,
                   ),
                 ],
               ),
-              child: Icon(Icons.delete, size: 16, color: Colors.red),
+              child: Icon(Icons.delete, size: 12, color: Colors.red),
             ),
           ),
         ),
@@ -889,31 +1449,31 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
         // Set as Cover Button (for non-default images)
         if (index > 0 && selectedCoverIndex != index)
           Positioned(
-            bottom: 8,
-            left: 8,
+            bottom: 4,
+            left: 4,
             child: GestureDetector(
               onTap: () => _setAsCover(index),
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 4,
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 2,
                     ),
                   ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.star, size: 12, color: Colors.amber),
-                    SizedBox(width: 4),
+                    Icon(Icons.star, size: 10, color: Colors.amber),
+                    SizedBox(width: 2),
                     Text(
-                      'Set Cover',
+                      'Cover',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 8,
                         color: Colors.black87,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1024,7 +1584,7 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
             ),
             SizedBox(height: 20),
             Text(
-              'Saving Changes...',
+              'Submitting for Review...',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ],
@@ -1032,17 +1592,24 @@ class _EditTurfScreenState extends State<EditTurfScreen> {
       ),
     );
 
-    // Simulate API call
+    // Simulate API call to submit for review
+    // In real app, this would send data to backend with changeReasonController.text
     Future.delayed(Duration(seconds: 2), () {
       Navigator.pop(context); // Close loading dialog
+
+      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Turf details updated successfully'),
-          backgroundColor: Color(0xFF00C853),
-          duration: Duration(seconds: 3),
+          content: Text(
+            'Changes submitted for review. Our team will verify and update within 24 hours.',
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 4),
         ),
       );
-      Navigator.pop(context); // Go back
+
+      // Go back
+      Navigator.pop(context);
     });
   }
 }

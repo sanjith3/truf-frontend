@@ -23,18 +23,13 @@ class _PremiumSlotManagementScreenState
   DateTime? _emergencyEndDate;
   String _emergencyReason = '';
 
-  // Time filter variables
-  TimeOfDay? _filterStartTime;
-  TimeOfDay? _filterEndTime;
-  String _selectedTimeFilter = 'all';
-
   // Slot data
   List<Map<String, dynamic>> slots = [
     {
       'time': '6:00 AM',
       'endTime': '7:00 AM',
       'status': 'available',
-      'price': '₹500',
+      'price': 500,
       'customer': null,
       'bookingId': null,
       'disabled': false,
@@ -43,7 +38,7 @@ class _PremiumSlotManagementScreenState
       'time': '7:00 AM',
       'endTime': '8:00 AM',
       'status': 'booked',
-      'price': '₹500',
+      'price': 500,
       'customer': 'Rajesh Kumar',
       'bookingId': 'BK-001',
       'disabled': false,
@@ -52,7 +47,7 @@ class _PremiumSlotManagementScreenState
       'time': '8:00 AM',
       'endTime': '9:00 AM',
       'status': 'booked',
-      'price': '₹500',
+      'price': 500,
       'customer': 'Team Alpha',
       'bookingId': 'BK-002',
       'disabled': false,
@@ -61,7 +56,7 @@ class _PremiumSlotManagementScreenState
       'time': '9:00 AM',
       'endTime': '10:00 AM',
       'status': 'available',
-      'price': '₹600',
+      'price': 600,
       'customer': null,
       'bookingId': null,
       'disabled': false,
@@ -70,7 +65,7 @@ class _PremiumSlotManagementScreenState
       'time': '10:00 AM',
       'endTime': '11:00 AM',
       'status': 'booked',
-      'price': '₹600',
+      'price': 600,
       'customer': 'Priya Sharma',
       'bookingId': 'BK-003',
       'disabled': false,
@@ -79,7 +74,7 @@ class _PremiumSlotManagementScreenState
       'time': '11:00 AM',
       'endTime': '12:00 PM',
       'status': 'available',
-      'price': '₹600',
+      'price': 600,
       'customer': null,
       'bookingId': null,
       'disabled': true,
@@ -88,7 +83,7 @@ class _PremiumSlotManagementScreenState
       'time': '12:00 PM',
       'endTime': '1:00 PM',
       'status': 'booked',
-      'price': '₹700',
+      'price': 700,
       'customer': 'Vikram Singh',
       'bookingId': 'BK-004',
       'disabled': false,
@@ -97,7 +92,7 @@ class _PremiumSlotManagementScreenState
       'time': '1:00 PM',
       'endTime': '2:00 PM',
       'status': 'available',
-      'price': '₹700',
+      'price': 700,
       'customer': null,
       'bookingId': null,
       'disabled': false,
@@ -106,7 +101,7 @@ class _PremiumSlotManagementScreenState
       'time': '2:00 PM',
       'endTime': '3:00 PM',
       'status': 'booked',
-      'price': '₹700',
+      'price': 700,
       'customer': 'Anita Rao',
       'bookingId': 'BK-005',
       'disabled': false,
@@ -115,7 +110,7 @@ class _PremiumSlotManagementScreenState
       'time': '3:00 PM',
       'endTime': '4:00 PM',
       'status': 'booked',
-      'price': '₹800',
+      'price': 800,
       'customer': 'Rahul Mehta',
       'bookingId': 'BK-006',
       'disabled': false,
@@ -124,7 +119,7 @@ class _PremiumSlotManagementScreenState
       'time': '4:00 PM',
       'endTime': '5:00 PM',
       'status': 'booked',
-      'price': '₹800',
+      'price': 800,
       'customer': 'Suresh Kumar',
       'bookingId': 'BK-007',
       'disabled': false,
@@ -133,7 +128,7 @@ class _PremiumSlotManagementScreenState
       'time': '5:00 PM',
       'endTime': '6:00 PM',
       'status': 'available',
-      'price': '₹800',
+      'price': 800,
       'customer': null,
       'bookingId': null,
       'disabled': false,
@@ -142,7 +137,7 @@ class _PremiumSlotManagementScreenState
       'time': '6:00 PM',
       'endTime': '7:00 PM',
       'status': 'booked',
-      'price': '₹900',
+      'price': 900,
       'customer': 'Neha Gupta',
       'bookingId': 'BK-008',
       'disabled': false,
@@ -151,7 +146,7 @@ class _PremiumSlotManagementScreenState
       'time': '7:00 PM',
       'endTime': '8:00 PM',
       'status': 'available',
-      'price': '₹900',
+      'price': 900,
       'customer': null,
       'bookingId': null,
       'disabled': false,
@@ -160,7 +155,7 @@ class _PremiumSlotManagementScreenState
       'time': '8:00 PM',
       'endTime': '9:00 PM',
       'status': 'booked',
-      'price': '₹1000',
+      'price': 1000,
       'customer': 'Amit Sharma',
       'bookingId': 'BK-009',
       'disabled': false,
@@ -184,13 +179,12 @@ class _PremiumSlotManagementScreenState
       slots.where((s) => s['status'] == 'available').length;
   int get bookedCount => slots.where((s) => s['status'] == 'booked').length;
   int get blockedCount => slots.where((s) => s['disabled'] == true).length;
+
   String get revenue {
     int total = 0;
     for (var slot in slots) {
       if (slot['status'] == 'booked') {
-        total += int.parse(
-          slot['price'].replaceAll('₹', '').replaceAll(',', ''),
-        );
+        total += slot['price'] as int;
       }
     }
     return '₹$total';
@@ -552,444 +546,376 @@ class _PremiumSlotManagementScreenState
     DateTime tempStartDate = _startDate;
     DateTime tempEndDate = _endDate;
     String tempSelectedFilter = _selectedFilter;
-    TimeOfDay? tempStartTime = _filterStartTime;
-    TimeOfDay? tempEndTime = _filterEndTime;
-    String tempTimeFilter = _selectedTimeFilter;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Advanced Filters'),
-            content: SingleChildScrollView(
+          return Dialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.9,
+                maxHeight: MediaQuery.of(context).size.height * 0.7,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Date Range Section
-                  Text(
-                    'Date Range',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: _textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Start Date
-                  GestureDetector(
-                    onTap: () async {
-                      final DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: tempStartDate,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (picked != null && picked != tempStartDate) {
-                        setState(() {
-                          tempStartDate = picked;
-                          if (tempEndDate.isBefore(tempStartDate)) {
-                            tempEndDate = tempStartDate.add(
-                              const Duration(days: 1),
-                            );
-                          }
-                        });
-                      }
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _bg,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Start Date',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: _textSecondary,
-                                ),
-                              ),
-                              Text(
-                                '${tempStartDate.day} ${_getMonthName(tempStartDate.month)}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: _textPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Icon(Icons.calendar_today, color: _primary),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // End Date
-                  GestureDetector(
-                    onTap: () async {
-                      final DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: tempEndDate,
-                        firstDate: tempStartDate,
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (picked != null && picked != tempEndDate) {
-                        setState(() {
-                          tempEndDate = picked;
-                        });
-                      }
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _bg,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'End Date',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: _textSecondary,
-                                ),
-                              ),
-                              Text(
-                                '${tempEndDate.day} ${_getMonthName(tempEndDate.month)}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: _textPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Icon(Icons.calendar_today, color: _primary),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${tempEndDate.difference(tempStartDate).inDays + 1} days (${tempStartDate.day}${_getOrdinalSuffix(tempStartDate.day)} ${_getMonthName(tempStartDate.month)} - ${tempEndDate.day}${_getOrdinalSuffix(tempEndDate.day)} ${_getMonthName(tempEndDate.month)})',
-                    style: TextStyle(
-                      fontSize: 12,
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
                       color: _primary,
-                      fontWeight: FontWeight.w600,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.filter_list,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Filters',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                'Filter slots by date and status',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 24),
 
-                  // Quick Date Range Buttons
-                  Text(
-                    'Quick Range',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: _textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildQuickDateRangeButton(
-                        'Today',
-                        1,
-                        tempStartDate,
-                        tempEndDate,
-                        setState,
-                      ),
-                      _buildQuickDateRangeButton(
-                        'Next 7 Days',
-                        7,
-                        tempStartDate,
-                        tempEndDate,
-                        setState,
-                      ),
-                      _buildQuickDateRangeButton(
-                        'Next 30 Days',
-                        30,
-                        tempStartDate,
-                        tempEndDate,
-                        setState,
-                      ),
-                      _buildQuickDateRangeButton(
-                        'Next 90 Days',
-                        90,
-                        tempStartDate,
-                        tempEndDate,
-                        setState,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Time Filter Section
-                  Text(
-                    'Time Filter',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: _textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Time Range Selection
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            final TimeOfDay? picked = await showTimePicker(
-                              context: context,
-                              initialTime:
-                                  tempStartTime ??
-                                  const TimeOfDay(hour: 9, minute: 0),
-                            );
-                            if (picked != null) {
-                              setState(() {
-                                tempStartTime = picked;
-                              });
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: _bg,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade300),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Date Range Section
+                          Text(
+                            'DATE RANGE',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _textSecondary,
+                              letterSpacing: 1,
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Start Time',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: _textSecondary,
-                                  ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Start Date
+                          GestureDetector(
+                            onTap: () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: tempStartDate,
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 365),
                                 ),
-                                Text(
-                                  tempStartTime != null
-                                      ? tempStartTime!.format(context)
-                                      : 'Select time',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: _textPrimary,
+                              );
+                              if (picked != null && picked != tempStartDate) {
+                                setState(() {
+                                  tempStartDate = picked;
+                                  if (tempEndDate.isBefore(tempStartDate)) {
+                                    tempEndDate = tempStartDate.add(
+                                      const Duration(days: 1),
+                                    );
+                                  }
+                                });
+                              }
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: _bg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Start Date',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: _textSecondary,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${tempStartDate.day} ${_getMonthName(tempStartDate.month)} ${tempStartDate.year}',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: _textPrimary,
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                  Icon(Icons.calendar_today, color: _primary),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // End Date
+                          GestureDetector(
+                            onTap: () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: tempEndDate,
+                                firstDate: tempStartDate,
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 365),
                                 ),
-                              ],
+                              );
+                              if (picked != null && picked != tempEndDate) {
+                                setState(() {
+                                  tempEndDate = picked;
+                                });
+                              }
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: _bg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'End Date',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: _textSecondary,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${tempEndDate.day} ${_getMonthName(tempEndDate.month)} ${tempEndDate.year}',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: _textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Icon(Icons.calendar_today, color: _primary),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Quick Date Range Buttons
+                          Text(
+                            'QUICK RANGE',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _textSecondary,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _buildQuickDateRangeButton(
+                                'Today',
+                                1,
+                                tempStartDate,
+                                tempEndDate,
+                                setState,
+                              ),
+                              _buildQuickDateRangeButton(
+                                '7 Days',
+                                7,
+                                tempStartDate,
+                                tempEndDate,
+                                setState,
+                              ),
+                              _buildQuickDateRangeButton(
+                                '30 Days',
+                                30,
+                                tempStartDate,
+                                tempEndDate,
+                                setState,
+                              ),
+                              _buildQuickDateRangeButton(
+                                '90 Days',
+                                90,
+                                tempStartDate,
+                                tempEndDate,
+                                setState,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Status Filter
+                          Text(
+                            'SLOT STATUS',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _textSecondary,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _buildFilterOption(
+                                'All Slots',
+                                'all',
+                                tempSelectedFilter,
+                                setState,
+                              ),
+                              _buildFilterOption(
+                                'Available',
+                                'available',
+                                tempSelectedFilter,
+                                setState,
+                              ),
+                              _buildFilterOption(
+                                'Booked',
+                                'booked',
+                                tempSelectedFilter,
+                                setState,
+                              ),
+                              _buildFilterOption(
+                                'Disabled',
+                                'disabled',
+                                tempSelectedFilter,
+                                setState,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Footer Actions
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: Colors.grey.shade200),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedFilter = 'all';
+                              });
+                              Navigator.pop(context);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: BorderSide(color: Colors.grey.shade400),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              'RESET',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: _textSecondary,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            final TimeOfDay? picked = await showTimePicker(
-                              context: context,
-                              initialTime:
-                                  tempEndTime ??
-                                  const TimeOfDay(hour: 18, minute: 0),
-                            );
-                            if (picked != null) {
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
                               setState(() {
-                                tempEndTime = picked;
+                                _startDate = tempStartDate;
+                                _endDate = tempEndDate;
+                                _selectedFilter = tempSelectedFilter;
                               });
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: _bg,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade300),
+                              Navigator.pop(context);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'End Time',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: _textSecondary,
-                                  ),
-                                ),
-                                Text(
-                                  tempEndTime != null
-                                      ? tempEndTime!.format(context)
-                                      : 'Select time',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: _textPrimary,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              'APPLY',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Quick Time Filters
-                  Text(
-                    'Quick Time Filters',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _textPrimary,
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildQuickTimeFilter(
-                        'Morning',
-                        '6:00 AM',
-                        '12:00 PM',
-                        tempTimeFilter,
-                        setState,
-                      ),
-                      _buildQuickTimeFilter(
-                        'Afternoon',
-                        '12:00 PM',
-                        '5:00 PM',
-                        tempTimeFilter,
-                        setState,
-                      ),
-                      _buildQuickTimeFilter(
-                        'Evening',
-                        '5:00 PM',
-                        '9:00 PM',
-                        tempTimeFilter,
-                        setState,
-                      ),
-                      _buildQuickTimeFilter(
-                        'Night',
-                        '9:00 PM',
-                        '12:00 AM',
-                        tempTimeFilter,
-                        setState,
-                      ),
-                      _buildQuickTimeFilter(
-                        'All Day',
-                        'all',
-                        'all',
-                        tempTimeFilter,
-                        setState,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Status Filter
-                  Text(
-                    'Slot Status',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: _textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildFilterOption(
-                        'All Slots',
-                        'all',
-                        tempSelectedFilter,
-                        setState,
-                      ),
-                      _buildFilterOption(
-                        'Available',
-                        'available',
-                        tempSelectedFilter,
-                        setState,
-                      ),
-                      _buildFilterOption(
-                        'Booked',
-                        'booked',
-                        tempSelectedFilter,
-                        setState,
-                      ),
-                      _buildFilterOption(
-                        'Disabled',
-                        'disabled',
-                        tempSelectedFilter,
-                        setState,
-                      ),
-                    ],
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _filterStartTime = null;
-                    _filterEndTime = null;
-                    _selectedTimeFilter = 'all';
-                  });
-                  Navigator.pop(context);
-                },
-                child: const Text('Clear All'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _startDate = tempStartDate;
-                    _endDate = tempEndDate;
-                    _selectedFilter = tempSelectedFilter;
-                    _filterStartTime = tempStartTime;
-                    _filterEndTime = tempEndTime;
-                    _selectedTimeFilter = tempTimeFilter;
-                  });
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Apply Filters'),
-              ),
-            ],
           );
         },
       ),
@@ -1025,43 +951,6 @@ class _PremiumSlotManagementScreenState
     );
   }
 
-  Widget _buildQuickTimeFilter(
-    String label,
-    String startTime,
-    String endTime,
-    String tempTimeFilter,
-    Function(void Function()) setState,
-  ) {
-    bool selected = tempTimeFilter == label.toLowerCase();
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          if (startTime == 'all') {
-            tempTimeFilter = 'all';
-          } else {
-            tempTimeFilter = label.toLowerCase();
-          }
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? _primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: selected ? _primary : Colors.grey.shade300),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: selected ? Colors.white : _textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildFilterOption(
     String label,
     String value,
@@ -1076,19 +965,19 @@ class _PremiumSlotManagementScreenState
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: selected ? _primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected ? _primary : Colors.grey.shade300,
-            width: 1,
+            width: 1.5,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
             color: selected ? Colors.white : _textSecondary,
           ),
@@ -1098,7 +987,7 @@ class _PremiumSlotManagementScreenState
   }
 
   void _showAddSlotDialog() {
-    TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
+    TimeOfDay selectedTime = const TimeOfDay(hour: 4, minute: 0);
     String price = '500';
     bool isDisabled = false;
 
@@ -1116,233 +1005,105 @@ class _PremiumSlotManagementScreenState
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.9,
                 ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: _primary,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(20),
-                            topRight: Radius.circular(20),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                Icons.add,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Add New Time Slot',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Create a new booking slot',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.white.withOpacity(0.9),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: _primary,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(20),
+                          topRight: Radius.circular(20),
                         ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Time Selection
-                            Text(
-                              'SELECT TIME',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: _textSecondary,
-                                letterSpacing: 1,
-                              ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            const SizedBox(height: 8),
-                            GestureDetector(
-                              onTap: () async {
-                                final TimeOfDay? picked = await showTimePicker(
-                                  context: context,
-                                  initialTime: selectedTime,
-                                  builder: (context, child) {
-                                    return Theme(
-                                      data: ThemeData.light().copyWith(
-                                        colorScheme: ColorScheme.light(
-                                          primary: _primary,
-                                          onPrimary: Colors.white,
-                                          surface: Colors.white,
-                                          onSurface: _textPrimary,
-                                        ),
-                                      ),
-                                      child: child!,
-                                    );
-                                  },
-                                );
-                                if (picked != null) {
-                                  setState(() => selectedTime = picked);
-                                }
-                              },
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: _bg,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: Colors.grey.shade200,
+                            child: Icon(
+                              Icons.add,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Add New Time Slot',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Time',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: _textSecondary,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          selectedTime.format(context),
-                                          style: TextStyle(
-                                            fontSize: 24,
-                                            fontWeight: FontWeight.w700,
-                                            color: _textPrimary,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Slot will be: ${selectedTime.format(context)} - ${_calculateEndTime(selectedTime).format(context)}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: _textSecondary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Container(
-                                      width: 48,
-                                      height: 48,
-                                      decoration: BoxDecoration(
-                                        color: _primary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Icon(
-                                        Icons.access_time,
-                                        color: _primary,
-                                        size: 24,
-                                      ),
-                                    ),
-                                  ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Create a new booking slot',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.white.withOpacity(0.9),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                            const SizedBox(height: 20),
-                            // Price Input
-                            Text(
-                              'HOURLY PRICE',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: _textSecondary,
-                                letterSpacing: 1,
-                              ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Time Selection
+                          Text(
+                            'SELECT TIME',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _textSecondary,
+                              letterSpacing: 1,
                             ),
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _bg,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey.shade200),
-                              ),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    '₹',
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w700,
-                                      color: _primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: TextField(
-                                      controller: TextEditingController(
-                                        text: price,
+                          ),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: () async {
+                              final TimeOfDay? picked = await showTimePicker(
+                                context: context,
+                                initialTime: selectedTime,
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: ThemeData.light().copyWith(
+                                      colorScheme: ColorScheme.light(
+                                        primary: _primary,
+                                        onPrimary: Colors.white,
+                                        surface: Colors.white,
+                                        onSurface: _textPrimary,
                                       ),
-                                      decoration: const InputDecoration(
-                                        border: InputBorder.none,
-                                        hintText: 'Enter amount',
-                                        hintStyle: TextStyle(
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                      style: TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w700,
-                                        color: _textPrimary,
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                      onChanged: (value) {
-                                        setState(() => price = value);
-                                      },
                                     ),
-                                  ),
-                                  Text(
-                                    '/hour',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: _textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            // Status Toggle
-                            Container(
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              if (picked != null) {
+                                setState(() => selectedTime = picked);
+                              }
+                            },
+                            child: Container(
+                              width: double.infinity,
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: _bg,
@@ -1358,29 +1119,24 @@ class _PremiumSlotManagementScreenState
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'SLOT STATUS',
+                                        'Time',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          fontWeight: FontWeight.w600,
                                           color: _textSecondary,
-                                          letterSpacing: 1,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        isDisabled ? 'Disabled' : 'Available',
+                                        selectedTime.format(context),
                                         style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDisabled
-                                              ? _danger
-                                              : _success,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w700,
+                                          color: _textPrimary,
                                         ),
                                       ),
+                                      const SizedBox(height: 4),
                                       Text(
-                                        isDisabled
-                                            ? 'Slot will not be bookable'
-                                            : 'Slot will be available for booking',
+                                        'Slot will be: ${selectedTime.format(context)} - ${_calculateEndTime(selectedTime).format(context)}',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: _textSecondary,
@@ -1388,60 +1144,186 @@ class _PremiumSlotManagementScreenState
                                       ),
                                     ],
                                   ),
-                                  Transform.scale(
-                                    scale: 1.2,
-                                    child: Switch(
-                                      value: !isDisabled,
-                                      onChanged: (value) {
-                                        setState(() => isDisabled = !value);
-                                      },
-                                      activeColor: _success,
-                                      inactiveThumbColor: _danger,
-                                      activeTrackColor: _success.withOpacity(
-                                        0.3,
-                                      ),
-                                      inactiveTrackColor: _danger.withOpacity(
-                                        0.3,
-                                      ),
+                                  Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: _primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      Icons.access_time,
+                                      color: _primary,
+                                      size: 24,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 24),
-                            // Preview
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: _primary.withOpacity(0.05),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: _primary.withOpacity(0.2),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'PREVIEW',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: _primary,
-                                      letterSpacing: 1,
-                                    ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Price Input
+                          Text(
+                            'HOURLY PRICE',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _textSecondary,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _bg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Text(
+                                  '₹',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    color: _primary,
                                   ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Column(
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: TextEditingController(
+                                      text: price,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      hintText: 'Enter amount',
+                                      hintStyle: TextStyle(color: Colors.grey),
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                      color: _textPrimary,
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    onChanged: (value) {
+                                      setState(() => price = value);
+                                    },
+                                  ),
+                                ),
+                                Text(
+                                  '/hour',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: _textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Status Toggle
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: _bg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'SLOT STATUS',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: _textSecondary,
+                                        letterSpacing: 1,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      isDisabled ? 'Disabled' : 'Available',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDisabled ? _danger : _success,
+                                      ),
+                                    ),
+                                    Text(
+                                      isDisabled
+                                          ? 'Slot will not be bookable'
+                                          : 'Slot will be available for booking',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: _textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Transform.scale(
+                                  scale: 1.2,
+                                  child: Switch(
+                                    value: !isDisabled,
+                                    onChanged: (value) {
+                                      setState(() => isDisabled = !value);
+                                    },
+                                    activeColor: _success,
+                                    inactiveThumbColor: _disabledColor,
+                                    activeTrackColor: _success.withOpacity(0.3),
+                                    inactiveTrackColor: _disabledColor
+                                        .withOpacity(0.3),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Preview
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: _primary.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _primary.withOpacity(0.2),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'PREVIEW',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: _primary,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             '${selectedTime.format(context)} - ${_calculateEndTime(selectedTime).format(context)}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.w700,
@@ -1456,8 +1338,11 @@ class _PremiumSlotManagementScreenState
                                                 size: 16,
                                                 color: _primary,
                                               ),
+                                              const SizedBox(width: 4),
                                               Text(
-                                                '$price/hour',
+                                                '₹$price/hour',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
                                                   fontSize: 14,
                                                   color: _primary,
@@ -1468,7 +1353,13 @@ class _PremiumSlotManagementScreenState
                                           ),
                                         ],
                                       ),
-                                      Container(
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      constraints: BoxConstraints(
+                                        maxWidth: 100,
+                                      ),
+                                      child: Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 12,
                                           vertical: 6,
@@ -1487,6 +1378,7 @@ class _PremiumSlotManagementScreenState
                                           ),
                                         ),
                                         child: Row(
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Icon(
                                               isDisabled
@@ -1498,117 +1390,120 @@ class _PremiumSlotManagementScreenState
                                                   : _success,
                                             ),
                                             const SizedBox(width: 6),
-                                            Text(
-                                              isDisabled
-                                                  ? 'DISABLED'
-                                                  : 'AVAILABLE',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                                color: isDisabled
-                                                    ? _danger
-                                                    : _success,
+                                            Flexible(
+                                              child: Text(
+                                                isDisabled
+                                                    ? 'DISABLED'
+                                                    : 'AVAILABLE',
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isDisabled
+                                                      ? _danger
+                                                      : _success,
+                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            // Actions
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      side: BorderSide(
-                                        color: Colors.grey.shade400,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
                                     ),
-                                    child: Text(
-                                      'CANCEL',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        color: _textSecondary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        slots.add({
-                                          'time': selectedTime.format(context),
-                                          'endTime': _calculateEndTime(
-                                            selectedTime,
-                                          ).format(context),
-                                          'status': 'available',
-                                          'price': '₹$price',
-                                          'customer': null,
-                                          'bookingId': null,
-                                          'disabled': isDisabled,
-                                        });
-                                        slots.sort((a, b) {
-                                          int hourA = _parseTimeTo24Hour(
-                                            a['time'],
-                                          );
-                                          int hourB = _parseTimeTo24Hour(
-                                            b['time'],
-                                          );
-                                          return hourA.compareTo(hourB);
-                                        });
-                                      });
-                                      Navigator.pop(context);
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: _primary,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      elevation: 2,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(Icons.add, size: 20),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'ADD SLOT',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Actions
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    side: BorderSide(
+                                      color: Colors.grey.shade400,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'CANCEL',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: _textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      slots.add({
+                                        'time': selectedTime.format(context),
+                                        'endTime': _calculateEndTime(
+                                          selectedTime,
+                                        ).format(context),
+                                        'status': 'available',
+                                        'price': int.parse(price),
+                                        'customer': null,
+                                        'bookingId': null,
+                                        'disabled': isDisabled,
+                                      });
+                                      slots.sort((a, b) {
+                                        int hourA = _parseTimeTo24Hour(
+                                          a['time'],
+                                        );
+                                        int hourB = _parseTimeTo24Hour(
+                                          b['time'],
+                                        );
+                                        return hourA.compareTo(hourB);
+                                      });
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _primary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 2,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.add, size: 20),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'ADD SLOT',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             );
@@ -1722,7 +1617,7 @@ class _PremiumSlotManagementScreenState
                 'Time Slot',
                 '${slot['time']} - ${slot['endTime']}',
               ),
-              _buildDetailRow('Price', slot['price']),
+              _buildDetailRow('Price', '₹${slot['price']}'),
               _buildDetailRow('Customer', slot['customer'] ?? 'N/A'),
               _buildDetailRow('Status', 'Confirmed'),
               _buildDetailRow('Payment', 'Paid'),
@@ -1829,6 +1724,8 @@ class _PremiumSlotManagementScreenState
     // Filter slots based on selected filter
     List<Map<String, dynamic>> filteredSlots = _selectedFilter == 'all'
         ? slots
+        : _selectedFilter == 'disabled'
+        ? slots.where((slot) => slot['disabled'] == true).toList()
         : slots.where((slot) => slot['status'] == _selectedFilter).toList();
 
     return Scaffold(
@@ -1870,11 +1767,7 @@ class _PremiumSlotManagementScreenState
           IconButton(
             onPressed: _showFilterDialog,
             icon: const Icon(Icons.filter_list, color: Colors.white),
-            tooltip: 'Advanced Filters',
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_vert, color: Colors.white),
+            tooltip: 'Filters',
           ),
         ],
       ),
@@ -2081,9 +1974,37 @@ class _PremiumSlotManagementScreenState
                       color: _textPrimary,
                     ),
                   ),
-                  Text(
-                    '${filteredSlots.length} slots • ${_selectedFilter.toUpperCase()}',
-                    style: TextStyle(fontSize: 12, color: _textSecondary),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _primary.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: _primary,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${filteredSlots.length} slots',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _primary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -2208,7 +2129,7 @@ class _PremiumSlotManagementScreenState
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            slot['price'],
+                            '₹${slot['price']}',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -2221,8 +2142,9 @@ class _PremiumSlotManagementScreenState
                   ),
                 ),
 
-                // Status Badge
+                // Status Badge - Fixed overflow by adding constraints
                 Container(
+                  constraints: BoxConstraints(maxWidth: 150),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 6,
@@ -2233,15 +2155,20 @@ class _PremiumSlotManagementScreenState
                     border: Border.all(color: statusColor.withOpacity(0.3)),
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(_getStatusIcon(slot), size: 14, color: statusColor),
                       const SizedBox(width: 6),
-                      Text(
-                        _getStatusLabel(slot),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: statusColor,
+                      Flexible(
+                        child: Text(
+                          _getStatusLabel(slot),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: statusColor,
+                          ),
                         ),
                       ),
                     ],
@@ -2258,7 +2185,7 @@ class _PremiumSlotManagementScreenState
             margin: const EdgeInsets.symmetric(horizontal: 16),
           ),
 
-          // Customer Info or Actions
+          // Customer Info or Actions - Fixed the overflow issue here
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -2266,12 +2193,15 @@ class _PremiumSlotManagementScreenState
                 if (isBooked) ...[
                   Icon(Icons.person, size: 18, color: _textSecondary),
                   const SizedBox(width: 8),
+
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          slot['customer']!,
+                          slot['customer'] ?? 'Unknown',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -2281,14 +2211,23 @@ class _PremiumSlotManagementScreenState
                         const SizedBox(height: 2),
                         Text(
                           'Booking ID: ${slot['bookingId']}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 12, color: _textSecondary),
                         ),
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => _showBookingDetails(slot),
-                    icon: Icon(Icons.chevron_right, color: _textSecondary),
+
+                  // Fixed IconButton to prevent overflow
+                  Container(
+                    width: 40,
+                    child: IconButton(
+                      onPressed: () => _showBookingDetails(slot),
+                      icon: Icon(Icons.chevron_right, color: _textSecondary),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
                   ),
                 ] else ...[
                   Icon(
@@ -2305,26 +2244,36 @@ class _PremiumSlotManagementScreenState
                           isDisabled
                               ? 'Slot is disabled'
                               : 'Slot is available for booking',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 14,
                             color: isDisabled ? _disabledColor : _textSecondary,
                           ),
                         ),
+
                         if (isDisabled && _emergencyMode)
                           Text(
                             'Emergency: ${_formatEmergencyDateRange()}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 11, color: _danger),
                           ),
                       ],
                     ),
                   ),
-                  Switch(
-                    value: !isDisabled,
-                    onChanged: isBooked
-                        ? null
-                        : (value) => _toggleSlotDisabled(index, !value),
-                    activeColor: _success,
-                    inactiveThumbColor: _disabledColor,
+                  // Fixed Switch with proper constraints
+                  Container(
+                    width: 50,
+                    child: Switch(
+                      value: !isDisabled,
+                      onChanged: isBooked
+                          ? null
+                          : (value) => _toggleSlotDisabled(index, !value),
+                      activeColor: _success,
+                      inactiveThumbColor: _disabledColor,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   ),
                 ],
               ],
