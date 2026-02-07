@@ -1,11 +1,15 @@
 import '../models/turf.dart';
 import '../features/bookings/my_bookings_screen.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class TurfDataService extends ChangeNotifier {
   static final TurfDataService _instance = TurfDataService._internal();
   factory TurfDataService() => _instance;
-  TurfDataService._internal();
+  TurfDataService._internal() {
+    _loadSavedTurfs();
+  }
 
   final List<Turf> _turfs = [
     Turf(
@@ -68,7 +72,37 @@ class TurfDataService extends ChangeNotifier {
 
   void addTurf(Turf turf) {
     _turfs.insert(0, turf);
+    _saveTurfs();
     notifyListeners();
+  }
+
+  Future<void> _saveTurfs() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Only save the dynamic turfs (those not in the static list, or just save all if you prefer)
+    // For simplicity, let's save all turfs adding a flag or just save the dynamic ones.
+    // Actually, it's safer to save all and filter or just save dynamic.
+    // Let's save dynamic turfs in a separate key.
+    List<Turf> dynamicTurfs = _turfs.where((t) => int.tryParse(t.id) == null || int.parse(t.id) > 10).toList();
+    List<String> turfJsonList = dynamicTurfs.map((t) => jsonEncode(t.toJson())).toList();
+    await prefs.setStringList('dynamic_turfs', turfJsonList);
+  }
+
+  Future<void> _loadSavedTurfs() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String>? turfJsonList = prefs.getStringList('dynamic_turfs');
+    if (turfJsonList != null) {
+      for (String turfJson in turfJsonList) {
+        try {
+          Turf turf = Turf.fromJson(jsonDecode(turfJson));
+          if (!_turfs.any((t) => t.id == turf.id)) {
+            _turfs.add(turf);
+          }
+        } catch (e) {
+          debugPrint("Error loading turf: $e");
+        }
+      }
+      notifyListeners();
+    }
   }
 
   void addBooking(Booking booking) {

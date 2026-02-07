@@ -515,6 +515,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    _turfService.addListener(_onDataChanged);
     _filteredTurfs = _turfs;
     _searchController.addListener(_searchTurfs);
 
@@ -525,6 +526,14 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       _priceRange = RangeValues(0, _maxPrice);
     }
     _applyFilters();
+  }
+
+  void _onDataChanged() {
+    if (mounted) {
+      setState(() {
+        _applyFilters();
+      });
+    }
   }
 
   void _searchTurfs() {
@@ -647,6 +656,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _turfService.removeListener(_onDataChanged);
     super.dispose();
   }
 
