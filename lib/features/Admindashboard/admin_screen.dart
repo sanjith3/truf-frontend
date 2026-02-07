@@ -209,7 +209,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Widget _buildAppBar() {
     return Container(
-      padding: const EdgeInsets.only(top: 50, bottom: 20, left: 20, right: 20),
+      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 10, bottom: 20, left: 20, right: 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,

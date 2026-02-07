@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String currentName;
@@ -138,8 +141,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             const SizedBox(height: 8),
             TextField(
               controller: _nameController,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+                LengthLimitingTextInputFormatter(18),
+              ],
               decoration: InputDecoration(
                 hintText: "Enter your name",
+
                 prefixIcon: const Icon(Icons.person_outline),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -194,21 +202,56 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: () {
-                  // In a real app, save data to backend/storage
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Profile updated successfully!"),
-                      backgroundColor: Color(0xFF1DB954),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  Navigator.pop(context, {
-                    'name': _nameController.text,
-                    'email': _emailController.text,
-                    'image': _image,
-                  });
+                onPressed: () async {
+                  final name = _nameController.text.trim();
+                  final email = _emailController.text.trim();
+                  
+                  // Validation Regex for Email
+                  final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+
+                  if (name.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Please enter your name"),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (email.isEmpty || !emailRegex.hasMatch(email)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Please enter a valid email address"),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
+
+                  // Save to SharedPreferences
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('userName', name);
+                  await prefs.setString('userEmail', email);
+                  
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Profile updated successfully!"),
+                        backgroundColor: Color(0xFF1DB954),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    Navigator.pop(context, {
+                      'name': name,
+                      'email': email,
+                      'image': _image,
+                    });
+                  }
                 },
+
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1DB954),
                   shape: RoundedRectangleBorder(

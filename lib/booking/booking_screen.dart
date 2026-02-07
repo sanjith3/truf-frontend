@@ -250,11 +250,14 @@ class _BookingScreenState extends State<BookingScreen> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey[300]!),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        spacing: 12,
+        runSpacing: 8,
         children: [
           // Available indicator
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 12,
@@ -279,6 +282,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
           // Booked indicator
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 12,
@@ -303,6 +307,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
           // Selected indicator
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 12,
@@ -327,6 +332,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
           // Offer slot indicator
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 12,

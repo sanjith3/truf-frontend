@@ -8,6 +8,7 @@ import 'package:turfzone/features/Terms_condition/terms_conditions_screen.dart';
 import 'package:turfzone/features/credits_rewards/credits_rewards_screen.dart';
 import 'package:turfzone/features/auth/otp_login_screen.dart';
 import 'package:turfzone/features/profile/edit_profile_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,10 +20,24 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String _userName = "John Doe";
   String _userEmail = "john.doe@example.com";
-  final String _userPhone = "+91 98765 43210";
+  String _userPhone = "+91 98765 43210";
   File? _userImage;
 
   @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userName = prefs.getString('userName') ?? "User Name";
+      _userEmail = prefs.getString('userEmail') ?? "user@example.com";
+      String? phone = prefs.getString('userPhone');
+      _userPhone = phone != null ? "+91 $phone" : "Phone number not set";
+    });
+  }
   Widget build(BuildContext context) {
     // Mock data
     final userStats = {
@@ -792,23 +807,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Material(
                             color: Colors.transparent,
                             child: InkWell(
-                              onTap: () {
-                                debugPrint("Logout button pressed");
-                                Navigator.pushAndRemoveUntil(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const OtpLoginScreen(),
-                                  ),
-                                  (route) => false,
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Logged out successfully"),
-                                    backgroundColor: Color(0xFF1DB954),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              },
+                                onTap: () async {
+                                  debugPrint("Logout button pressed");
+                                  final prefs = await SharedPreferences.getInstance();
+                                  await prefs.remove('userName');
+                                  await prefs.remove('userEmail');
+                                  await prefs.remove('userPhone');
+                                  await prefs.remove('hasShownWelcome');
+                                  
+                                  if (context.mounted) {
+                                    Navigator.pushAndRemoveUntil(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const OtpLoginScreen(),
+                                      ),
+                                      (route) => false,
+                                    );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Logged out successfully"),
+                                        backgroundColor: Color(0xFF1DB954),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                },
                               borderRadius: const BorderRadius.only(
                                 bottomRight: Radius.circular(20),
                               ),
