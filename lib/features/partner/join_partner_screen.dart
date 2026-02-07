@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+
 import '../../services/turf_data_service.dart';
 import '../../models/turf.dart';
 
@@ -85,9 +87,191 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
   List<String> customAmenities = [];
   bool showAllAmenities = false;
 
+  // Location Data
+  final Map<String, List<String>> indianStatesCities = {
+    'Andaman and Nicobar Islands': ['Nicobar', 'North and Middle Andaman', 'South Andaman'],
+    'Andhra Pradesh': [
+      'Anantapur', 'Chittoor', 'East Godavari', 'Guntur', 'Kadapa', 'Krishna',
+      'Kurnool', 'Nellore', 'Prakasam', 'Srikakulam', 'Visakhapatnam', 'Vizianagaram', 'West Godavari'
+    ],
+    'Arunachal Pradesh': [
+      'Anjaw', 'Changlang', 'Dibang Valley', 'East Kameng', 'East Siang', 'Kamle',
+      'Kra Daadi', 'Kurung Kumey', 'Lepa Rada', 'Lohit', 'Longding', 'Lower Dibang Valley',
+      'Lower Siang', 'Lower Subansiri', 'Namsai', 'Pakke Kessang', 'Papum Pare', 'Shi Yomi',
+      'Siang', 'Tawang', 'Tirap', 'Upper Siang', 'Upper Subansiri', 'West Kameng', 'West Siang'
+    ],
+    'Assam': [
+      'Baksa', 'Barpeta', 'Biswanath', 'Bongaigaon', 'Cachar', 'Charaideo', 'Chirang',
+      'Darrang', 'Dhemaji', 'Dhubri', 'Dibrugarh', 'Dima Hasao', 'Goalpara', 'Golaghat',
+      'Hailakandi', 'Hojai', 'Jorhat', 'Kamrup', 'Kamrup Metropolitan', 'Karbi Anglong',
+      'Karimganj', 'Kokrajhar', 'Lakhimpur', 'Majuli', 'Morigaon', 'Nagaon', 'Nalbari',
+      'Sivasagar', 'Sonitpur', 'South Salmara-Mankachar', 'Tinsukia', 'Udalguri', 'West Karbi Anglong'
+    ],
+    'Bihar': [
+      'Araria', 'Arwal', 'Aurangabad', 'Banka', 'Begusarai', 'Bhagalpur', 'Bhojpur',
+      'Buxar', 'Darbhanga', 'East Champaran', 'Gaya', 'Gopalganj', 'Jamui', 'Jehanabad',
+      'Kaimur', 'Katihar', 'Khagaria', 'Kishanganj', 'Lakhisarai', 'Madhepura', 'Madhubani',
+      'Munger', 'Muzaffarpur', 'Nalanda', 'Nawada', 'Patna', 'Purnia', 'Rohtas', 'Saharsa',
+      'Samastipur', 'Saran', 'Sheikhpura', 'Sheohar', 'Sitamarhi', 'Siwan', 'Supaul', 'Vaishali', 'West Champaran'
+    ],
+    'Chandigarh': ['Chandigarh'],
+    'Chhattisgarh': [
+      'Balod', 'Baloda Bazar', 'Balrampur', 'Bastar', 'Bemetara', 'Bijapur', 'Bilaspur',
+      'Dantewada', 'Dhamtari', 'Durg', 'Gariaband', 'Gaurela-Pendra-Marwahi', 'Janjgir-Champa',
+      'Jashpur', 'Kabirdham', 'Kanker', 'Kondagaon', 'Korba', 'Koriya', 'Mahasamund', 'Mungeli',
+      'Narayanpur', 'Raigarh', 'Raipur', 'Rajnandgaon', 'Sukma', 'Surajpur', 'Surguja'
+    ],
+    'Dadra and Nagar Haveli and Daman and Diu': ['Dadra and Nagar Haveli', 'Daman', 'Diu'],
+    'Delhi': ['Central Delhi', 'East Delhi', 'New Delhi', 'North Delhi', 'North East Delhi', 'North West Delhi', 'Shahdara', 'South Delhi', 'South East Delhi', 'South West Delhi', 'West Delhi'],
+    'Goa': ['North Goa', 'South Goa'],
+    'Gujarat': [
+      'Ahmedabad', 'Amreli', 'Anand', 'Aravalli', 'Banaskantha', 'Bharuch', 'Bhavnagar',
+      'Botad', 'Chhota Udepur', 'Dahod', 'Dang', 'Devbhoomi Dwarka', 'Gandhinagar', 'Gir Somnath',
+      'Jamnagar', 'Junagadh', 'Kheda', 'Kutch', 'Mahisagar', 'Mehsana', 'Morbi', 'Narmada',
+      'Navsari', 'Panchmahal', 'Patan', 'Porbrandar', 'Rajkot', 'Sabarkantha', 'Surat',
+      'Surendranagar', 'Tapi', 'Vadodara', 'Valsad'
+    ],
+    'Haryana': [
+      'Ambala', 'Bhiwani', 'Charkhi Dadri', 'Faridabad', 'Fatehabad', 'Gurugram', 'Hisar',
+      'Jhajjar', 'Jind', 'Kaithal', 'Karnal', 'Kurukshetra', 'Mahendragarh', 'Nuh', 'Palwal',
+      'Panchkula', 'Panipat', 'Rewari', 'Rohtak', 'Sirsa', 'Sonipat', 'Yamunanagar'
+    ],
+    'Himachal Pradesh': [
+      'Bilaspur', 'Chamba', 'Hamirpur', 'Kangra', 'Kinnaur', 'Kullu', 'Lahaul and Spiti',
+      'Mandi', 'Shimla', 'Sirmaur', 'Solan', 'Una'
+    ],
+    'Jammu and Kashmir': [
+      'Anantnag', 'Bandipora', 'Baramulla', 'Budgam', 'Doda', 'Ganderbal', 'Jammu',
+      'Kathua', 'Kishtwar', 'Kulgam', 'Kupwara', 'Poonch', 'Pulwama', 'Rajouri', 'Ramban',
+      'Reasi', 'Samba', 'Shopian', 'Srinagar', 'Udhampur'
+    ],
+    'Jharkhand': [
+      'Bokaro', 'Chatra', 'Deoghar', 'Dhanbad', 'Dumka', 'East Singhbhum', 'Garhwa',
+      'Giridih', 'Godda', 'Gumla', 'Hazaribagh', 'Jamtara', 'Khunti', 'Koderma', 'Latehar',
+      'Lohardaga', 'Pakur', 'Palamu', 'Ramgarh', 'Ranchi', 'Sahibganj', 'Seraikela Kharsawan',
+      'Simdega', 'West Singhbhum'
+    ],
+    'Karnataka': [
+      'Bagalkot', 'Ballari', 'Belagavi', 'Bengaluru Rural', 'Bengaluru Urban', 'Bidar',
+      'Chamarajanagar', 'Chikkaballapur', 'Chikkamagaluru', 'Chitradurga', 'Dakshina Kannada',
+      'Davanagere', 'Dharwad', 'Gadag', 'Hassan', 'Haveri', 'Kalaburagi', 'Kodagu', 'Kolar',
+      'Koppal', 'Mandya', 'Mysuru', 'Raichur', 'Ramanagara', 'Shivamogga', 'Tumakuru',
+      'Udupi', 'Uttara Kannada', 'Vijayapura', 'Yadgir'
+    ],
+    'Kerala': [
+      'Alappuzha', 'Ernakulam', 'Idukki', 'Kannur', 'Kasaragod', 'Kollam', 'Kottayam',
+      'Kozhikode', 'Malappuram', 'Palakkad', 'Pathanamthitta', 'Thiruvananthapuram', 'Thrissur', 'Wayanad'
+    ],
+    'Ladakh': ['Kargil', 'Leh'],
+    'Lakshadweep': ['Lakshadweep'],
+    'Madhya Pradesh': [
+      'Agar Malwa', 'Alirajpur', 'Anuppur', 'Ashoknagar', 'Balaghat', 'Barwani', 'Betul',
+      'Bhind', 'Bhopal', 'Burhanpur', 'Chhatarpur', 'Chhindwara', 'Damoh', 'Datia', 'Dewas',
+      'Dhar', 'Dindori', 'Guna', 'Gwalior', 'Harda', 'Hoshangabad', 'Indore', 'Jabalpur',
+      'Jhabua', 'Katni', 'Khandwa', 'Khargone', 'Mandla', 'Mandsaur', 'Morena', 'Narsinghpur',
+      'Neemuch', 'Niwari', 'Panna', 'Raisen', 'Rajgarh', 'Ratlam', 'Rewa', 'Sagar', 'Satna',
+      'Sehore', 'Seoni', 'Shahdol', 'Shajapur', 'Sheopur', 'Shivpuri', 'Sidhi', 'Singrauli',
+      'Tikamgarh', 'Ujjain', 'Umaria', 'Vidisha'
+    ],
+    'Maharashtra': [
+      'Ahmednagar', 'Akola', 'Amravati', 'Aurangabad', 'Beed', 'Bhandara', 'Buldhana',
+      'Chandrapur', 'Dhule', 'Gadchiroli', 'Gondia', 'Hingoli', 'Jalgaon', 'Jalna', 'Kolhapur',
+      'Latur', 'Mumbai City', 'Mumbai Suburban', 'Nagpur', 'Nanded', 'Nandurbar', 'Nashik',
+      'Osmanabad', 'Palghar', 'Parbhani', 'Pune', 'Raigad', 'Ratnagiri', 'Sangli', 'Satara',
+      'Sindhudurg', 'Solapur', 'Thane', 'Wardha', 'Washim', 'Yavatmal'
+    ],
+    'Manipur': [
+      'Bishnupur', 'Chandel', 'Churachandpur', 'Imphal East', 'Imphal West', 'Jiribam',
+      'Kakching', 'Kamjong', 'Kangpokpi', 'Noney', 'Pherzawl', 'Senapati', 'Tamenglong',
+      'Tengnoupal', 'Thoubal', 'Ukhrul'
+    ],
+    'Meghalaya': [
+      'East Garo Hills', 'East Jaintia Hills', 'East Khasi Hills', 'North Garo Hills',
+      'Ri Bhoi', 'South Garo Hills', 'South West Garo Hills', 'South West Khasi Hills',
+      'West Garo Hills', 'West Jaintia Hills', 'West Khasi Hills'
+    ],
+    'Mizoram': [
+      'Aizawl', 'Champhai', 'Hnahthial', 'Khawzawl', 'Kolasib', 'Lawngtlai', 'Lunglei',
+      'Mamit', 'Saiha', 'Saitual', 'Serchhip'
+    ],
+    'Nagaland': [
+      'Dimapur', 'Kiphire', 'Kohima', 'Longleng', 'Mokokchung', 'Mon', 'Noklak',
+      'Peren', 'Phek', 'Tuensang', 'Wokha', 'Zunheboto'
+    ],
+    'Odisha': [
+      'Angul', 'Balangir', 'Balasore', 'Bargarh', 'Bhadrak', 'Boudh', 'Cuttack',
+      'Deogarh', 'Dhenkanal', 'Gajapati', 'Ganjam', 'Jagatsinghpur', 'Jajpur', 'Jharsuguda',
+      'Kalahandi', 'Kandhamal', 'Kendrapara', 'Kendujhar', 'Khordha', 'Koraput', 'Malkangiri',
+      'Mayurbhanj', 'Nabarangpur', 'Nayagarh', 'Nuapada', 'Puri', 'Rayagada', 'Sambalpur',
+      'Subarnapur', 'Sundargarh'
+    ],
+    'Puducherry': ['Karaikal', 'Mahe', 'Puducherry', 'Yanam'],
+    'Punjab': [
+      'Amritsar', 'Barnala', 'Bathinda', 'Faridkot', 'Fatehgarh Sahib', 'Fazilka', 'Ferozepur',
+      'Gurdaspur', 'Hoshiarpur', 'Jalandhar', 'Kapurthala', 'Ludhiana', 'Mansa', 'Moga',
+      'Muktsar', 'Pathankot', 'Patiala', 'Rupnagar', 'Sahibzada Ajit Singh Nagar', 'Sangrur',
+      'Shahid Bhagat Singh Nagar', 'Sri Muktsar Sahib', 'Tarn Taran'
+    ],
+    'Rajasthan': [
+      'Ajmer', 'Alwar', 'Banswara', 'Baran', 'Barmer', 'Bharatpur', 'Bhilwara', 'Bikaner',
+      'Bundi', 'Chittorgarh', 'Churu', 'Dausa', 'Dholpur', 'Dungarpur', 'Hanumangarh',
+      'Jaipur', 'Jaisalmer', 'Jalore', 'Jhalawar', 'Jhunjhunu', 'Jodhpur', 'Karauli',
+      'Kota', 'Nagaur', 'Pali', 'Pratapgarh', 'Rajsamand', 'Sawai Madhopur', 'Sikar',
+      'Sirohi', 'Sri Ganganagar', 'Tonk', 'Udaipur'
+    ],
+    'Sikkim': ['East Sikkim', 'North Sikkim', 'South Sikkim', 'West Sikkim'],
+    'Tamil Nadu': [
+      'Ariyalur', 'Chengalpattu', 'Chennai', 'Coimbatore', 'Cuddalore', 'Dharmapuri',
+      'Dindigul', 'Erode', 'Kallakurichi', 'Kancheepuram', 'Kanyakumari', 'Karur',
+      'Krishnagiri', 'Madurai', 'Mayiladuthurai', 'Nagapattinam', 'Namakkal', 'Nilgiris',
+      'Perambalur', 'Pudukkottai', 'Ramanathapuram', 'Ranipet', 'Salem', 'Sivaganga',
+      'Tenkasi', 'Thanjavur', 'Theni', 'Thoothukudi', 'Tiruchirappalli', 'Tirunelveli',
+      'Tirupathur', 'Tiruppur', 'Tiruvallur', 'Tiruvannamalai', 'Tiruvarur', 'Vellore',
+      'Viluppuram', 'Virudhunagar'
+    ],
+    'Telangana': [
+      'Adilabad', 'Bhadradri Kothagudem', 'Hyderabad', 'Jagtial', 'Jangaon', 'Jayashankar Bhupalpally',
+      'Jogulamba Gadwal', 'Kamareddy', 'Karimnagar', 'Khammam', 'Kumuram Bheem Asifabad',
+      'Mahabubabad', 'Mahabubnagar', 'Mancherial', 'Medak', 'Medchal Malkajgiri', 'Mulugu',
+      'Nagarkurnool', 'Nalgonda', 'Narayanpet', 'Nirmal', 'Nizamabad', 'Peddapalli',
+      'Rajanna Sircilla', 'Rangareddy', 'Sangareddy', 'Siddipet', 'Suryapet', 'Vikarabad',
+      'Wanaparthy', 'Warangal Rural', 'Warangal Urban', 'Yadadri Bhuvanagiri'
+    ],
+    'Tripura': [
+      'Dhalai', 'Gomati', 'Khowai', 'North Tripura', 'Sepahijala', 'South Tripura', 'Unakoti', 'West Tripura'
+    ],
+    'Uttar Pradesh': [
+      'Agra', 'Aligarh', 'Ambedkar Nagar', 'Amethi', 'Amroha', 'Auraiya', 'Ayodhya',
+      'Azamgarh', 'Baghpat', 'Bahraich', 'Ballia', 'Balrampur', 'Banda', 'Barabanki',
+      'Bareilly', 'Basti', 'Bhadohi', 'Bijnor', 'Budaun', 'Bulandshahr', 'Chandauli',
+      'Chitrakoot', 'Deoria', 'Etah', 'Etawah', 'Farrukhabad', 'Fatehpur', 'Firozabad',
+      'Gautam Buddha Nagar', 'Ghaziabad', 'Ghazipur', 'Gonda', 'Gorakhpur', 'Hamirpur',
+      'Hapur', 'Hardoi', 'Hathras', 'Jalaun', 'Jaunpur', 'Jhansi', 'Kannauj', 'Kanpur Dehat',
+      'Kanpur Nagar', 'Kasganj', 'Kaushambi', 'Kheri', 'Kushinagar', 'Lalitpur', 'Lucknow',
+      'Maharajganj', 'Mahoba', 'Mainpuri', 'Mathura', 'Mau', 'Meerut', 'Mirzapur', 'Moradabad',
+      'Muzaffarnagar', 'Pilibhit', 'Pratapgarh', 'Prayagraj', 'Rae Bareli', 'Rampur', 'Saharanpur',
+      'Sambhal', 'Sant Kabir Nagar', 'Shahjahanpur', 'Shamli', 'Shravasti', 'Siddharthnagar',
+      'Sitapur', 'Sonbhadra', 'Sultanpur', 'Unnao', 'Varanasi'
+    ],
+    'Uttarakhand': [
+      'Almora', 'Bageshwar', 'Chamoli', 'Champawat', 'Dehradun', 'Haridwar', 'Nainital',
+      'Pauri Garhwal', 'Pithoragarh', 'Rudraprayag', 'Tehri Garhwal', 'Udham Singh Nagar', 'Uttarkashi'
+    ],
+    'West Bengal': [
+      'Alipurduar', 'Bankura', 'Birbhum', 'Cooch Behar', 'Dakshin Dinajpur', 'Darjeeling',
+      'Hooghly', 'Howrah', 'Jalpaiguri', 'Jhargram', 'Kalimpong', 'Kolkata', 'Malda',
+      'Murshidabad', 'Nadia', 'North 24 Parganas', 'Paschim Bardhaman', 'Paschim Medinipur',
+      'Purba Bardhaman', 'Purba Medinipur', 'Purulia', 'South 24 Parganas', 'Uttar Dinajpur'
+    ],
+  };
+
+  String? selectedPartnerState;
+  String? selectedPartnerCity;
+
   // Photos
   List<File> selectedPhotos = [];
   bool isConfirmed = false;
+
 
   // Step tracking for better UX
   int _currentStep = 0;
@@ -100,26 +284,13 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
   ];
 
   void _submitForm() {
-    if (!_formKey.currentState!.validate()) return;
-
-    // Validate bank details
-    if (_accountHolderNameController.text.isEmpty ||
-        _accountNumberController.text.isEmpty ||
-        _confirmAccountNumberController.text.isEmpty ||
-        _bankNameController.text.isEmpty ||
-        _ifscCodeController.text.isEmpty) {
-      _showSnackBar('Please fill all bank details', isError: true);
-      return;
-    }
-
-    // Validate account number confirmation
-    if (_accountNumberController.text != _confirmAccountNumberController.text) {
-      _showSnackBar('Account numbers do not match', isError: true);
+    if (!_formKey.currentState!.validate()) {
+      _showSnackBar('Please fix all errors before submitting', isError: true);
       return;
     }
 
     if (!isConfirmed) {
-      _showSnackBar('Please confirm the terms and conditions', isError: true);
+      _showSnackBar('Please enable Terms & Conditions to submit', isError: true);
       return;
     }
 
@@ -134,8 +305,8 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     final newTurf = Turf(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: _businessNameController.text.trim(),
-      location: _cityController.text.trim(),
-      city: _cityController.text.trim(),
+      location: selectedPartnerCity ?? _cityController.text.trim(),
+      city: selectedPartnerCity ?? _cityController.text.trim(),
       distance: 2.0,
       price: int.tryParse(_priceController.text.trim()) ?? 500,
       rating: 5.0,
@@ -158,6 +329,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
       _showReviewDialog();
     });
   }
+
 
   void _showReviewDialog() {
     showDialog(
@@ -263,13 +435,18 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
   }
 
   void _nextStep() {
-    if (_currentStep < _stepTitles.length - 1) {
-      setState(() {
-        _currentStep++;
-      });
-      _scrollToTop();
+    if (_formKey.currentState!.validate()) {
+      if (_currentStep < _stepTitles.length - 1) {
+        setState(() {
+          _currentStep++;
+        });
+        _scrollToTop();
+      }
+    } else {
+      _showSnackBar('Please fix errors in the form before proceeding', isError: true);
     }
   }
+
 
   void _previousStep() {
     if (_currentStep > 0) {
@@ -452,6 +629,19 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           hint: "Enter your full name",
           icon: Icons.person,
           isRequired: true,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+            LengthLimitingTextInputFormatter(25),
+          ],
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Please enter your full name';
+            }
+            if (value.trim().length < 3) {
+              return 'Name is too short';
+            }
+            return null;
+          },
         ),
         const SizedBox(height: 16),
         _buildCompactTextField(
@@ -461,6 +651,19 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           icon: Icons.phone,
           keyboardType: TextInputType.phone,
           isRequired: true,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(10),
+          ],
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter phone number';
+            }
+            if (value.length != 10) {
+              return 'Phone number must be 10 digits';
+            }
+            return null;
+          },
         ),
         const SizedBox(height: 16),
         _buildCompactTextField(
@@ -470,10 +673,21 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           icon: Icons.email_outlined,
           keyboardType: TextInputType.emailAddress,
           isRequired: true,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Please enter email';
+            }
+            final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+            if (!emailRegex.hasMatch(value)) {
+              return 'Please enter a valid email address';
+            }
+            return null;
+          },
         ),
       ],
     );
   }
+
 
   Widget _buildStep2BusinessDetails() {
     return Column(
@@ -491,17 +705,41 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           hint: "e.g., Green Field Arena",
           icon: Icons.stadium_outlined,
           isRequired: true,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+            LengthLimitingTextInputFormatter(25),
+          ],
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Please enter turf name';
+            }
+            return null;
+          },
         ),
         const SizedBox(height: 16),
         _buildCompactTextField(
           controller: _priceController,
           label: "Price Per Hour",
-          hint: "Enter price in ₹",
+          hint: "4-digit price (e.g., 1200)",
           icon: Icons.currency_rupee_outlined,
           prefixText: "₹ ",
           keyboardType: TextInputType.number,
           isRequired: true,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(4),
+          ],
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter price';
+            }
+            if (value.length != 4) {
+              return 'Price must be exactly 4 digits';
+            }
+            return null;
+          },
         ),
+
         const SizedBox(height: 24),
 
         // Sports - Compact Version
@@ -542,27 +780,118 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
         Row(
           children: [
             Expanded(
-              child: _buildCompactTextField(
-                controller: _cityController,
-                label: "City",
-                hint: "e.g., Coimbatore",
-                icon: Icons.location_city_outlined,
-                isRequired: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   Row(
+                    children: [
+                      Text(
+                        "State",
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                      ),
+                      Text(" *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.red[400])),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedPartnerState,
+                        hint: const Text("State", style: TextStyle(fontSize: 13)),
+                        isExpanded: true,
+                        items: indianStatesCities.keys.map((state) {
+                          return DropdownMenuItem(value: state, child: Text(state, style: const TextStyle(fontSize: 13)));
+                        }).toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            selectedPartnerState = val;
+                            selectedPartnerCity = null;
+                            _cityController.clear();
+                          });
+                        },
+                        validator: (val) => val == null ? "Select state" : null,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildCompactTextField(
-                controller: _zipCodeController,
-                label: "PIN Code",
-                hint: "6-digit code",
-                icon: Icons.pin_outlined,
-                keyboardType: TextInputType.number,
-                isRequired: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        "City",
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                      ),
+                      Text(" *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.red[400])),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButtonFormField<String>(
+                        value: selectedPartnerCity,
+                        hint: const Text("City", style: TextStyle(fontSize: 13)),
+                        isExpanded: true,
+                        items: selectedPartnerState == null
+                            ? []
+                            : indianStatesCities[selectedPartnerState]!.map((city) {
+                                return DropdownMenuItem(value: city, child: Text(city, style: const TextStyle(fontSize: 13)));
+                              }).toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            selectedPartnerCity = val;
+                            _cityController.text = val ?? "";
+                          });
+                        },
+                        validator: (val) => val == null ? "Select city" : null,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
+        const SizedBox(height: 16),
+        _buildCompactTextField(
+          controller: _zipCodeController,
+          label: "PIN Code",
+          hint: "6-digit code",
+          icon: Icons.pin_outlined,
+          keyboardType: TextInputType.number,
+          isRequired: true,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(6),
+          ],
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Enter PIN code';
+            }
+            if (value.length != 6) {
+              return 'Must be 6 digits';
+            }
+            return null;
+          },
+        ),
+
         const SizedBox(height: 16),
         _buildCompactTextField(
           controller: _addressController,
@@ -612,7 +941,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
         _buildSectionHeader(
           icon: Icons.account_balance_outlined,
           title: "Bank Details",
-          subtitle: "For commission payments",
+          subtitle: "For automated payouts and settlements",
         ),
         const SizedBox(height: 20),
         _buildCompactTextField(
@@ -621,48 +950,74 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           hint: "As per bank records",
           icon: Icons.person_outline,
           isRequired: true,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+          ],
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) return 'Enter account holder name';
+            return null;
+          },
         ),
         const SizedBox(height: 16),
         _buildCompactTextField(
           controller: _accountNumberController,
           label: "Account Number",
-          hint: "Enter account number",
-          icon: Icons.credit_card_outlined,
-          keyboardType: TextInputType.number,
+          hint: "Enter bank account number",
+          icon: Icons.numbers_outlined,
           isRequired: true,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          validator: (value) {
+            if (value == null || value.isEmpty) return 'Enter account number';
+            return null;
+          },
         ),
         const SizedBox(height: 16),
         _buildCompactTextField(
           controller: _confirmAccountNumberController,
           label: "Confirm Account Number",
           hint: "Re-enter account number",
-          icon: Icons.credit_card_outlined,
-          keyboardType: TextInputType.number,
+          icon: Icons.numbers_outlined,
           isRequired: true,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          validator: (value) {
+            if (value == null || value.isEmpty) return 'Confirm account number';
+            if (value != _accountNumberController.text) return 'Account numbers mismatch';
+            return null;
+          },
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildCompactTextField(
-                controller: _bankNameController,
-                label: "Bank Name",
-                hint: "e.g., SBI",
-                icon: Icons.business_outlined,
-                isRequired: true,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildCompactTextField(
-                controller: _ifscCodeController,
-                label: "IFSC Code",
-                hint: "11 characters",
-                icon: Icons.code_outlined,
-                isRequired: true,
-              ),
-            ),
+        _buildCompactTextField(
+          controller: _bankNameController,
+          label: "Bank Name",
+          hint: "e.g., HDFC Bank",
+          icon: Icons.account_balance_outlined,
+          isRequired: true,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+            LengthLimitingTextInputFormatter(18),
           ],
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) return 'Enter bank name';
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        _buildCompactTextField(
+          controller: _ifscCodeController,
+          label: "IFSC Code",
+          hint: "11-character code",
+          icon: Icons.code,
+          isRequired: true,
+          inputFormatters: [
+            LengthLimitingTextInputFormatter(11),
+          ],
+          validator: (value) {
+            if (value == null || value.isEmpty) return 'Enter IFSC code';
+            if (value.length != 11) return 'IFSC must be 11 characters';
+            return null;
+          },
         ),
         const SizedBox(height: 16),
         _buildCompactTextField(
@@ -1108,7 +1463,10 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
     bool isRequired = true,
+    List<TextInputFormatter>? inputFormatters,
+    String? Function(String?)? validator,
   }) {
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1153,8 +1511,12 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                     controller: controller,
                     keyboardType: keyboardType,
                     maxLines: maxLines,
+                    inputFormatters: inputFormatters,
+                    validator: validator,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
+
                       hintText: hint,
                       border: InputBorder.none,
                       prefixText: prefixText,
