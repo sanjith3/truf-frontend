@@ -1,7 +1,8 @@
 import '../models/turf.dart';
 import '../features/bookings/my_bookings_screen.dart';
+import 'package:flutter/foundation.dart';
 
-class TurfDataService {
+class TurfDataService extends ChangeNotifier {
   static final TurfDataService _instance = TurfDataService._internal();
   factory TurfDataService() => _instance;
   TurfDataService._internal();
@@ -58,40 +59,6 @@ class TurfDataService {
       address: "Race Course Road, Coimbatore",
       description: "Professional football ground with international standards",
     ),
-    Turf(
-      id: '4',
-      name: "Chennai Mega Turf",
-      location: "Adyar",
-      city: "Chennai",
-      distance: 1.5,
-      price: 1200,
-      rating: 4.7,
-      images: [
-        "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=800&q=80",
-      ],
-      amenities: ["Flood Lights", "Locker Room", "Parking"],
-      sports: ["Football", "Tennis"],
-      mapLink: "https://maps.app.goo.gl/chennai1",
-      address: "Adyar Main Road, Chennai",
-      description: "Largest turf in Chennai with top-notch grass quality",
-    ),
-    Turf(
-      id: '5',
-      name: "Madurai Temple Turf",
-      location: "Anna Nagar",
-      city: "Madurai",
-      distance: 2.8,
-      price: 450,
-      rating: 4.6,
-      images: [
-        "https://images.unsplash.com/photo-1551958219-acbc608c6377?w=800&q=80",
-      ],
-      amenities: ["Parking", "Water", "Restroom"],
-      sports: ["Cricket", "Volleyball"],
-      mapLink: "https://maps.app.goo.gl/madurai1",
-      address: "Anna Nagar Ext area, Madurai",
-      description: "Affordable and well-maintained turf in the heart of Madurai",
-    ),
   ];
 
   final List<Booking> _bookings = [];
@@ -101,10 +68,12 @@ class TurfDataService {
 
   void addTurf(Turf turf) {
     _turfs.insert(0, turf);
+    notifyListeners();
   }
 
   void addBooking(Booking booking) {
     _bookings.insert(0, booking);
+    notifyListeners();
   }
 
   // Initial bookings for demo
@@ -112,7 +81,10 @@ class TurfDataService {
     if (_bookings.isNotEmpty) return;
     
     final now = DateTime.now();
+    
+    // Add multiple demo bookings for better analytics visualization
     _bookings.addAll([
+      // Bookings for Green Field Arena
       Booking(
         id: '1',
         turfName: 'Green Field Arena',
@@ -131,22 +103,93 @@ class TurfDataService {
         address: "123 Sports Complex, PN Pudur, Coimbatore",
       ),
       Booking(
+        id: '2',
+        turfName: 'Green Field Arena',
+        location: 'PN Pudur',
+        distance: 2.5,
+        rating: 4.8,
+        date: DateTime(now.year, now.month, now.day - 1),
+        startTime: '10:00',
+        endTime: '11:00',
+        amount: 500,
+        status: BookingStatus.completed,
+        paymentStatus: 'Paid',
+        bookingId: 'TURF-2024-002',
+        amenities: ["Lights", "Parking", "Water"],
+        mapLink: "https://maps.app.goo.gl/xyz123",
+        address: "123 Sports Complex, PN Pudur, Coimbatore",
+      ),
+      Booking(
+        id: '3',
+        turfName: 'Green Field Arena',
+        location: 'PN Pudur',
+        distance: 2.5,
+        rating: 4.8,
+        date: DateTime(now.year, now.month, now.day - 2),
+        startTime: '21:00',
+        endTime: '22:00',
+        amount: 500,
+        status: BookingStatus.completed,
+        paymentStatus: 'Paid',
+        bookingId: 'TURF-2024-003',
+        amenities: ["Lights", "Parking", "Water"],
+        mapLink: "https://maps.app.goo.gl/xyz123",
+        address: "123 Sports Complex, PN Pudur, Coimbatore",
+      ),
+      // Bookings for City Sports Turf
+      Booking(
+        id: '4',
+        turfName: 'City Sports Turf',
+        location: 'Gandhipuram',
+        distance: 4.2,
+        rating: 4.5,
+        date: DateTime(now.year, now.month, now.day),
+        startTime: '19:00',
+        endTime: '20:00',
+        amount: 650,
+        status: BookingStatus.upcoming,
+        paymentStatus: 'Paid',
+        bookingId: 'TURF-2024-004',
+        amenities: ["Cafeteria", "Parking"],
+        mapLink: "https://maps.app.goo.gl/abc456",
+        address: "45 Main Road, Gandhipuram, Coimbatore",
+      ),
+      Booking(
         id: '5',
-        turfName: 'Premium Sports Arena',
-        location: 'Singanallur',
-        distance: 6.2,
-        rating: 4.7,
-        date: DateTime(now.year, now.month, now.day + 2),
-        startTime: '20:00',
-        endTime: '21:00',
-        amount: 1200,
-        status: BookingStatus.cancelled,
-        paymentStatus: 'Refunded',
+        turfName: 'City Sports Turf',
+        location: 'Gandhipuram',
+        distance: 4.2,
+        rating: 4.5,
+        date: DateTime(now.year, now.month, now.day - 3),
+        startTime: '16:00',
+        endTime: '17:00',
+        amount: 650,
+        status: BookingStatus.completed,
+        paymentStatus: 'Paid',
         bookingId: 'TURF-2024-005',
-        amenities: ["Flood Lights", "Parking", "Water", "Showers", "Cafeteria"],
-        mapLink: "https://maps.app.goo.gl/jkl345",
-        address: "Singanallur Industrial Area, Coimbatore",
+        amenities: ["Cafeteria", "Parking"],
+        mapLink: "https://maps.app.goo.gl/abc456",
+        address: "45 Main Road, Gandhipuram, Coimbatore",
+      ),
+      // Bookings for Elite Football Ground
+      Booking(
+        id: '6',
+        turfName: 'Elite Football Ground',
+        location: 'Race Course',
+        distance: 3.1,
+        rating: 4.9,
+        date: DateTime(now.year, now.month, now.day - 4),
+        startTime: '18:00',
+        endTime: '19:00',
+        amount: 800,
+        status: BookingStatus.completed,
+        paymentStatus: 'Paid',
+        bookingId: 'TURF-2024-006',
+        amenities: ["Locker Room", "WiFi"],
+        mapLink: "https://maps.app.goo.gl/def789",
+        address: "Race Course Road, Coimbatore",
       ),
     ]);
+    notifyListeners();
   }
 }

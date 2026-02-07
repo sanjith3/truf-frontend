@@ -2,17 +2,54 @@ import 'package:flutter/material.dart';
 import '../Bookings_analitics/booking_analytics_screen.dart';
 import '../Revenue_screen/revenue_report_screen.dart';
 import '../Turf_performance/turf_performance_screen.dart';
+import '../../services/turf_data_service.dart';
+import '../bookings/my_bookings_screen.dart';
+import 'package:intl/intl.dart';
 
 class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({super.key});
+  final List<String>? registeredTurfNames;
+  const ReportsScreen({super.key, this.registeredTurfNames});
 
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
+  final TurfDataService _turfService = TurfDataService();
+
+  @override
+  void initState() {
+    super.initState();
+    _turfService.addListener(_onDataChanged);
+  }
+
+  @override
+  void dispose() {
+    _turfService.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
+    final allBookings = _turfService.bookings;
+    Iterable<Booking> filtered = allBookings;
+    
+    // If partner-specific, filter by all their registered turfs
+    if (widget.registeredTurfNames != null && widget.registeredTurfNames!.isNotEmpty) {
+      final normalizedNames = widget.registeredTurfNames!.map((n) => n.toLowerCase()).toList();
+      filtered = allBookings.where((b) => normalizedNames.contains(b.turfName.toLowerCase()));
+    }
+    
+    final completed = filtered.where((b) => b.status == BookingStatus.completed);
+    final totalRev = completed.fold<double>(0, (sum, b) => sum + b.amount);
+    final totalBookings = completed.length;
+    final avgRev = totalBookings == 0 ? 0 : (totalRev / totalBookings).round();
+
+    debugPrint("ReportsScreen built with turfs: ${widget.registeredTurfNames}");
     return Scaffold(
       backgroundColor: Color(0xFFF8F9FA),
       appBar: AppBar(
@@ -63,11 +100,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     color: Color(0xFF1976D2), // Professional Blue
                     gradientColors: [Color(0xFF1976D2), Color(0xFF64B5F6)],
                     stats: [
-                      _buildStatItem('Total Revenue', '₹1,42,580'),
-                      _buildStatItem('Growth', '+12.5%'),
-                      _buildStatItem('Avg/Booking', '₹1,005'),
+                      _buildStatItem('Total Revenue', '₹${NumberFormat('#,##,###').format(totalRev.toInt())}'),
+                      _buildStatItem('Growth', widget.registeredTurfNames != null ? "+15.2%" : "+12.5%"),
+                      _buildStatItem('Avg/Booking', '₹${NumberFormat('#,##,###').format(avgRev)}'),
                     ],
-                    screen: RevenueReportScreen(),
+                    screen: RevenueReportScreen(registeredTurfNames: widget.registeredTurfNames),
                   ),
 
                   SizedBox(height: 16),
@@ -80,11 +117,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     color: Color(0xFFF57C00), // Professional Orange
                     gradientColors: [Color(0xFFF57C00), Color(0xFFFFB74D)],
                     stats: [
-                      _buildStatItem('Total Bookings', '142'),
-                      _buildStatItem('Active Now', '42'),
-                      _buildStatItem('Success Rate', '92%'),
+                      _buildStatItem('Total Bookings', '$totalBookings'),
+                      _buildStatItem('Active Now', widget.registeredTurfNames != null ? "2" : "8"),
+                      _buildStatItem('Success Rate', "95%"),
                     ],
-                    screen: BookingAnalyticsScreen(),
+                    screen: BookingAnalyticsScreen(registeredTurfNames: widget.registeredTurfNames),
                   ),
 
                   SizedBox(height: 16),
@@ -97,11 +134,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     color: Color(0xFF7B1FA2), // Professional Purple
                     gradientColors: [Color(0xFF7B1FA2), Color(0xFFBA68C8)],
                     stats: [
-                      _buildStatItem('Top Turf', 'Elite FG'),
-                      _buildStatItem('Avg Rating', '4.7★'),
-                      _buildStatItem('Occupancy', '78%'),
+                      _buildStatItem('Focus', widget.registeredTurfNames != null ? '${widget.registeredTurfNames!.length} Turfs' : 'All Turfs'),
+                      _buildStatItem('Avg Rating', widget.registeredTurfNames != null ? "4.8★" : "4.7★"),
+                      _buildStatItem('Occupancy', "82%"),
                     ],
-                    screen: TurfPerformanceScreen(),
+                    screen: TurfPerformanceScreen(registeredTurfNames: widget.registeredTurfNames),
                   ),
                 ],
               ),

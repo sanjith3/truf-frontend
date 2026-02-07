@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../services/turf_data_service.dart';
+import '../bookings/my_bookings_screen.dart';
 
 class RevenueReportScreen extends StatefulWidget {
-  const RevenueReportScreen({super.key});
+  final List<String>? registeredTurfNames;
+  const RevenueReportScreen({super.key, this.registeredTurfNames});
 
   @override
   State<RevenueReportScreen> createState() => _RevenueReportScreenState();
@@ -16,8 +19,37 @@ class _RevenueReportScreenState extends State<RevenueReportScreen> {
     'Elite Football Ground',
     'Sports Hub Arena',
   ];
-
   String selectedTurf = 'All Turfs';
+  
+  final TurfDataService _turfService = TurfDataService();
+
+  @override
+  void initState() {
+    super.initState();
+    _turfService.addListener(_onTurfDataChanged);
+    if (widget.registeredTurfNames != null && widget.registeredTurfNames!.isNotEmpty) {
+      if (widget.registeredTurfNames!.length > 1) {
+        turfNames = ['All My Turfs', ...widget.registeredTurfNames!];
+        selectedTurf = 'All My Turfs';
+      } else {
+        selectedTurf = widget.registeredTurfNames!.first;
+        turfNames = [widget.registeredTurfNames!.first];
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _turfService.removeListener(_onTurfDataChanged);
+    super.dispose();
+  }
+
+  void _onTurfDataChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   String selectedPeriod = 'This Month';
   List<String> periods = [
     'Today',
@@ -34,42 +66,53 @@ class _RevenueReportScreenState extends State<RevenueReportScreen> {
   DateTime? endDate;
   bool showCustomDatePicker = false;
 
-  // Base data
-  final List<Map<String, dynamic>> _allRevenueData = [
-    {'day': 'Mon', 'revenue': 25000, 'bookings': 35},
-    {'day': 'Tue', 'revenue': 32000, 'bookings': 42},
-    {'day': 'Wed', 'revenue': 28000, 'bookings': 38},
-    {'day': 'Thu', 'revenue': 35000, 'bookings': 45},
-    {'day': 'Fri', 'revenue': 45000, 'bookings': 52},
-    {'day': 'Sat', 'revenue': 58000, 'bookings': 65},
-    {'day': 'Sun', 'revenue': 52000, 'bookings': 58},
-  ];
-
   List<Map<String, dynamic>> get revenueData {
-    // Return modified data based on selection to simulate filtering
-    double multiplier = 1.0;
-    if (selectedTurf != 'All Turfs') multiplier = 0.8; // Simulate specific turf has less revenue
-    
-    // Simulate time period changes
-    if (selectedPeriod == 'Today') multiplier *= 0.15;
-    else if (selectedPeriod == 'This Week') multiplier *= 1.0;
-    else if (selectedPeriod == 'This Month') multiplier *= 4.0;
-    
-    return _allRevenueData.map((data) {
-      return {
-        'day': data['day'],
-        'revenue': ((data['revenue'] as int) * multiplier).round(),
-        'bookings': ((data['bookings'] as int) * multiplier).round(),
-      };
-    }).toList();
+    final allBookings = _turfService.bookings;
+    Iterable<Booking> filteredBookings = allBookings;
+
+    if (selectedTurf == 'All My Turfs' && widget.registeredTurfNames != null) {
+      filteredBookings = allBookings.where((b) => widget.registeredTurfNames!.contains(b.turfName));
+    } else if (selectedTurf != 'All Turfs') {
+      filteredBookings = allBookings.where((b) => b.turfName == selectedTurf);
+    }
+
+    // Filter by period (Simplified for demo)
+    final now = DateTime.now();
+    if (selectedPeriod == 'Today') {
+      filteredBookings = filteredBookings.where((b) => isSameDay(b.date, now));
+    } else if (selectedPeriod == 'This Week') {
+      final weekStart = now.subtract(Duration(days: now.weekday - 1));
+      filteredBookings = filteredBookings.where((b) => b.date.isAfter(weekStart.subtract(const Duration(seconds: 1))));
+    }
+
+    // Group by Day of Week for the chart
+    final List<String> days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final List<Map<String, dynamic>> groupedData = List.generate(7, (i) => {
+      'day': days[i],
+      'revenue': 0,
+      'bookings': 0,
+    });
+
+    for (var booking in filteredBookings) {
+      // weekday is 1 for Mon, 7 for Sun
+      final index = booking.date.weekday - 1;
+      if (index >= 0 && index < 7) {
+        groupedData[index]['revenue'] = (groupedData[index]['revenue'] as int) + booking.amount.toInt();
+        groupedData[index]['bookings'] = (groupedData[index]['bookings'] as int) + 1;
+      }
+    }
+
+    return groupedData;
   }
 
   double get maxRevenue {
-    return revenueData
-        .map((e) => e['revenue'])
-        .reduce((a, b) => a > b ? a : b)
-        .toDouble();
+    final values = revenueData.map((e) => e['revenue'] as int).toList();
+    final max = values.isEmpty ? 0 : values.reduce((a, b) => a > b ? a : b);
+    return max == 0 ? 1.0 : max.toDouble();
   }
+
+  int get totalRevenueValue => revenueData.fold(0, (sum, item) => sum + (item['revenue'] as int));
+  int get avgDailyRevenueValue => revenueData.isEmpty ? 0 : (totalRevenueValue / revenueData.length).round();
 
   @override
   Widget build(BuildContext context) {
@@ -217,7 +260,7 @@ class _RevenueReportScreenState extends State<RevenueReportScreen> {
                         Expanded(
                           child: _buildRevenueStatCard(
                             'Total Revenue',
-                            '₹2,75,000',
+                            '₹${NumberFormat('#,##,###').format(totalRevenueValue)}',
                             '+15.2%',
                             Icons.trending_up,
                             Colors.green,
@@ -226,8 +269,8 @@ class _RevenueReportScreenState extends State<RevenueReportScreen> {
                         SizedBox(width: 12),
                         Expanded(
                           child: _buildRevenueStatCard(
-                            'Avg Daily Revenue',
-                            '₹39,285',
+                            'Avg Weekly Rev',
+                            '₹${NumberFormat('#,##,###').format(avgDailyRevenueValue)}',
                             '+8.7%',
                             Icons.show_chart,
                             Colors.blue,
@@ -282,7 +325,7 @@ class _RevenueReportScreenState extends State<RevenueReportScreen> {
                             children: [
                               Container(
                                 width: 30,
-                                height: 150 * heightPercentage,
+                                height: (150 * heightPercentage).clamp(0.0, 150.0).toDouble(),
                                 decoration: BoxDecoration(
                                   color: Color(0xFF00C853),
                                   borderRadius: BorderRadius.vertical(

@@ -22,7 +22,7 @@ class PaymentSummaryScreen extends StatefulWidget {
 }
 
 class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
-  final double _fixedConvenienceFee = 20.0; // Fixed fee of ₹20
+  final double _fixedConvenienceFee = 10.0; // Fixed fee of ₹10
   List<String> _offerSlots = []; // Will be loaded from service
 
   double get _offerPrice => widget.turf.price * 0.8;
@@ -255,7 +255,7 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        "A fixed platform fee of ₹20 is charged per booking for maintenance and support services.",
+                        "A fixed platform fee of ₹10 is charged per booking for maintenance and support services.",
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.blue.shade800,

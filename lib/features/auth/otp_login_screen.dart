@@ -232,6 +232,28 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                     await prefs.setString('userName', name);
                     await prefs.setString('userPhone', phone);
                     await prefs.setBool('hasShownWelcome', true);
+                    
+                    // CHECK PERSISTENT PARTNER REGISTRY
+                    // This ensures that if a partner logs in again, they are recognized
+                    String normName = name.trim().toLowerCase();
+                    String normPhone = phone.trim();
+                    String partnerKey = "${normName}_$normPhone";
+                    
+                    List<String> partnerKeys = prefs.getStringList('all_partners') ?? [];
+                    
+                    if (partnerKeys.contains(partnerKey)) {
+                      // Recognized as a previous partner
+                      await prefs.setBool('isPartner', true);
+                      await prefs.setString('registeredTurfName', prefs.getString('turf_${partnerKey}_name') ?? "My Turf");
+                      await prefs.setString('registeredLocation', prefs.getString('turf_${partnerKey}_location') ?? "Registered Location");
+                      await prefs.setInt('registeredPrice', prefs.getInt('turf_${partnerKey}_price') ?? 500);
+                    } else {
+                      // Fresh user session
+                      await prefs.setBool('isPartner', false);
+                      await prefs.remove('registeredTurfName');
+                      await prefs.remove('registeredLocation');
+                      await prefs.remove('registeredPrice');
+                    }
 
                     // Show demo OTP
                     ScaffoldMessenger.of(context).showSnackBar(

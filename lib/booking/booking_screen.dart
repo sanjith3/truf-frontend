@@ -3,6 +3,8 @@ import '../models/turf.dart';
 import '../turffdetail/turfdetails_screen.dart';
 import '../payment/payment_summary_screen.dart';
 import '../services/offer_slot_service.dart';
+import '../services/turf_data_service.dart';
+import '../features/bookings/my_bookings_screen.dart';
 
 class BookingScreen extends StatefulWidget {
   final Turf turf;
@@ -20,10 +22,8 @@ class _BookingScreenState extends State<BookingScreen> {
   // Offer slots defined by admin (These would come from your backend/API)
   List<String> _offerSlots = []; // Will be loaded from service
 
-  final List<String> _bookedSlots = [
-    '02:00 PM - 03:00 PM',
-    '09:00 PM - 10:00 PM',
-  ];
+  // No longer needed: real bookings come from TurfDataService
+  final List<String> _bookedSlots = [];
 
   // Helper to check if current turf has an offer
   bool get _hasTurfOffer {
@@ -64,6 +64,17 @@ class _BookingScreenState extends State<BookingScreen> {
   void _generateTimeSlots() {
     List<TimeSlot> slots = [];
 
+    // Filter real bookings from service for THIS turf on THIS date
+    final existingBookings = TurfDataService().bookings.where((b) => 
+      b.turfName == widget.turf.name && 
+      b.date.year == _selectedDate.year &&
+      b.date.month == _selectedDate.month &&
+      b.date.day == _selectedDate.day &&
+      b.status != BookingStatus.cancelled
+    ).toList();
+    
+    final bookedSlotTimes = existingBookings.map((b) => "${b.startTime} - ${b.endTime}").toList();
+
     // Generate time slots from 6 AM to 1 AM
     for (int hour = 6; hour <= 23; hour++) {
       bool isAM = hour < 12;
@@ -84,22 +95,24 @@ class _BookingScreenState extends State<BookingScreen> {
       String slot = '$startTime - $endTime';
 
       bool hasOffer = _hasTurfOffer && _offerSlots.contains(slot);
+      bool isBooked = bookedSlotTimes.contains(slot);
 
       slots.add(
         TimeSlot(
           time: slot,
-          isAvailable: !_bookedSlots.contains(slot),
+          isAvailable: !isBooked,
           hasOffer: hasOffer,
         ),
       );
     }
 
     // Add midnight slot
+    String midnightSlot = '12:00 AM - 01:00 AM';
     slots.add(
       TimeSlot(
-        time: '12:00 AM - 01:00 AM',
-        isAvailable: !_bookedSlots.contains('12:00 AM - 01:00 AM'),
-        hasOffer: _hasTurfOffer && _offerSlots.contains('12:00 AM - 01:00 AM'),
+        time: midnightSlot,
+        isAvailable: !bookedSlotTimes.contains(midnightSlot),
+        hasOffer: _hasTurfOffer && _offerSlots.contains(midnightSlot),
       ),
     );
 

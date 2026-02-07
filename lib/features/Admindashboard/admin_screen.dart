@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:turfzone/features/home/user_home_screen.dart';
 import 'package:turfzone/features/editslottime/edit_turf_screen.dart';
-import 'package:turfzone/my_bookings_screen.dart';
+import '../bookings/my_bookings_screen.dart';
 import 'package:turfzone/features/turfslot/slot_management_screen.dart';
 import 'package:turfzone/features/partner/join_partner_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'reports_screen.dart';
+import '../../services/turf_data_service.dart';
 
 // Turf model for admin
 class AdminTurf {
@@ -53,6 +55,252 @@ class AdminScreen extends StatefulWidget {
 class _AdminScreenState extends State<AdminScreen> {
   int _selectedNavIndex = 0;
   final Color primaryGreen = Colors.green[800]!;
+  String? _registeredTurfName;
+  List<String> _registeredTurfNames = [];
+  List<AdminTurf> _filteredAdminTurfs = [];
+
+  final TurfDataService _turfService = TurfDataService();
+
+  @override
+  void initState() {
+    super.initState();
+    _turfService.addListener(_onDataChanged);
+    _loadRegisteredTurf();
+  }
+
+  @override
+  void dispose() {
+    _turfService.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) {
+      _loadRegisteredTurf();
+    }
+  }
+
+  Future<void> _loadRegisteredTurf() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userName = prefs.getString('userName') ?? "Partner";
+      _userPhone = prefs.getString('userPhone') ?? "";
+      _userEmail = prefs.getString('userEmail') ?? "";
+      _businessName = prefs.getString('businessName') ?? "";
+      
+      _registeredTurfNames = prefs.getStringList('registeredTurfNames') ?? [];
+      _registeredTurfName = prefs.getString('registeredTurfName');
+
+      // Fix: Ensure the legacy single turf name is included in the list for consistent loading
+      if (_registeredTurfName != null && !_registeredTurfNames.contains(_registeredTurfName)) {
+        _registeredTurfNames.add(_registeredTurfName!);
+      }
+
+      _filteredAdminTurfs = [];
+
+      // Load from hardcoded static list first if matches found
+      Set<String> processedNames = {};
+      for (var name in _registeredTurfNames) {
+        final matches = adminTurfs.where((t) => t.name.toLowerCase() == name.toLowerCase()).toList();
+        _filteredAdminTurfs.addAll(matches);
+        if (matches.isNotEmpty) processedNames.add(name.toLowerCase());
+      }
+
+      // Add dynamic turfs registered via the app that aren't in the static list
+      for (var name in _registeredTurfNames) {
+        if (!processedNames.contains(name.toLowerCase())) {
+          // Load individual details for this specific turf
+          // Check specific turf data first, then fall back to general legacy keys if it's the main turf
+          String? loc = prefs.getString('turf_data_${name}_location');
+          int? price = prefs.getInt('turf_data_${name}_price');
+          
+          if (loc == null && name == _registeredTurfName) {
+            loc = prefs.getString('registeredLocation');
+            price = prefs.getInt('registeredPrice');
+          }
+          
+          _filteredAdminTurfs.add(
+            AdminTurf(
+              id: 'reg_${name}_${DateTime.now().millisecondsSinceEpoch}',
+              name: name,
+              location: loc ?? "Registered Location",
+              distance: 0.0,
+              price: price ?? 500,
+              rating: 5.0,
+              images: [
+                "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800",
+              ],
+              amenities: ["All Standards"],
+              mapLink: "",
+              address: "Your Registered Address",
+              description: "Your newly registered turf",
+              todayBookings: 0,
+              todayRevenue: 0,
+              availableSlots: 24,
+            )
+          );
+        }
+      }
+      
+      _updateNavScreens();
+    });
+  }
+
+  String _userName = "Partner";
+  String _userPhone = "";
+  String _userEmail = "";
+  String _businessName = "";
+
+  Future<void> _showPartnerProfile() async {
+    final nameController = TextEditingController(text: _userName);
+    final phoneController = TextEditingController(text: _userPhone);
+    final emailController = TextEditingController(text: _userEmail);
+    final businessController = TextEditingController(text: _businessName);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          top: 20,
+          left: 20,
+          right: 20,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Partner Profile",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Your business information",
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 30),
+              _buildProfileField("Full Name", nameController, Icons.person_outline),
+              const SizedBox(height: 20),
+              _buildProfileField("Phone Number", phoneController, Icons.phone_android_outlined),
+              const SizedBox(height: 20),
+              _buildProfileField("Email Address", emailController, Icons.email_outlined),
+              const SizedBox(height: 20),
+              _buildProfileField("Business/Brand Name", businessController, Icons.business_outlined),
+              const SizedBox(height: 40),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setString('userName', nameController.text.trim());
+                    await prefs.setString('userPhone', phoneController.text.trim());
+                    await prefs.setString('userEmail', emailController.text.trim());
+                    await prefs.setString('businessName', businessController.text.trim());
+                    
+                    setState(() {
+                      _userName = nameController.text.trim();
+                      _userPhone = phoneController.text.trim();
+                      _userEmail = emailController.text.trim();
+                      _businessName = businessController.text.trim();
+                    });
+                    
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Profile updated successfully")),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryGreen,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    "Save Changes",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileField(String label, TextEditingController controller, IconData icon) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: primaryGreen),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: primaryGreen),
+            ),
+            filled: true,
+            fillColor: Colors.grey[50],
+          ),
+        ),
+      ],
+    );
+  }
 
   // Admin turfs data
   List<AdminTurf> adminTurfs = [
@@ -131,26 +379,45 @@ class _AdminScreenState extends State<AdminScreen> {
   ];
 
   // Business Stats
-  double get totalRevenue =>
-      adminTurfs.fold(0, (sum, turf) => sum + turf.todayRevenue);
-  int get totalBookings =>
-      adminTurfs.fold(0, (sum, turf) => sum + turf.todayBookings);
+  double get totalRevenue {
+    final now = DateTime.now();
+    return _turfService.bookings
+        .where((b) => b.status == BookingStatus.completed && isSameDay(b.date, now))
+        .where((b) => _filteredAdminTurfs.any((t) => t.name == b.turfName))
+        .fold(0, (sum, b) => sum + b.amount);
+  }
+
+  int get totalBookings {
+    final now = DateTime.now();
+    return _turfService.bookings
+        .where((b) => isSameDay(b.date, now))
+        .where((b) => _filteredAdminTurfs.any((t) => t.name == b.turfName))
+        .length;
+  }
+
   int get totalAvailableSlots =>
-      adminTurfs.fold(0, (sum, turf) => sum + turf.availableSlots);
-  double get averageRating => adminTurfs.isEmpty
+      _filteredAdminTurfs.fold(0, (sum, turf) => sum + turf.availableSlots);
+
+  double get averageRating => _filteredAdminTurfs.isEmpty
       ? 0
-      : adminTurfs.map((t) => t.rating).reduce((a, b) => a + b) /
-            adminTurfs.length;
+      : _filteredAdminTurfs.fold<double>(0, (sum, turf) => sum + turf.rating) /
+          _filteredAdminTurfs.length;
 
   // Navigation Screens
-  late final List<Widget> _navScreens = [
-    _buildDashboard(),
-    const ReportsScreen(),
-  ];
+  List<Widget> _navScreens = [];
+
+  void _updateNavScreens() {
+    setState(() {
+      _navScreens = [
+        _buildDashboard(),
+        ReportsScreen(registeredTurfNames: _registeredTurfNames.isNotEmpty ? _registeredTurfNames : (_registeredTurfName != null ? [_registeredTurfName!] : null)),
+      ];
+    });
+  }
 
   void _toggleTurfStatus(String turfId) {
     setState(() {
-      final turf = adminTurfs.firstWhere((t) => t.id == turfId);
+      final turf = _filteredAdminTurfs.firstWhere((t) => t.id == turfId);
       turf.isActive = !turf.isActive;
     });
   }
@@ -171,7 +438,7 @@ class _AdminScreenState extends State<AdminScreen> {
           TextButton(
             onPressed: () {
               setState(() {
-                adminTurfs.removeWhere((t) => t.id == turfId);
+                _filteredAdminTurfs.removeWhere((t) => t.id == turfId);
               });
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
@@ -190,6 +457,8 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_navScreens.isEmpty) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       // Remove fixed AppBar from here to allow full scrolling
@@ -233,8 +502,8 @@ class _AdminScreenState extends State<AdminScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Welcome Admin 👋',
+                  Text(
+                    'Welcome $_userName 👋',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
@@ -243,7 +512,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Managing ${adminTurfs.length} turfs',
+                    'Managing ${_filteredAdminTurfs.length} turfs',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.white.withOpacity(0.9),
@@ -282,18 +551,21 @@ class _AdminScreenState extends State<AdminScreen> {
                   ),
                   const SizedBox(width: 10),
                   // Profile Icon
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(0.3)),
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 28,
+                  GestureDetector(
+                    onTap: _showPartnerProfile,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      ),
+                      child: const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
                   ),
                 ],
@@ -403,7 +675,7 @@ class _AdminScreenState extends State<AdminScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '${adminTurfs.where((t) => t.isActive).length} Active',
+                    '${_filteredAdminTurfs.where((t) => t.isActive).length} Active',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -427,10 +699,10 @@ class _AdminScreenState extends State<AdminScreen> {
             ListView.separated(
               physics: const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
-              itemCount: adminTurfs.length,
+              itemCount: _filteredAdminTurfs.length,
               separatorBuilder: (context, index) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
-                final turf = adminTurfs[index];
+                final turf = _filteredAdminTurfs[index];
                 return _buildTurfCard(turf);
               },
             ),

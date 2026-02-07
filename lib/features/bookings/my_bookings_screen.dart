@@ -63,8 +63,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           booking.date.year,
           booking.date.month,
           booking.date.day,
-          int.parse(booking.startTime.split(':')[0]),
-          int.parse(booking.startTime.split(':')[1]),
+          int.parse(booking.startTime.split(':')[0].replaceAll(RegExp(r'[^0-9]'), '')),
+          int.parse(booking.startTime.split(':')[1].replaceAll(RegExp(r'[^0-9]'), '')),
         );
 
         // If current time is after booking end time + 1 hour buffer, mark as completed

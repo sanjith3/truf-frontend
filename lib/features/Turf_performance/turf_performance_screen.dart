@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../../services/turf_data_service.dart';
+import '../bookings/my_bookings_screen.dart';
 
 class TurfPerformanceScreen extends StatefulWidget {
-  const TurfPerformanceScreen({super.key});
+  final List<String>? registeredTurfNames;
+  const TurfPerformanceScreen({super.key, this.registeredTurfNames});
 
   @override
   State<TurfPerformanceScreen> createState() => _TurfPerformanceScreenState();
@@ -9,14 +13,23 @@ class TurfPerformanceScreen extends StatefulWidget {
 
 class _TurfPerformanceScreenState extends State<TurfPerformanceScreen> {
   String selectedPeriod = 'This Month';
-  List<String> periods = [
-    'Today',
-    'This Week',
-    'This Month',
-    'Last Month',
-    'This Quarter',
-    'This Year',
-  ];
+  final TurfDataService _turfService = TurfDataService();
+
+  @override
+  void initState() {
+    super.initState();
+    _turfService.addListener(_onDataChanged);
+  }
+
+  @override
+  void dispose() {
+    _turfService.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) setState(() {});
+  }
 
   final List<Map<String, dynamic>> _allTurfs = [
     {
@@ -58,39 +71,72 @@ class _TurfPerformanceScreenState extends State<TurfPerformanceScreen> {
   ];
 
   List<Map<String, dynamic>> get turfs {
-    double multiplier = 1.0;
-    if (selectedPeriod == 'Today') multiplier = 0.05;
-    else if (selectedPeriod == 'This Week') multiplier = 0.25;
-    else if (selectedPeriod == 'This Month') multiplier = 1.0;
-    else if (selectedPeriod == 'Last Month') multiplier = 0.9;
-    else if (selectedPeriod == 'This Quarter') multiplier = 3.0;
-    else if (selectedPeriod == 'This Year') multiplier = 12.0;
+    final allTurfsFromService = _turfService.turfs;
+    final allBookings = _turfService.bookings;
 
-    return _allTurfs.map((t) => {
-      'name': t['name'],
-      'revenue': ((t['revenue'] as int) * multiplier).round(),
-      'bookings': ((t['bookings'] as int) * multiplier).round(),
-      'rating': t['rating'],
-      'utilization': t['utilization'],
-      'growth': t['growth'],
-      'color': t['color'],
-    }).toList();
+    List<Map<String, dynamic>> performanceData = [];
+
+    for (var turf in allTurfsFromService) {
+      if (widget.registeredTurfNames != null && 
+          !widget.registeredTurfNames!.any((name) => name.toLowerCase() == turf.name.toLowerCase())) {
+        continue;
+      }
+
+      final turfBookings = allBookings.where((b) => b.turfName == turf.name);
+      final completedBookings = turfBookings.where((b) => b.status == BookingStatus.completed);
+      
+      final totalRevenue = completedBookings.fold<double>(0, (sum, b) => sum + b.amount);
+      
+      performanceData.add({
+        'name': turf.name,
+        'revenue': totalRevenue.toInt(),
+        'bookings': completedBookings.length,
+        'rating': turf.rating,
+        'utilization': (completedBookings.length * 10).clamp(0, 100), // Mock utilization
+        'growth': '+0%', // Default growth
+        'color': turf.name == 'Green Field Arena' ? const Color(0xFF00C853) : (turf.name == 'City Sports Turf' ? const Color(0xFF2196F3) : const Color(0xFFFF9800)),
+      });
+    }
+
+    if (performanceData.isEmpty && widget.registeredTurfNames != null && widget.registeredTurfNames!.isNotEmpty) {
+      performanceData = widget.registeredTurfNames!.map((name) => {
+        'name': name,
+        'revenue': 0,
+        'bookings': 0,
+        'rating': 5.0,
+        'utilization': 0,
+        'growth': '0%',
+        'color': const Color(0xFF00C853),
+      }).toList();
+    }
+
+    return performanceData;
+  }
+
+  double get totalRevenue {
+    final now = DateTime.now();
+    return _turfService.bookings
+        .where((b) => b.status == BookingStatus.completed)
+        .where((b) => widget.registeredTurfNames == null || widget.registeredTurfNames!.contains(b.turfName))
+        .fold(0, (sum, b) => sum + b.amount);
+  }
+
+  int get totalBookings {
+    return _turfService.bookings
+        .where((b) => widget.registeredTurfNames == null || widget.registeredTurfNames!.contains(b.turfName))
+        .length;
+  }
+
+  double get avgRating {
+    final pData = turfs;
+    if (pData.isEmpty) return 0;
+    return pData.fold<double>(0, (sum, t) => sum + (t['rating'] as double)) / pData.length;
   }
 
   @override
   Widget build(BuildContext context) {
     // Sort turfs by revenue (descending)
     turfs.sort((a, b) => b['revenue'].compareTo(a['revenue']));
-
-    double totalRevenue = turfs.fold<double>(
-      0,
-      (sum, turf) => sum + (turf['revenue'] as num).toDouble(),
-    );
-
-    int totalBookings = turfs.fold<int>(
-      0,
-      (sum, turf) => sum + (turf['bookings'] as int),
-    );
 
     return Scaffold(
       backgroundColor: Color(0xFFF8F9FA),
@@ -203,8 +249,8 @@ class _TurfPerformanceScreenState extends State<TurfPerformanceScreen> {
                         ),
                         _buildOverviewStat(
                           'Rating',
-                          '4.7★',
-                          '+0.3',
+                          '${avgRating.toStringAsFixed(1)}★',
+                          '+0.1',
                           Icons.star,
                           Colors.white,
                         ),

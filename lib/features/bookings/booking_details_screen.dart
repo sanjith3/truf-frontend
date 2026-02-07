@@ -24,8 +24,9 @@ class BookingDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const double platformFee = 25.0;
-    final double totalAmount = booking.amount + platformFee;
+    const double platformFee = 10.0;
+    final double totalAmount = booking.amount;
+    final double baseAmount = totalAmount - platformFee;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -70,28 +71,26 @@ class BookingDetailsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Booking # ${booking.bookingId}",
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
-                          ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        booking.status == BookingStatus.upcoming ? "Booking Confirmed" : _getStatusText(booking.status),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: _getStatusColor(booking.status),
                         ),
-                        Text(
-                          _getStatusText(booking.status),
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: _getStatusColor(booking.status),
-                          ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Booking ID: ${booking.bookingId}",
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -261,7 +260,7 @@ class BookingDetailsScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  _buildPaymentRow("Base Price", "₹${booking.amount}"),
+                  _buildPaymentRow("Base Price", "₹${baseAmount.toStringAsFixed(0)}"),
                   _buildPaymentRow("Platform Fee", "₹$platformFee"),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),

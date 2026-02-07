@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/turf_data_service.dart';
 import '../../models/turf.dart';
@@ -283,6 +284,28 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     'Photos & Terms',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _fullNameController.text = prefs.getString('userName') ?? "";
+      _phoneController.text = prefs.getString('userPhone') ?? "";
+      
+      String? savedEmail = prefs.getString('userEmail');
+      if (savedEmail != null && savedEmail.isNotEmpty) {
+        _emailController.text = savedEmail;
+      } else if (_fullNameController.text.isNotEmpty) {
+        String cleanName = _fullNameController.text.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+        _emailController.text = "$cleanName@gmail.com";
+      }
+    });
+  }
+
   void _submitForm() {
     if (!_formKey.currentState!.validate()) {
       _showSnackBar('Please fix all errors before submitting', isError: true);
@@ -305,7 +328,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     final newTurf = Turf(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: _businessNameController.text.trim(),
-      location: selectedPartnerCity ?? _cityController.text.trim(),
+      location: "${selectedPartnerCity ?? _cityController.text.trim()}, ${selectedPartnerState ?? ''}",
       city: selectedPartnerCity ?? _cityController.text.trim(),
       distance: 2.0,
       price: int.tryParse(_priceController.text.trim()) ?? 500,
@@ -322,6 +345,41 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
 
     // Save to service
     TurfDataService().addTurf(newTurf);
+
+    // Save partner status and registered turf details
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setBool('isPartner', true);
+      
+      // Update the list of all registered turfs for this partner
+      List<String> turfNames = prefs.getStringList('registeredTurfNames') ?? [];
+      if (!turfNames.contains(newTurf.name)) {
+        turfNames.add(newTurf.name);
+      }
+      prefs.setStringList('registeredTurfNames', turfNames);
+      
+      // Keep these for backward compatibility / current focus
+      prefs.setString('registeredTurfName', newTurf.name);
+      // Store specific turf data using its name to avoid overwriting multiple turfs
+      prefs.setString('turf_data_${newTurf.name}_location', newTurf.location);
+      prefs.setInt('turf_data_${newTurf.name}_price', newTurf.price);
+
+      // PERSISTENT PARTNER RECORD (for future logins)
+      // Normalize name and phone for verification
+      String normName = _fullNameController.text.trim().toLowerCase();
+      String normPhone = _phoneController.text.trim();
+      String partnerKey = "${normName}_$normPhone";
+
+      List<String> partnerKeys = prefs.getStringList('all_partners') ?? [];
+      if (!partnerKeys.contains(partnerKey)) {
+        partnerKeys.add(partnerKey);
+        prefs.setStringList('all_partners', partnerKeys);
+      }
+
+      // Store specific turf data for this partner key (Legacy/Current Focus)
+      prefs.setString('turf_${partnerKey}_name', newTurf.name);
+      prefs.setString('turf_${partnerKey}_location', newTurf.location);
+      prefs.setInt('turf_${partnerKey}_price', newTurf.price);
+    });
 
     // Simulate API call
     Future.delayed(const Duration(seconds: 2), () {
@@ -388,7 +446,12 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           .join(' ');
 
       setState(() {
-        customSports.add(sport);
+        if (!availableSports.contains(sport) && !customSports.contains(sport)) {
+          customSports.add(sport);
+        }
+        if (!selectedSports.contains(sport)) {
+          selectedSports.add(sport);
+        }
         _customSportController.clear();
       });
     }
@@ -406,7 +469,12 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           .join(' ');
 
       setState(() {
-        customAmenities.add(amenity);
+        if (!availableAmenities.contains(amenity) && !customAmenities.contains(amenity)) {
+          customAmenities.add(amenity);
+        }
+        if (!selectedAmenities.contains(amenity)) {
+          selectedAmenities.add(amenity);
+        }
         _customAmenityController.clear();
       });
     }
@@ -1536,16 +1604,21 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
   }
 
   Widget _buildSportsGridCompact() {
+    List<String> combinedSports = [...availableSports, ...customSports];
     List<String> displayedSports = showAllSports
-        ? availableSports
-        : availableSports.take(6).toList();
+        ? combinedSports
+        : combinedSports.take(6).toList();
 
     return Column(
       children: [
         Wrap(
           spacing: 6,
           runSpacing: 6,
-          children: displayedSports.map((sport) {
+          children: combinedSports.map((sport) {
+            // Only show if it's one of the first 6 or showAll is true
+            int index = combinedSports.indexOf(sport);
+            if (!showAllSports && index >= 6) return const SizedBox.shrink();
+            
             final isSelected = selectedSports.contains(sport);
             return GestureDetector(
               onTap: () {
@@ -1591,7 +1664,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
             );
           }).toList(),
         ),
-        if (!showAllSports && availableSports.length > 6) ...[
+        if (!showAllSports && combinedSports.length > 6) ...[
           const SizedBox(height: 8),
           GestureDetector(
             onTap: () {
@@ -1612,7 +1685,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                   Icon(Icons.expand_more, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 6),
                   Text(
-                    "Show More (${availableSports.length - 6})",
+                    "Show More (${combinedSports.length - 6})",
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -1683,16 +1756,20 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
   }
 
   Widget _buildAmenitiesGridCompact() {
+    List<String> combinedAmenities = [...availableAmenities, ...customAmenities];
     List<String> displayedAmenities = showAllAmenities
-        ? availableAmenities
-        : availableAmenities.take(6).toList();
+        ? combinedAmenities
+        : combinedAmenities.take(6).toList();
 
     return Column(
       children: [
         Wrap(
           spacing: 6,
           runSpacing: 6,
-          children: displayedAmenities.map((amenity) {
+          children: combinedAmenities.map((amenity) {
+            int index = combinedAmenities.indexOf(amenity);
+            if (!showAllAmenities && index >= 6) return const SizedBox.shrink();
+
             final isSelected = selectedAmenities.contains(amenity);
             return GestureDetector(
               onTap: () {
@@ -1738,7 +1815,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
             );
           }).toList(),
         ),
-        if (!showAllAmenities && availableAmenities.length > 6) ...[
+        if (!showAllAmenities && combinedAmenities.length > 6) ...[
           const SizedBox(height: 8),
           GestureDetector(
             onTap: () {
@@ -1759,7 +1836,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                   Icon(Icons.expand_more, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 6),
                   Text(
-                    "Show More (${availableAmenities.length - 6})",
+                    "Show More (${combinedAmenities.length - 6})",
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,

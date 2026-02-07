@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../services/turf_data_service.dart';
+import '../bookings/my_bookings_screen.dart';
 
 class BookingAnalyticsScreen extends StatefulWidget {
-  const BookingAnalyticsScreen({super.key});
+  final List<String>? registeredTurfNames;
+  const BookingAnalyticsScreen({super.key, this.registeredTurfNames});
 
   @override
   State<BookingAnalyticsScreen> createState() => _BookingAnalyticsScreenState();
@@ -16,8 +19,37 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
     'Elite Football Ground',
     'Sports Hub Arena',
   ];
-
   String selectedTurf = 'All Turfs';
+
+  final TurfDataService _turfService = TurfDataService();
+
+  @override
+  void initState() {
+    super.initState();
+    _turfService.addListener(_onTurfDataChanged);
+    if (widget.registeredTurfNames != null && widget.registeredTurfNames!.isNotEmpty) {
+      if (widget.registeredTurfNames!.length > 1) {
+        turfNames = ['All My Turfs', ...widget.registeredTurfNames!];
+        selectedTurf = 'All My Turfs';
+      } else {
+        selectedTurf = widget.registeredTurfNames!.first;
+        turfNames = [widget.registeredTurfNames!.first];
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _turfService.removeListener(_onTurfDataChanged);
+    super.dispose();
+  }
+
+  void _onTurfDataChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   String selectedPeriod = 'This Month';
   List<String> periods = [
     'Today',
@@ -33,52 +65,72 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
   DateTime? startDate;
   DateTime? endDate;
 
-  // Base booking data
-  final List<Map<String, dynamic>> _allBookingData = [
-    {'time': '6-9 AM', 'bookings': 15, 'percentage': 12},
-    {'time': '9-12 PM', 'bookings': 35, 'percentage': 28},
-    {'time': '12-3 PM', 'bookings': 42, 'percentage': 33},
-    {'time': '3-6 PM', 'bookings': 58, 'percentage': 46},
-    {'time': '6-9 PM', 'bookings': 85, 'percentage': 68},
-    {'time': '9-12 AM', 'bookings': 25, 'percentage': 20},
-  ];
-
   List<Map<String, dynamic>> get bookingData {
-    double multiplier = 1.0;
-    if (selectedTurf != 'All Turfs') multiplier = 0.7;
-    return _allBookingData.map((d) => {
-      'time': d['time'],
-      'bookings': ((d['bookings'] as int) * multiplier).round(),
-      'percentage': d['percentage']
+    final allBookings = _turfService.bookings;
+    Iterable<Booking> filtered = allBookings;
+    
+    if (selectedTurf == 'All My Turfs' && widget.registeredTurfNames != null) {
+      filtered = allBookings.where((b) => widget.registeredTurfNames!.contains(b.turfName));
+    } else if (selectedTurf != 'All Turfs') {
+      filtered = allBookings.where((b) => b.turfName == selectedTurf);
+    }
+
+    // Group by Time Slots
+    final slots = ['6-9 AM', '9-12 PM', '12-3 PM', '3-6 PM', '6-9 PM', '9-12 AM'];
+    final Map<String, int> slotCounts = {for (var s in slots) s: 0};
+
+    for (var b in filtered) {
+      int hour = int.parse(b.startTime.split(':')[0]);
+      String slot = '9-12 AM';
+      if (hour >= 6 && hour < 9) slot = '6-9 AM';
+      else if (hour >= 9 && hour < 12) slot = '9-12 PM';
+      else if (hour >= 12 && hour < 15) slot = '12-3 PM';
+      else if (hour >= 15 && hour < 18) slot = '3-6 PM';
+      else if (hour >= 18 && hour < 21) slot = '6-9 PM';
+      
+      slotCounts[slot] = (slotCounts[slot] ?? 0) + 1;
+    }
+
+    int total = filtered.length;
+    return slots.map((s) => {
+      'time': s,
+      'bookings': slotCounts[s],
+      'percentage': total == 0 ? 0 : ((slotCounts[s]! / total) * 100).round(),
     }).toList();
   }
 
-  // Base day wise data  
-  final List<Map<String, dynamic>> _allDayWiseData = [
-    {'day': 'Monday', 'bookings': 35, 'cancellations': 2, 'revenue': 25000},
-    {'day': 'Tuesday', 'bookings': 42, 'cancellations': 1, 'revenue': 32000},
-    {'day': 'Wednesday', 'bookings': 38, 'cancellations': 3, 'revenue': 28000},
-    {'day': 'Thursday', 'bookings': 45, 'cancellations': 1, 'revenue': 35000},
-    {'day': 'Friday', 'bookings': 52, 'cancellations': 4, 'revenue': 45000},
-    {'day': 'Saturday', 'bookings': 65, 'cancellations': 2, 'revenue': 58000},
-    {'day': 'Sunday', 'bookings': 58, 'cancellations': 3, 'revenue': 52000},
-  ];
-
   List<Map<String, dynamic>> get dayWiseData {
-    double multiplier = 1.0;
-    if (selectedTurf != 'All Turfs') multiplier = 0.8;
+    final allBookings = _turfService.bookings;
+    Iterable<Booking> filtered = allBookings;
     
-    // Simulate time period changes
-    if (selectedPeriod == 'Today') multiplier *= 0.15;
-    else if (selectedPeriod == 'This Week') multiplier *= 1.0;
-    else if (selectedPeriod == 'This Month') multiplier *= 4.0;
+    if (selectedTurf == 'All My Turfs' && widget.registeredTurfNames != null) {
+      filtered = allBookings.where((b) => widget.registeredTurfNames!.contains(b.turfName));
+    } else if (selectedTurf != 'All Turfs') {
+      filtered = allBookings.where((b) => b.turfName == selectedTurf);
+    }
 
-    return _allDayWiseData.map((d) => {
-      'day': d['day'],
-      'bookings': ((d['bookings'] as int) * multiplier).round(),
-      'cancellations': ((d['cancellations'] as int) * multiplier).round(),
-      'revenue': ((d['revenue'] as int) * multiplier).round(),
-    }).toList();
+    final days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final List<Map<String, dynamic>> dayStatsBreakdown = List.generate(7, (i) => {
+      'day': days[i],
+      'bookings': 0,
+      'cancellations': 0,
+      'revenue': 0,
+    });
+
+    for (var b in filtered) {
+      // weekday is 1 for Mon, 7 for Sun
+      int index = b.date.weekday - 1;
+      if (index >= 0 && index < 7) {
+        if (b.status == BookingStatus.cancelled) {
+          dayStatsBreakdown[index]['cancellations'] = (dayStatsBreakdown[index]['cancellations'] as int) + 1;
+        } else {
+          dayStatsBreakdown[index]['bookings'] = (dayStatsBreakdown[index]['bookings'] as int) + 1;
+          dayStatsBreakdown[index]['revenue'] = (dayStatsBreakdown[index]['revenue'] as int) + b.amount.toInt();
+        }
+      }
+    }
+
+    return dayStatsBreakdown;
   }
 
   int get totalBookings {
@@ -93,6 +145,12 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
       0,
       (sum, day) => sum + (day['cancellations'] as int),
     );
+  }
+
+  String get peakHourValue {
+    if (bookingData.isEmpty) return 'N/A';
+    var max = bookingData.reduce((curr, next) => (curr['bookings'] as int) > (next['bookings'] as int) ? curr : next);
+    return max['time'];
   }
 
   @override
@@ -251,7 +309,7 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
                         Expanded(
                           child: _buildStatCard(
                             'Cancellation Rate',
-                            '${(totalCancellations / totalBookings * 100).toStringAsFixed(1)}%',
+                            '${totalBookings == 0 ? 0 : (totalCancellations / totalBookings * 100).toStringAsFixed(1)}%',
                             '-1.2%',
                             Icons.cancel,
                             Color(0xFFF44336),
@@ -265,8 +323,8 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
                         Expanded(
                           child: _buildStatCard(
                             'Peak Hours',
-                            '6-9 PM',
-                            '68% bookings',
+                            peakHourValue,
+                            'Most active period',
                             Icons.access_time,
                             Color(0xFFFF9800),
                           ),
@@ -327,17 +385,15 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: dayWiseData.map((day) {
-                          int maxBookings = dayWiseData
-                              .map((e) => e['bookings'])
-                              .reduce((a, b) => a > b ? a : b);
-                          double heightPercentage =
-                              day['bookings'] / maxBookings;
+                          final values = dayWiseData.map((e) => e['bookings'] as int).toList();
+                          final maxBookings = values.isEmpty ? 0 : values.reduce((a, b) => a > b ? a : b);
+                          double heightPercentage = maxBookings == 0 ? 0.0 : (day['bookings'] as int) / maxBookings;
                           return Column(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               Container(
                                 width: 25,
-                                height: 150 * heightPercentage,
+                                height: (150 * heightPercentage).clamp(0.0, 150.0).toDouble(),
                                 decoration: BoxDecoration(
                                   color: Color(0xFF2196F3),
                                   borderRadius: BorderRadius.vertical(
@@ -347,10 +403,7 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
                               ),
                               SizedBox(height: 8),
                               Text(
-                                day['day'].substring(
-                                  0,
-                                  3,
-                                ), // Show short day name
+                                day['day'].toString().length >= 3 ? day['day'].toString().substring(0, 3) : day['day'].toString(), // Show short day name
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[600],

@@ -9,6 +9,7 @@ import 'package:turfzone/features/credits_rewards/credits_rewards_screen.dart';
 import 'package:turfzone/features/auth/otp_login_screen.dart';
 import 'package:turfzone/features/profile/edit_profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:turfzone/features/Admindashboard/admin_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -16,12 +17,12 @@ class ProfileScreen extends StatefulWidget {
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
-
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _userName = "John Doe";
+  String _userName = "User Name";
   String _userEmail = "user@example.com";
   String _userPhone = "+91 98765 43210";
   File? _userImage;
+  bool _isPartner = false;
 
   @override
   void initState() {
@@ -45,6 +46,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       String? phone = prefs.getString('userPhone');
       _userPhone = phone != null ? "+91 $phone" : "Phone number not set";
+      _isPartner = prefs.getBool('isPartner') ?? false;
     });
   }
   Widget build(BuildContext context) {
@@ -361,7 +363,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 10),
 
-                // Become a Partner
+                // Become a Partner - Only show if NOT already a partner
+                if (!_isPartner)
                 _buildMenuCard(
                   icon: Icons.business_center,
                   title: "Become a Partner",
@@ -371,6 +374,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const JoinPartnerScreen(),
+                      ),
+                    ).then((_) => _loadUserData()); // Refresh status when back
+                  },
+                ),
+
+                if (_isPartner)
+                _buildMenuCard(
+                  icon: Icons.workspace_premium,
+                  iconColor: const Color(0xFFFFD700),
+                  bgColor: const Color(0xFFFFD700).withOpacity(0.1),
+                  title: "Partner Dashboard",
+                  subtitle: "Manage your registered turf",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AdminScreen(),
                       ),
                     );
                   },
@@ -604,7 +624,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String subtitle,
     required VoidCallback onTap,
     String? badge,
+    Color? iconColor,
+    Color? bgColor,
   }) {
+    final themeColor = const Color(0xFF1DB954);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -631,10 +654,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1DB954).withOpacity(0.1),
+                    color: bgColor ?? themeColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, color: const Color(0xFF1DB954), size: 24),
+                  child: Icon(
+                    icon,
+                    color: iconColor ?? themeColor,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -823,6 +850,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   await prefs.remove('userEmail');
                                   await prefs.remove('userPhone');
                                   await prefs.remove('hasShownWelcome');
+                                  await prefs.remove('isPartner');
+                                  await prefs.remove('registeredTurfName');
+                                  await prefs.remove('registeredLocation');
+                                  await prefs.remove('registeredPrice');
                                   
                                   if (context.mounted) {
                                     Navigator.pushAndRemoveUntil(

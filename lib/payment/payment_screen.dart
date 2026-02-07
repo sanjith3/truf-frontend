@@ -75,10 +75,33 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     // Simulate payment processing
     Future.delayed(const Duration(seconds: 2), () {
-      setState(() {
-        _isProcessing = false;
-      });
-      _showPaymentSuccess();
+      // Create and add the booking to TurfDataService for "lively" reports
+      final newBooking = Booking(
+        id: "BK${DateTime.now().millisecondsSinceEpoch}",
+        turfName: widget.turf.name,
+        location: widget.turf.location,
+        distance: widget.turf.distance,
+        rating: widget.turf.rating,
+        date: widget.selectedDate,
+        startTime: widget.selectedTimeSlots.first.split(' - ')[0],
+        endTime: widget.selectedTimeSlots.last.split(' - ')[1],
+        amount: widget.totalAmount,
+        status: BookingStatus.completed,
+        paymentStatus: 'Paid',
+        bookingId: "TURF-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch % 10000}",
+        amenities: widget.turf.amenities,
+        mapLink: widget.turf.mapLink,
+        address: widget.turf.address,
+      );
+      
+      TurfDataService().addBooking(newBooking);
+
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+        _showPaymentSuccess();
+      }
     });
   }
 
@@ -201,7 +224,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ),
                   child: const Text(
                     "GO TO MY BOOKINGS",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),

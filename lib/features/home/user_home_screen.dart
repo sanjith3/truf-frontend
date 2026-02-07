@@ -24,6 +24,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   String _selectedState = "Tamil Nadu";
   bool _isLocationLoading = false;
   String _userName = "";
+  bool _isPartner = false;
 
   // Offer filter
   bool _offerFilter = false;
@@ -211,6 +212,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _userName = prefs.getString('userName') ?? "";
+      _isPartner = prefs.getBool('isPartner') ?? false;
     });
   }
 
@@ -758,6 +760,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       ),
 
                       // Admin Icon
+                      if (_isPartner)
                       Container(
                         margin: const EdgeInsets.only(right: 8),
                         child: IconButton(
@@ -776,8 +779,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                               color: Colors.white.withOpacity(0.2),
                             ),
                             child: const Icon(
-                              Icons.admin_panel_settings_outlined,
-                              color: Colors.white,
+                              Icons.workspace_premium,
+                              color: Color(0xFFFFD700), // Gold/Yellow
                               size: 20,
                             ),
                           ),
