@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/turf.dart';
 import '../turffdetail/turfdetails_screen.dart';
 import '../payment/payment_summary_screen.dart';
+import '../services/offer_slot_service.dart';
 
 class BookingScreen extends StatefulWidget {
   final Turf turf;
@@ -17,21 +18,46 @@ class _BookingScreenState extends State<BookingScreen> {
   List<TimeSlot> _availableTimeSlots = [];
 
   // Offer slots defined by admin (These would come from your backend/API)
-  final List<String> _offerSlots = [
-    '10:00 AM - 11:00 AM', // Morning offer
-    '03:00 PM - 04:00 PM', // Afternoon offer
-    '07:00 PM - 08:00 PM', // Evening offer
-    '11:00 PM - 12:00 AM', // Night offer
-  ];
+  List<String> _offerSlots = []; // Will be loaded from service
 
   final List<String> _bookedSlots = [
     '02:00 PM - 03:00 PM',
     '09:00 PM - 10:00 PM',
   ];
 
+  // Helper to check if current turf has an offer
+  bool get _hasTurfOffer {
+    final offerTurfNames = [
+      'Green Field Arena',
+      'Elite Football Ground',
+      'Shuttle Masters Academy',
+      'Royal Turf Ground',
+    ];
+    return offerTurfNames.contains(widget.turf.name);
+  }
+
+  // Calculate price for a single slot based on whether it has an offer
+  double _getSlotPrice(String slotTime) {
+    // Apply discount ONLY if:
+    // 1. This specific slot has an offer tag AND
+    // 2. The turf is in the offer turfs list
+    if (_hasTurfOffer && _offerSlots.contains(slotTime)) {
+      return widget.turf.price * 0.8; // 20% discount
+    }
+    return widget.turf.price.toDouble();
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadOfferSlots();
+  }
+  
+  Future<void> _loadOfferSlots() async {
+    final offerSlots = await OfferSlotService.getOfferSlots();
+    setState(() {
+      _offerSlots = offerSlots;
+    });
     _generateTimeSlots();
   }
 
@@ -57,7 +83,7 @@ class _BookingScreenState extends State<BookingScreen> {
       String endTime = '$nextDisplayHour:00 $nextPeriod';
       String slot = '$startTime - $endTime';
 
-      bool hasOffer = _offerSlots.contains(slot);
+      bool hasOffer = _hasTurfOffer && _offerSlots.contains(slot);
 
       slots.add(
         TimeSlot(
@@ -73,7 +99,7 @@ class _BookingScreenState extends State<BookingScreen> {
       TimeSlot(
         time: '12:00 AM - 01:00 AM',
         isAvailable: !_bookedSlots.contains('12:00 AM - 01:00 AM'),
-        hasOffer: _offerSlots.contains('12:00 AM - 01:00 AM'),
+        hasOffer: _hasTurfOffer && _offerSlots.contains('12:00 AM - 01:00 AM'),
       ),
     );
 
@@ -83,7 +109,11 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   double _calculateTotal() {
-    return widget.turf.price.toDouble() * _selectedTimeSlots.length;
+    double total = 0;
+    for (var slot in _selectedTimeSlots) {
+      total += _getSlotPrice(slot);
+    }
+    return total;
   }
 
   List<DateTime> _getNext30Days() {
@@ -565,15 +595,35 @@ class _BookingScreenState extends State<BookingScreen> {
             elevation: 0,
             disabledBackgroundColor: Colors.grey.shade300,
           ),
-          child: Text(
-            _selectedTimeSlots.isNotEmpty
-                ? "BOOK ${_selectedTimeSlots.length} HOUR${_selectedTimeSlots.length > 1 ? "S" : ""}  •  ₹${totalAmount.toStringAsFixed(0)}"
-                : "SELECT TIME SLOTS",
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.6,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Show strikethrough only if at least one selected slot has an offer
+              if (_selectedTimeSlots.isNotEmpty && 
+                  _selectedTimeSlots.any((slot) => _offerSlots.contains(slot)))
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Text(
+                    "₹${(widget.turf.price * _selectedTimeSlots.length).toStringAsFixed(0)}",
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                      decoration: TextDecoration.lineThrough,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              Text(
+                _selectedTimeSlots.isNotEmpty
+                    ? "BOOK ${_selectedTimeSlots.length} HOUR${_selectedTimeSlots.length > 1 ? "S" : ""}  •  ₹${totalAmount.toStringAsFixed(0)}"
+                    : "SELECT TIME SLOTS",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -702,13 +752,41 @@ class TurfInfoCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Text(
-                        "₹${turf.price}/hour",
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1DB954),
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if ([
+                            'Green Field Arena',
+                            'Elite Football Ground',
+                            'Shuttle Masters Academy',
+                            'Royal Turf Ground',
+                          ].contains(turf.name)) ...[ 
+                            Text(
+                              "₹${turf.price}",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade500,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                            Text(
+                              "₹${(turf.price * 0.8).toInt()}/hr",
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1DB954),
+                              ),
+                            ),
+                          ] else
+                            Text(
+                              "₹${turf.price}/hour",
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1DB954),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),

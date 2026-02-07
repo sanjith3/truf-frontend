@@ -1,5 +1,6 @@
 // slot_management_screen.dart - PREMIUM ADMIN UI WITH ADVANCED FEATURES
 import 'package:flutter/material.dart';
+import '../../services/offer_slot_service.dart';
 
 class PremiumSlotManagementScreen extends StatefulWidget {
   final dynamic turf;
@@ -22,6 +23,21 @@ class _PremiumSlotManagementScreenState
   DateTime? _emergencyStartDate;
   DateTime? _emergencyEndDate;
   String _emergencyReason = '';
+  List<String> _offerSlots = []; // Loaded from service
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOfferSlots();
+  }
+
+  Future<void> _loadOfferSlots() async {
+    final offerSlots = await OfferSlotService.getOfferSlots();
+    setState(() {
+      _offerSlots = offerSlots;
+    });
+  }
+
 
   // Slot data
   List<Map<String, dynamic>> slots = [
@@ -258,6 +274,26 @@ class _PremiumSlotManagementScreenState
       } else {
         _showEmergencyDateRangeDialog();
       }
+    }
+  }
+
+  Future<void> _toggleOfferSlot(String slotTime) async {
+    await OfferSlotService.toggleOfferSlot(slotTime);
+    await _loadOfferSlots(); // Reload to update UI
+    
+    // Show confirmation
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _offerSlots.contains(slotTime)
+                ? 'Offer added to $slotTime'
+                : 'Offer removed from $slotTime',
+          ),
+          backgroundColor: _primary,
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 

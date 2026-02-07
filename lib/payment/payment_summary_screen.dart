@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/turf.dart';
 import '../payment/payment_screen.dart';
+import '../services/offer_slot_service.dart';
 
 class PaymentSummaryScreen extends StatefulWidget {
   final Turf turf;
@@ -22,11 +23,38 @@ class PaymentSummaryScreen extends StatefulWidget {
 
 class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
   final double _fixedConvenienceFee = 20.0; // Fixed fee of ₹20
+  List<String> _offerSlots = []; // Will be loaded from service
+
+  double get _offerPrice => widget.turf.price * 0.8;
+  
+  // Check if any selected slot has an offer
+  bool get _hasAnyOfferSlot {
+    return widget.selectedTimeSlots.any((slot) => _offerSlots.contains(slot));
+  }
+  
+  // Get price for a specific slot
+  double _getSlotPrice(String slot) {
+    return _offerSlots.contains(slot) ? _offerPrice : widget.turf.price.toDouble();
+  }
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadOfferSlots();
+  }
+  
+  Future<void> _loadOfferSlots() async {
+    final offerSlots = await OfferSlotService.getOfferSlots();
+    setState(() {
+      _offerSlots = offerSlots;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final convenienceFee = _fixedConvenienceFee;
     final finalAmount = widget.totalAmount + convenienceFee;
+    final hasAnyOffer = _hasAnyOfferSlot;
 
     return Scaffold(
       appBar: AppBar(
@@ -119,20 +147,41 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
                       "Total Hours",
                       "${widget.selectedTimeSlots.length} hour(s)",
                     ),
-                    _buildDetailRow("Rate per hour", "₹${widget.turf.price}"),
+                    _buildDetailRow(
+                      "Rate per hour",
+                      hasAnyOffer 
+                        ? "₹${widget.turf.price} (₹${_offerPrice.toInt()} for offer slots)" 
+                        : "₹${widget.turf.price}",
+                      valueColor: hasAnyOffer ? const Color(0xFF1DB954) : null,
+                    ),
                     const SizedBox(height: 15),
                     ...widget.selectedTimeSlots.map((slot) {
+                      final isOfferSlot = _offerSlots.contains(slot);
+                      final slotPrice = _getSlotPrice(slot);
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Icon(
-                              Icons.circle,
-                              size: 8,
-                              color: Colors.green,
+                            Row(
+                              children: [
+                                Icon(
+                                  isOfferSlot ? Icons.local_offer : Icons.circle,
+                                  size: isOfferSlot ? 12 : 8,
+                                  color: isOfferSlot ? Colors.red : Colors.green,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(slot, style: const TextStyle(fontSize: 14)),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            Text(slot, style: const TextStyle(fontSize: 14)),
+                            Text(
+                              "₹${slotPrice.toInt()}",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: isOfferSlot ? const Color(0xFF1DB954) : Colors.black,
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -158,9 +207,17 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
                 ),
                 child: Column(
                   children: [
+                    if (hasAnyOffer)
+                      _buildPaymentRow(
+                        "Original Price",
+                        "₹${(widget.turf.price * widget.selectedTimeSlots.length).toStringAsFixed(0)}",
+                        description: "Standard rate without offer",
+                      ),
                     _buildPaymentRow(
-                      "Base Amount",
+                      hasAnyOffer ? "Discounted Base Amount" : "Base Amount",
                       "₹${widget.totalAmount.toStringAsFixed(0)}",
+                      color: hasAnyOffer ? const Color(0xFF1DB954) : null,
+                      isBold: hasAnyOffer,
                     ),
                     _buildPaymentRow(
                       "Platform Fee",
@@ -212,43 +269,7 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
 
               const SizedBox(height: 15),
 
-              // Terms & Conditions
-              Container(
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.shade100),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "• Platform fee is non-refundable",
-                      style: TextStyle(fontSize: 12, height: 1.5),
-                    ),
-                    const Text(
-                      "• Cancellation allowed up to 2 hours before booking",
-                      style: TextStyle(fontSize: 12, height: 1.5),
-                    ),
-                    const Text(
-                      "• All payments are secure and encrypted",
-                      style: TextStyle(fontSize: 12, height: 1.5),
-                    ),
-                    Text(
-                      "• Platform fee: Fixed ₹20 per booking",
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.5,
-                        color: Colors.green.shade700,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
 
-              const SizedBox(height: 30),
 
               // Proceed to Payment Button
               SizedBox(
@@ -295,7 +316,7 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -307,7 +328,11 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
           ),
           Text(
             value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 14, 
+              fontWeight: FontWeight.w600,
+              color: valueColor ?? Colors.black,
+            ),
           ),
         ],
       ),

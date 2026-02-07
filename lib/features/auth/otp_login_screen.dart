@@ -1,18 +1,63 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'otp_verify_screen.dart';
 
-class OtpLoginScreen extends StatelessWidget {
+class OtpLoginScreen extends StatefulWidget {
   const OtpLoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final phoneController = TextEditingController();
-    final nameController = TextEditingController();
-    final emailController = TextEditingController();
+  State<OtpLoginScreen> createState() => _OtpLoginScreenState();
+}
 
+class _OtpLoginScreenState extends State<OtpLoginScreen> {
+  final _phoneController = TextEditingController();
+  final _nameController = TextEditingController();
+  bool _agreedToTerms = false;
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _showTermsDialog(String title) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: Text(
+            "This is a placeholder for $title.\n\n"
+            "By using TurfZone, you agree to our policies regarding booking, cancellations, and usage of our platform.",
+            style: const TextStyle(fontSize: 14, height: 1.5),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showError(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -45,7 +90,7 @@ class OtpLoginScreen extends StatelessWidget {
                 
                 // Name Field
                 TextField(
-                  controller: nameController,
+                  controller: _nameController,
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
                     LengthLimitingTextInputFormatter(18),
@@ -65,27 +110,9 @@ class OtpLoginScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 
-                // Email Field
-                TextField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    hintText: "Email Address",
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFF1DB954), width: 2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
                 // Phone Field
                 TextField(
-                  controller: phoneController,
+                  controller: _phoneController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
@@ -103,6 +130,67 @@ class OtpLoginScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+
+                // Terms and Conditions Checkbox
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: Checkbox(
+                        value: _agreedToTerms,
+                        activeColor: const Color(0xFF1DB954),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _agreedToTerms = value ?? false;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          text: "I agree to the ",
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: "Terms and Conditions",
+                              style: const TextStyle(
+                                color: Color(0xFF1DB954),
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () => _showTermsDialog("Terms and Conditions"),
+                            ),
+                            const TextSpan(text: " and "),
+                            TextSpan(
+                              text: "Privacy Policy",
+                              style: const TextStyle(
+                                color: Color(0xFF1DB954),
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () => _showTermsDialog("Privacy Policy"),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                
                 const SizedBox(height: 30),
 
                 ElevatedButton(
@@ -116,20 +204,16 @@ class OtpLoginScreen extends StatelessWidget {
                     elevation: 0,
                   ),
                   onPressed: () async {
-                    final name = nameController.text.trim();
-                    final email = emailController.text.trim();
-                    final phone = phoneController.text.trim();
-
-                    // Validation Regex for Email
-                    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                    final name = _nameController.text.trim();
+                    final phone = _phoneController.text.trim();
 
                     if (name.isEmpty) {
                       _showError(context, "Please enter your name");
                       return;
                     }
-                    
-                    if (email.isEmpty || !emailRegex.hasMatch(email)) {
-                      _showError(context, "Please enter a valid email address");
+
+                    if (name.length > 25) {
+                      _showError(context, "Name must be less than 25 characters");
                       return;
                     }
 
@@ -137,11 +221,15 @@ class OtpLoginScreen extends StatelessWidget {
                       _showError(context, "Please enter a valid 10-digit phone number");
                       return;
                     }
+                    
+                    if (!_agreedToTerms) {
+                      _showError(context, "Please agree to the Terms & Privacy Policy");
+                      return;
+                    }
 
                     // Save user details
                     final prefs = await SharedPreferences.getInstance();
                     await prefs.setString('userName', name);
-                    await prefs.setString('userEmail', email);
                     await prefs.setString('userPhone', phone);
                     await prefs.setBool('hasShownWelcome', true);
 
@@ -172,16 +260,6 @@ class OtpLoginScreen extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  void _showError(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
       ),
     );
   }

@@ -191,16 +191,11 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: const Color(0xFFF8F9FA),
+      // Remove fixed AppBar from here to allow full scrolling
       body: Column(
         children: [
-          // Custom App Bar - Using Colors.green[800]
-          _buildAppBar(),
-
-          // Main Content
           Expanded(child: _navScreens[_selectedNavIndex]),
-
-          // Bottom Navigation
           _buildBottomNavigationBar(),
         ],
       ),
@@ -374,11 +369,18 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget _buildDashboard() {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAppBar(),
+          
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+
             // Section Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -434,8 +436,10 @@ class _AdminScreenState extends State<AdminScreen> {
             ),
 
             const SizedBox(height: 20),
-          ],
-        ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

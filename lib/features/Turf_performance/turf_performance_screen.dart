@@ -18,7 +18,7 @@ class _TurfPerformanceScreenState extends State<TurfPerformanceScreen> {
     'This Year',
   ];
 
-  List<Map<String, dynamic>> turfs = [
+  final List<Map<String, dynamic>> _allTurfs = [
     {
       'name': 'Green Field Arena',
       'revenue': 95880,
@@ -57,6 +57,26 @@ class _TurfPerformanceScreenState extends State<TurfPerformanceScreen> {
     },
   ];
 
+  List<Map<String, dynamic>> get turfs {
+    double multiplier = 1.0;
+    if (selectedPeriod == 'Today') multiplier = 0.05;
+    else if (selectedPeriod == 'This Week') multiplier = 0.25;
+    else if (selectedPeriod == 'This Month') multiplier = 1.0;
+    else if (selectedPeriod == 'Last Month') multiplier = 0.9;
+    else if (selectedPeriod == 'This Quarter') multiplier = 3.0;
+    else if (selectedPeriod == 'This Year') multiplier = 12.0;
+
+    return _allTurfs.map((t) => {
+      'name': t['name'],
+      'revenue': ((t['revenue'] as int) * multiplier).round(),
+      'bookings': ((t['bookings'] as int) * multiplier).round(),
+      'rating': t['rating'],
+      'utilization': t['utilization'],
+      'growth': t['growth'],
+      'color': t['color'],
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     // Sort turfs by revenue (descending)
@@ -93,40 +113,7 @@ class _TurfPerformanceScreenState extends State<TurfPerformanceScreen> {
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              setState(() {
-                selectedPeriod = value;
-              });
-            },
-            itemBuilder: (context) {
-              return periods.map((period) {
-                return PopupMenuItem<String>(
-                  value: period,
-                  child: Text(period),
-                );
-              }).toList();
-            },
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Text(
-                    selectedPeriod,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(width: 4),
-                  Icon(Icons.arrow_drop_down, color: Colors.white),
-                ],
-              ),
-            ),
-          ),
-        ],
+
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -586,11 +573,35 @@ class _TurfPerformanceScreenState extends State<TurfPerformanceScreen> {
   }
 
   void _downloadReport() {
+    // Simulate a successful download
+    Future.delayed(Duration(seconds: 1), () {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white, size: 20),
+                SizedBox(width: 12),
+                Text('Performance Report Downloaded Successfully!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    });
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.downloading, color: Colors.white, size: 20),
+            SizedBox(
+              width: 20, 
+              height: 20, 
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+            ),
             SizedBox(width: 12),
             Text('Generating Performance Report...'),
           ],
@@ -598,6 +609,7 @@ class _TurfPerformanceScreenState extends State<TurfPerformanceScreen> {
         backgroundColor: Color(0xFFFF9800),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: Duration(milliseconds: 800),
       ),
     );
   }

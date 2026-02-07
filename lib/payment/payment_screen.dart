@@ -106,11 +106,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       builder: (context) {
-        return Container(
+        return PopScope(
+          canPop: false,
+          child: Container(
           padding: const EdgeInsets.all(30),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -203,6 +207,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
             ],
           ),
+        ),
         );
       },
     );
@@ -436,7 +441,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     child: const Text(
                       "• Your payment is secured with 256-bit SSL encryption\n"
                       "• No card details are stored on our servers\n"
-                      "• Refunds are processed within 5-7 business days",
+                      "• Refunds are processed within 5-7 working days",
                       style: TextStyle(fontSize: 12, height: 1.5),
                     ),
                   ),

@@ -33,7 +33,8 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
   DateTime? startDate;
   DateTime? endDate;
 
-  List<Map<String, dynamic>> bookingData = [
+  // Base booking data
+  final List<Map<String, dynamic>> _allBookingData = [
     {'time': '6-9 AM', 'bookings': 15, 'percentage': 12},
     {'time': '9-12 PM', 'bookings': 35, 'percentage': 28},
     {'time': '12-3 PM', 'bookings': 42, 'percentage': 33},
@@ -42,7 +43,18 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
     {'time': '9-12 AM', 'bookings': 25, 'percentage': 20},
   ];
 
-  List<Map<String, dynamic>> dayWiseData = [
+  List<Map<String, dynamic>> get bookingData {
+    double multiplier = 1.0;
+    if (selectedTurf != 'All Turfs') multiplier = 0.7;
+    return _allBookingData.map((d) => {
+      'time': d['time'],
+      'bookings': ((d['bookings'] as int) * multiplier).round(),
+      'percentage': d['percentage']
+    }).toList();
+  }
+
+  // Base day wise data  
+  final List<Map<String, dynamic>> _allDayWiseData = [
     {'day': 'Monday', 'bookings': 35, 'cancellations': 2, 'revenue': 25000},
     {'day': 'Tuesday', 'bookings': 42, 'cancellations': 1, 'revenue': 32000},
     {'day': 'Wednesday', 'bookings': 38, 'cancellations': 3, 'revenue': 28000},
@@ -51,6 +63,23 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
     {'day': 'Saturday', 'bookings': 65, 'cancellations': 2, 'revenue': 58000},
     {'day': 'Sunday', 'bookings': 58, 'cancellations': 3, 'revenue': 52000},
   ];
+
+  List<Map<String, dynamic>> get dayWiseData {
+    double multiplier = 1.0;
+    if (selectedTurf != 'All Turfs') multiplier = 0.8;
+    
+    // Simulate time period changes
+    if (selectedPeriod == 'Today') multiplier *= 0.15;
+    else if (selectedPeriod == 'This Week') multiplier *= 1.0;
+    else if (selectedPeriod == 'This Month') multiplier *= 4.0;
+
+    return _allDayWiseData.map((d) => {
+      'day': d['day'],
+      'bookings': ((d['bookings'] as int) * multiplier).round(),
+      'cancellations': ((d['cancellations'] as int) * multiplier).round(),
+      'revenue': ((d['revenue'] as int) * multiplier).round(),
+    }).toList();
+  }
 
   int get totalBookings {
     return dayWiseData.fold<int>(
@@ -86,24 +115,7 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          // Filter Button
-          IconButton(
-            icon: Icon(Icons.filter_alt_outlined),
-            onPressed: _showFilterDialog,
-            tooltip: 'Filter Options',
-          ),
-          IconButton(
-            icon: Icon(Icons.download_outlined),
-            onPressed: _downloadReport,
-            tooltip: 'Download Report',
-          ),
-          IconButton(
-            icon: Icon(Icons.picture_as_pdf_outlined),
-            onPressed: _downloadPDF,
-            tooltip: 'Download as PDF',
-          ),
-        ],
+
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
@@ -278,112 +290,7 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
 
             SizedBox(height: 24),
 
-            // Time Slot Distribution
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 12,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Time Slot Distribution',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    ...bookingData.map((slot) {
-                      return Padding(
-                        padding: EdgeInsets.only(bottom: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    slot['time'],
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey[800],
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  '${slot['bookings']} bookings',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 8),
-                            Container(
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: FractionallySizedBox(
-                                alignment: Alignment.centerLeft,
-                                widthFactor: slot['percentage'] / 100,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Color(0xFF2196F3),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Text(
-                                  '${slot['percentage']}% of total bookings',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                                Spacer(),
-                                Text(
-                                  'Peak: ${slot['time'] == '6-9 PM' ? '✓' : ''}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: slot['time'] == '6-9 PM'
-                                        ? Colors.green
-                                        : Colors.grey[500],
-                                    fontWeight: slot['time'] == '6-9 PM'
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ],
-                ),
-              ),
-            ),
+
 
             SizedBox(height: 24),
 
@@ -603,104 +510,6 @@ class _BookingAnalyticsScreenState extends State<BookingAnalyticsScreen> {
             ),
 
             SizedBox(height: 24),
-
-            // Cancellation Analysis
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 12,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Cancellation Analysis',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    ...dayWiseData.map((day) {
-                      double cancellationRate =
-                          (day['cancellations'] / day['bookings'] * 100);
-                      return Padding(
-                        padding: EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 1,
-                              child: Text(
-                                day['day'].substring(0, 3), // Short day name
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[800],
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 3,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: LinearProgressIndicator(
-                                          value: cancellationRate / 100,
-                                          backgroundColor: Colors.grey[200],
-                                          color: cancellationRate > 5
-                                              ? Colors.red
-                                              : Colors.orange,
-                                          minHeight: 8,
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(width: 12),
-                                      Text(
-                                        '${cancellationRate.toStringAsFixed(1)}%',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: cancellationRate > 5
-                                              ? Colors.red
-                                              : Colors.grey[700],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    '${day['cancellations']} cancellations out of ${day['bookings']} bookings',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ],
-                ),
-              ),
-            ),
 
             // Key Insights section REMOVED as requested
             SizedBox(height: 32),

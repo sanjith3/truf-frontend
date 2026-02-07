@@ -19,7 +19,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String _userName = "John Doe";
-  String _userEmail = "john.doe@example.com";
+  String _userEmail = "user@example.com";
   String _userPhone = "+91 98765 43210";
   File? _userImage;
 
@@ -33,7 +33,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _userName = prefs.getString('userName') ?? "User Name";
-      _userEmail = prefs.getString('userEmail') ?? "user@example.com";
+      
+      String? savedEmail = prefs.getString('userEmail');
+      if (savedEmail != null && savedEmail.isNotEmpty) {
+        _userEmail = savedEmail;
+      } else {
+        // Generate default email based on name (e.g., Ram -> ram@gmail.com)
+        String cleanName = _userName.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+        _userEmail = "$cleanName@gmail.com";
+      }
+
       String? phone = prefs.getString('userPhone');
       _userPhone = phone != null ? "+91 $phone" : "Phone number not set";
     });

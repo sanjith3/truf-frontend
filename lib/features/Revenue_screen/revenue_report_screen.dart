@@ -34,7 +34,8 @@ class _RevenueReportScreenState extends State<RevenueReportScreen> {
   DateTime? endDate;
   bool showCustomDatePicker = false;
 
-  List<Map<String, dynamic>> revenueData = [
+  // Base data
+  final List<Map<String, dynamic>> _allRevenueData = [
     {'day': 'Mon', 'revenue': 25000, 'bookings': 35},
     {'day': 'Tue', 'revenue': 32000, 'bookings': 42},
     {'day': 'Wed', 'revenue': 28000, 'bookings': 38},
@@ -43,6 +44,25 @@ class _RevenueReportScreenState extends State<RevenueReportScreen> {
     {'day': 'Sat', 'revenue': 58000, 'bookings': 65},
     {'day': 'Sun', 'revenue': 52000, 'bookings': 58},
   ];
+
+  List<Map<String, dynamic>> get revenueData {
+    // Return modified data based on selection to simulate filtering
+    double multiplier = 1.0;
+    if (selectedTurf != 'All Turfs') multiplier = 0.8; // Simulate specific turf has less revenue
+    
+    // Simulate time period changes
+    if (selectedPeriod == 'Today') multiplier *= 0.15;
+    else if (selectedPeriod == 'This Week') multiplier *= 1.0;
+    else if (selectedPeriod == 'This Month') multiplier *= 4.0;
+    
+    return _allRevenueData.map((data) {
+      return {
+        'day': data['day'],
+        'revenue': ((data['revenue'] as int) * multiplier).round(),
+        'bookings': ((data['bookings'] as int) * multiplier).round(),
+      };
+    }).toList();
+  }
 
   double get maxRevenue {
     return revenueData
@@ -71,24 +91,7 @@ class _RevenueReportScreenState extends State<RevenueReportScreen> {
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          // Filter Button
-          IconButton(
-            icon: Icon(Icons.filter_alt_outlined),
-            onPressed: _showFilterDialog,
-            tooltip: 'Filter Options',
-          ),
-          IconButton(
-            icon: Icon(Icons.download_outlined),
-            onPressed: _downloadReport,
-            tooltip: 'Download Report',
-          ),
-          IconButton(
-            icon: Icon(Icons.picture_as_pdf_outlined),
-            onPressed: _downloadPDF,
-            tooltip: 'Download as PDF',
-          ),
-        ],
+
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),

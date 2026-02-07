@@ -1539,7 +1539,6 @@ class _TurfCardState extends State<TurfCard> {
       'Green Field Arena',
       'Elite Football Ground',
       'Shuttle Masters Academy',
-      'City Sports Complex',
       'Royal Turf Ground',
     ];
     return offerTurfNames.contains(widget.turf.name);
