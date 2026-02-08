@@ -82,8 +82,12 @@ class TurfDataService extends ChangeNotifier {
     // For simplicity, let's save all turfs adding a flag or just save the dynamic ones.
     // Actually, it's safer to save all and filter or just save dynamic.
     // Let's save dynamic turfs in a separate key.
-    List<Turf> dynamicTurfs = _turfs.where((t) => int.tryParse(t.id) == null || int.parse(t.id) > 10).toList();
-    List<String> turfJsonList = dynamicTurfs.map((t) => jsonEncode(t.toJson())).toList();
+    List<Turf> dynamicTurfs = _turfs
+        .where((t) => int.tryParse(t.id) == null || int.parse(t.id) > 10)
+        .toList();
+    List<String> turfJsonList = dynamicTurfs
+        .map((t) => jsonEncode(t.toJson()))
+        .toList();
     await prefs.setStringList('dynamic_turfs', turfJsonList);
   }
 
@@ -113,9 +117,9 @@ class TurfDataService extends ChangeNotifier {
   // Initial bookings for demo
   void initDemoBookings() {
     if (_bookings.isNotEmpty) return;
-    
+
     final now = DateTime.now();
-    
+
     // Add multiple demo bookings for better analytics visualization
     _bookings.addAll([
       // Bookings for Green Field Arena

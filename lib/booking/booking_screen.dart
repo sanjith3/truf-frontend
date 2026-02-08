@@ -50,9 +50,10 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   void initState() {
     super.initState();
+
     _loadOfferSlots();
   }
-  
+
   Future<void> _loadOfferSlots() async {
     final offerSlots = await OfferSlotService.getOfferSlots();
     setState(() {
@@ -65,15 +66,20 @@ class _BookingScreenState extends State<BookingScreen> {
     List<TimeSlot> slots = [];
 
     // Filter real bookings from service for THIS turf on THIS date
-    final existingBookings = TurfDataService().bookings.where((b) => 
-      b.turfName == widget.turf.name && 
-      b.date.year == _selectedDate.year &&
-      b.date.month == _selectedDate.month &&
-      b.date.day == _selectedDate.day &&
-      b.status != BookingStatus.cancelled
-    ).toList();
-    
-    final bookedSlotTimes = existingBookings.map((b) => "${b.startTime} - ${b.endTime}").toList();
+    final existingBookings = TurfDataService().bookings
+        .where(
+          (b) =>
+              b.turfName == widget.turf.name &&
+              b.date.year == _selectedDate.year &&
+              b.date.month == _selectedDate.month &&
+              b.date.day == _selectedDate.day &&
+              b.status != BookingStatus.cancelled,
+        )
+        .toList();
+
+    final bookedSlotTimes = existingBookings
+        .map((b) => "${b.startTime} - ${b.endTime}")
+        .toList();
 
     // Generate time slots from 6 AM to 1 AM
     for (int hour = 6; hour <= 23; hour++) {
@@ -98,11 +104,7 @@ class _BookingScreenState extends State<BookingScreen> {
       bool isBooked = bookedSlotTimes.contains(slot);
 
       slots.add(
-        TimeSlot(
-          time: slot,
-          isAvailable: !isBooked,
-          hasOffer: hasOffer,
-        ),
+        TimeSlot(time: slot, isAvailable: !isBooked, hasOffer: hasOffer),
       );
     }
 
@@ -522,10 +524,14 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _buildTimeSection(String title, int startIndex, int endIndex) {
-    final sectionSlots = _availableTimeSlots.sublist(
-      startIndex,
-      endIndex.clamp(0, _availableTimeSlots.length),
-    );
+    if (_availableTimeSlots.isEmpty ||
+        startIndex >= _availableTimeSlots.length) {
+      return const SizedBox();
+    }
+
+    final safeEnd = endIndex.clamp(0, _availableTimeSlots.length);
+
+    final sectionSlots = _availableTimeSlots.sublist(startIndex, safeEnd);
 
     if (sectionSlots.isEmpty) return const SizedBox();
 
@@ -612,7 +618,7 @@ class _BookingScreenState extends State<BookingScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Show strikethrough only if at least one selected slot has an offer
-              if (_selectedTimeSlots.isNotEmpty && 
+              if (_selectedTimeSlots.isNotEmpty &&
                   _selectedTimeSlots.any((slot) => _offerSlots.contains(slot)))
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
@@ -703,7 +709,12 @@ class TurfInfoCard extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 image: DecorationImage(
-                  image: NetworkImage(turf.images[0]),
+                  image: turf.images.isNotEmpty
+                      ? NetworkImage(turf.images.first)
+                      : const NetworkImage(
+                          "https://via.placeholder.com/150?text=No+Image",
+                        ),
+
                   fit: BoxFit.cover,
                 ),
               ),
@@ -773,7 +784,7 @@ class TurfInfoCard extends StatelessWidget {
                             'Elite Football Ground',
                             'Shuttle Masters Academy',
                             'Royal Turf Ground',
-                          ].contains(turf.name)) ...[ 
+                          ].contains(turf.name)) ...[
                             Text(
                               "₹${turf.price}",
                               style: TextStyle(

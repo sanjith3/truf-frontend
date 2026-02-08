@@ -42,6 +42,7 @@
       - assets/images/logo.png
       - assets/images/icons/payments/
       - assets/images/handshake.png
+      - assets/images/tournament_coming_soon.png
 
   flutter_native_splash:
     color: "#1DB954"

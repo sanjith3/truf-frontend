@@ -18,7 +18,6 @@ class _PremiumSlotManagementScreenState
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now().add(const Duration(days: 7));
   String _selectedFilter = 'all';
-  bool _isTurfDisabled = false;
   bool _emergencyMode = false;
   DateTime? _emergencyStartDate;
   DateTime? _emergencyEndDate;
@@ -38,7 +37,6 @@ class _PremiumSlotManagementScreenState
     });
   }
 
-
   // Slot data
   List<Map<String, dynamic>> slots = [
     {
@@ -49,6 +47,8 @@ class _PremiumSlotManagementScreenState
       'customer': null,
       'bookingId': null,
       'disabled': false,
+      'originalPrice': 500,
+      'date': DateTime.now(),
     },
     {
       'time': '7:00 AM',
@@ -58,6 +58,8 @@ class _PremiumSlotManagementScreenState
       'customer': 'Rajesh Kumar',
       'bookingId': 'BK-001',
       'disabled': false,
+      'originalPrice': 500,
+      'date': DateTime.now(),
     },
     {
       'time': '8:00 AM',
@@ -67,6 +69,8 @@ class _PremiumSlotManagementScreenState
       'customer': 'Team Alpha',
       'bookingId': 'BK-002',
       'disabled': false,
+      'originalPrice': 500,
+      'date': DateTime.now(),
     },
     {
       'time': '9:00 AM',
@@ -76,6 +80,8 @@ class _PremiumSlotManagementScreenState
       'customer': null,
       'bookingId': null,
       'disabled': false,
+      'originalPrice': 600,
+      'date': DateTime.now(),
     },
     {
       'time': '10:00 AM',
@@ -85,6 +91,8 @@ class _PremiumSlotManagementScreenState
       'customer': 'Priya Sharma',
       'bookingId': 'BK-003',
       'disabled': false,
+      'originalPrice': 600,
+      'date': DateTime.now(),
     },
     {
       'time': '11:00 AM',
@@ -94,6 +102,8 @@ class _PremiumSlotManagementScreenState
       'customer': null,
       'bookingId': null,
       'disabled': true,
+      'originalPrice': 600,
+      'date': DateTime.now(),
     },
     {
       'time': '12:00 PM',
@@ -103,6 +113,8 @@ class _PremiumSlotManagementScreenState
       'customer': 'Vikram Singh',
       'bookingId': 'BK-004',
       'disabled': false,
+      'originalPrice': 700,
+      'date': DateTime.now(),
     },
     {
       'time': '1:00 PM',
@@ -112,6 +124,8 @@ class _PremiumSlotManagementScreenState
       'customer': null,
       'bookingId': null,
       'disabled': false,
+      'originalPrice': 700,
+      'date': DateTime.now(),
     },
     {
       'time': '2:00 PM',
@@ -121,6 +135,8 @@ class _PremiumSlotManagementScreenState
       'customer': 'Anita Rao',
       'bookingId': 'BK-005',
       'disabled': false,
+      'originalPrice': 700,
+      'date': DateTime.now(),
     },
     {
       'time': '3:00 PM',
@@ -130,6 +146,8 @@ class _PremiumSlotManagementScreenState
       'customer': 'Rahul Mehta',
       'bookingId': 'BK-006',
       'disabled': false,
+      'originalPrice': 800,
+      'date': DateTime.now(),
     },
     {
       'time': '4:00 PM',
@@ -139,6 +157,8 @@ class _PremiumSlotManagementScreenState
       'customer': 'Suresh Kumar',
       'bookingId': 'BK-007',
       'disabled': false,
+      'originalPrice': 800,
+      'date': DateTime.now(),
     },
     {
       'time': '5:00 PM',
@@ -148,6 +168,8 @@ class _PremiumSlotManagementScreenState
       'customer': null,
       'bookingId': null,
       'disabled': false,
+      'originalPrice': 800,
+      'date': DateTime.now(),
     },
     {
       'time': '6:00 PM',
@@ -157,6 +179,8 @@ class _PremiumSlotManagementScreenState
       'customer': 'Neha Gupta',
       'bookingId': 'BK-008',
       'disabled': false,
+      'originalPrice': 900,
+      'date': DateTime.now(),
     },
     {
       'time': '7:00 PM',
@@ -166,6 +190,8 @@ class _PremiumSlotManagementScreenState
       'customer': null,
       'bookingId': null,
       'disabled': false,
+      'originalPrice': 900,
+      'date': DateTime.now(),
     },
     {
       'time': '8:00 PM',
@@ -175,6 +201,8 @@ class _PremiumSlotManagementScreenState
       'customer': 'Amit Sharma',
       'bookingId': 'BK-009',
       'disabled': false,
+      'originalPrice': 1000,
+      'date': DateTime.now(),
     },
   ];
 
@@ -184,6 +212,7 @@ class _PremiumSlotManagementScreenState
   final Color _danger = const Color(0xFFF44336);
   final Color _success = const Color(0xFF4CAF50);
   final Color _warning = const Color(0xFFFFB74D);
+  final Color _offerColor = const Color(0xFF9C27B0);
   final Color _bg = const Color(0xFFF8F9FA);
   final Color _card = Colors.white;
   final Color _textPrimary = const Color(0xFF1A1A1A);
@@ -195,6 +224,8 @@ class _PremiumSlotManagementScreenState
       slots.where((s) => s['status'] == 'available').length;
   int get bookedCount => slots.where((s) => s['status'] == 'booked').length;
   int get blockedCount => slots.where((s) => s['disabled'] == true).length;
+  int get offerCount =>
+      slots.where((s) => _offerSlots.contains(s['time'])).length;
 
   String get revenue {
     int total = 0;
@@ -209,6 +240,7 @@ class _PremiumSlotManagementScreenState
   // Helper methods
   Color _getStatusColor(Map<String, dynamic> slot) {
     if (slot['disabled'] == true) return _disabledColor;
+    if (_offerSlots.contains(slot['time'])) return _offerColor;
     switch (slot['status']) {
       case 'available':
         return _success;
@@ -221,6 +253,7 @@ class _PremiumSlotManagementScreenState
 
   String _getStatusLabel(Map<String, dynamic> slot) {
     if (slot['disabled'] == true) return 'DISABLED';
+    if (_offerSlots.contains(slot['time'])) return 'OFFER';
     switch (slot['status']) {
       case 'available':
         return 'AVAILABLE';
@@ -233,6 +266,7 @@ class _PremiumSlotManagementScreenState
 
   IconData _getStatusIcon(Map<String, dynamic> slot) {
     if (slot['disabled'] == true) return Icons.block;
+    if (_offerSlots.contains(slot['time'])) return Icons.local_offer;
     switch (slot['status']) {
       case 'available':
         return Icons.check_circle;
@@ -253,17 +287,49 @@ class _PremiumSlotManagementScreenState
 
   void _toggleEmergencyMode() {
     if (_emergencyMode) {
-      setState(() {
-        _emergencyMode = false;
-        _emergencyStartDate = null;
-        _emergencyEndDate = null;
-        _emergencyReason = '';
-        for (var slot in slots) {
-          if (slot['status'] == 'available') {
-            slot['disabled'] = false;
-          }
-        }
-      });
+      // Show confirmation dialog before turning off emergency mode
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Disable Emergency Mode'),
+          content: const Text(
+            'Are you sure you want to turn off emergency mode? All disabled slots will be enabled again.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _emergencyMode = false;
+                  _emergencyStartDate = null;
+                  _emergencyEndDate = null;
+                  _emergencyReason = '';
+                  for (var slot in slots) {
+                    if (slot['status'] == 'available') {
+                      slot['disabled'] = false;
+                    }
+                  }
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Emergency mode disabled'),
+                    backgroundColor: _success,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _danger,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Disable'),
+            ),
+          ],
+        ),
+      );
     } else {
       bool hasUpcomingBookings = slots.any(
         (slot) => slot['status'] == 'booked',
@@ -277,29 +343,219 @@ class _PremiumSlotManagementScreenState
     }
   }
 
-  Future<void> _toggleOfferSlot(String slotTime) async {
-    await OfferSlotService.toggleOfferSlot(slotTime);
-    await _loadOfferSlots(); // Reload to update UI
-    
-    // Show confirmation
+  Future<void> _toggleOfferSlot(int index) async {
+    final slot = slots[index];
+
+    if (_offerSlots.contains(slot['time'])) {
+      // Remove offer
+      await _removeOfferSlot(index);
+    } else {
+      // Show offer dialog
+      await _showSetOfferDialog(index);
+    }
+
+    // Refresh offer slots
+    await _loadOfferSlots();
+  }
+
+  Future<void> _removeOfferSlot(int index) async {
+    final slot = slots[index];
+    final originalPrice = slot['originalPrice'] ?? slot['price'];
+
+    setState(() {
+      slots[index]['price'] = originalPrice;
+    });
+
+    await OfferSlotService.removeOfferSlot(slot['time']);
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            _offerSlots.contains(slotTime)
-                ? 'Offer added to $slotTime'
-                : 'Offer removed from $slotTime',
-          ),
-          backgroundColor: _primary,
-          duration: const Duration(seconds: 2),
+          content: Text('Offer removed for ${slot['time']} slot'),
+          backgroundColor: _offerColor,
         ),
       );
     }
   }
 
+  Future<void> _showSetOfferDialog(int index) async {
+    final slot = slots[index];
+    final originalPrice = slot['originalPrice'] ?? slot['price'];
+    TextEditingController offerPriceController = TextEditingController(
+      text: slot['price'].toString(),
+    );
+    TextEditingController offerPercentageController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          void updateOfferPrice(String percentage) {
+            if (percentage.isEmpty) return;
+            double percent = double.parse(percentage);
+            double discountedPrice = originalPrice * (1 - (percent / 100));
+            offerPriceController.text = discountedPrice.round().toString();
+          }
+
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.local_offer, color: _offerColor),
+                const SizedBox(width: 10),
+                const Text('Set Offer for Slot'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${slot['time']} - ${slot['endTime']}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Original Price: ₹$originalPrice',
+                    style: TextStyle(fontSize: 14, color: _textSecondary),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Discount Percentage
+                  Text(
+                    'Discount Percentage',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: offerPercentageController,
+                    decoration: InputDecoration(
+                      hintText: 'Enter discount %',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      suffixText: '%',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: updateOfferPrice,
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: ['10', '20', '30', '50'].map((percent) {
+                      return OutlinedButton(
+                        onPressed: () {
+                          offerPercentageController.text = percent;
+                          updateOfferPrice(percent);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: _offerColor),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                        ),
+                        child: Text(
+                          '$percent%',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Offer Price
+                  Text(
+                    'Offer Price',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: offerPriceController,
+                    decoration: InputDecoration(
+                      hintText: 'Enter offer price',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      prefixText: '₹',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 8),
+                  if (offerPriceController.text.isNotEmpty)
+                    Text(
+                      'You are offering ${((originalPrice - int.parse(offerPriceController.text)) / originalPrice * 100).toStringAsFixed(1)}% discount',
+                      style: TextStyle(fontSize: 12, color: _offerColor),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final offerPrice =
+                      int.tryParse(offerPriceController.text) ?? originalPrice;
+                  if (offerPrice >= originalPrice) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                          'Offer price must be less than original price',
+                        ),
+                        backgroundColor: _danger,
+                      ),
+                    );
+                    return;
+                  }
+
+                  setState(() {
+                    slots[index]['price'] = offerPrice;
+                  });
+                  await OfferSlotService.addOfferSlot(
+                    slot['time'],
+                    offerPrice,
+                    originalPrice,
+                  );
+                  await _loadOfferSlots();
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Offer set for ${slot['time']} slot'),
+                        backgroundColor: _offerColor,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: _offerColor),
+                child: const Text('Set Offer'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _showEmergencyDateRangeDialog() {
     DateTime tempStartDate = DateTime.now();
-    DateTime tempEndDate = DateTime.now().add(const Duration(days: 1));
+    DateTime tempEndDate = DateTime.now().add(const Duration(days: 7));
     String tempReason = _emergencyReason;
 
     showDialog(
@@ -452,7 +708,7 @@ class _PremiumSlotManagementScreenState
 
                   // Reason/Description
                   Text(
-                    'Emergency Reason',
+                    'Emergency Reason (Optional)',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -462,7 +718,7 @@ class _PremiumSlotManagementScreenState
                   const SizedBox(height: 8),
                   TextField(
                     decoration: InputDecoration(
-                      hintText: 'Enter reason for emergency mode (optional)',
+                      hintText: 'Enter reason for emergency mode...',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide(color: Colors.grey.shade300),
@@ -500,12 +756,18 @@ class _PremiumSlotManagementScreenState
                     }
                   });
                   Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Emergency mode enabled'),
+                      backgroundColor: _danger,
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _danger,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('Confirm Emergency'),
+                child: const Text('Enable Emergency'),
               ),
             ],
           );
@@ -805,33 +1067,115 @@ class _PremiumSlotManagementScreenState
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              _buildQuickDateRangeButton(
-                                'Today',
-                                1,
-                                tempStartDate,
-                                tempEndDate,
-                                setState,
+                              GestureDetector(
+                                onTap: () => setState(() {
+                                  tempStartDate = DateTime.now();
+                                  tempEndDate = DateTime.now();
+                                }),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Today',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: _textSecondary,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              _buildQuickDateRangeButton(
-                                '7 Days',
-                                7,
-                                tempStartDate,
-                                tempEndDate,
-                                setState,
+                              GestureDetector(
+                                onTap: () => setState(() {
+                                  tempStartDate = DateTime.now();
+                                  tempEndDate = DateTime.now().add(
+                                    const Duration(days: 6),
+                                  );
+                                }),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '7 Days',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: _textSecondary,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              _buildQuickDateRangeButton(
-                                '30 Days',
-                                30,
-                                tempStartDate,
-                                tempEndDate,
-                                setState,
+                              GestureDetector(
+                                onTap: () => setState(() {
+                                  tempStartDate = DateTime.now();
+                                  tempEndDate = DateTime.now().add(
+                                    const Duration(days: 29),
+                                  );
+                                }),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '30 Days',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: _textSecondary,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              _buildQuickDateRangeButton(
-                                '90 Days',
-                                90,
-                                tempStartDate,
-                                tempEndDate,
-                                setState,
+                              GestureDetector(
+                                onTap: () => setState(() {
+                                  tempStartDate = DateTime.now();
+                                  tempEndDate = DateTime.now().add(
+                                    const Duration(days: 89),
+                                  );
+                                }),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '90 Days',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: _textSecondary,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -852,29 +1196,186 @@ class _PremiumSlotManagementScreenState
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              _buildFilterOption(
-                                'All Slots',
-                                'all',
-                                tempSelectedFilter,
-                                setState,
+                              // All Slots
+                              GestureDetector(
+                                onTap: () =>
+                                    setState(() => tempSelectedFilter = 'all'),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: tempSelectedFilter == 'all'
+                                        ? _primary
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: tempSelectedFilter == 'all'
+                                          ? _primary
+                                          : Colors.grey.shade300,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'All Slots',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: tempSelectedFilter == 'all'
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                      color: tempSelectedFilter == 'all'
+                                          ? Colors.white
+                                          : _textSecondary,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              _buildFilterOption(
-                                'Available',
-                                'available',
-                                tempSelectedFilter,
-                                setState,
+                              // Available
+                              GestureDetector(
+                                onTap: () => setState(
+                                  () => tempSelectedFilter = 'available',
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: tempSelectedFilter == 'available'
+                                        ? _primary
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: tempSelectedFilter == 'available'
+                                          ? _primary
+                                          : Colors.grey.shade300,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Available',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight:
+                                          tempSelectedFilter == 'available'
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                      color: tempSelectedFilter == 'available'
+                                          ? Colors.white
+                                          : _textSecondary,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              _buildFilterOption(
-                                'Booked',
-                                'booked',
-                                tempSelectedFilter,
-                                setState,
+                              // Booked
+                              GestureDetector(
+                                onTap: () => setState(
+                                  () => tempSelectedFilter = 'booked',
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: tempSelectedFilter == 'booked'
+                                        ? _primary
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: tempSelectedFilter == 'booked'
+                                          ? _primary
+                                          : Colors.grey.shade300,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Booked',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: tempSelectedFilter == 'booked'
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                      color: tempSelectedFilter == 'booked'
+                                          ? Colors.white
+                                          : _textSecondary,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              _buildFilterOption(
-                                'Disabled',
-                                'disabled',
-                                tempSelectedFilter,
-                                setState,
+                              // Disabled
+                              GestureDetector(
+                                onTap: () => setState(
+                                  () => tempSelectedFilter = 'disabled',
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: tempSelectedFilter == 'disabled'
+                                        ? _primary
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: tempSelectedFilter == 'disabled'
+                                          ? _primary
+                                          : Colors.grey.shade300,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Disabled',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight:
+                                          tempSelectedFilter == 'disabled'
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                      color: tempSelectedFilter == 'disabled'
+                                          ? Colors.white
+                                          : _textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Offers
+                              GestureDetector(
+                                onTap: () => setState(
+                                  () => tempSelectedFilter = 'offers',
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: tempSelectedFilter == 'offers'
+                                        ? _primary
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: tempSelectedFilter == 'offers'
+                                          ? _primary
+                                          : Colors.grey.shade300,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Offers',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: tempSelectedFilter == 'offers'
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                      color: tempSelectedFilter == 'offers'
+                                          ? Colors.white
+                                          : _textSecondary,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -958,74 +1459,11 @@ class _PremiumSlotManagementScreenState
     );
   }
 
-  Widget _buildQuickDateRangeButton(
-    String label,
-    int days,
-    DateTime tempStartDate,
-    DateTime tempEndDate,
-    Function(void Function()) setState,
-  ) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          tempStartDate = DateTime.now();
-          tempEndDate = DateTime.now().add(Duration(days: days - 1));
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(fontSize: 13, color: _textSecondary),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilterOption(
-    String label,
-    String value,
-    String tempSelectedFilter,
-    Function(void Function()) setState,
-  ) {
-    bool selected = tempSelectedFilter == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          tempSelectedFilter = value;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? _primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? _primary : Colors.grey.shade300,
-            width: 1.5,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-            color: selected ? Colors.white : _textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showAddSlotDialog() {
     TimeOfDay selectedTime = const TimeOfDay(hour: 4, minute: 0);
     String price = '500';
     bool isDisabled = false;
+    DateTime selectedDate = _selectedDate;
 
     showDialog(
       context: context,
@@ -1033,6 +1471,10 @@ class _PremiumSlotManagementScreenState
         return StatefulBuilder(
           builder: (context, setState) {
             return Dialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 24,
+              ),
               backgroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
@@ -1041,315 +1483,349 @@ class _PremiumSlotManagementScreenState
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.9,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: _primary,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(20),
-                          topRight: Radius.circular(20),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.add,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Add New Time Slot',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Create a new booking slot',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.white.withOpacity(0.9),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.78,
+                  ),
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewInsets.bottom + 16,
                     ),
-
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Time Selection
-                          Text(
-                            'SELECT TIME',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _textSecondary,
-                              letterSpacing: 1,
+                    physics: const ClampingScrollPhysics(),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: _primary,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20),
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          GestureDetector(
-                            onTap: () async {
-                              final TimeOfDay? picked = await showTimePicker(
-                                context: context,
-                                initialTime: selectedTime,
-                                builder: (context, child) {
-                                  return Theme(
-                                    data: ThemeData.light().copyWith(
-                                      colorScheme: ColorScheme.light(
-                                        primary: _primary,
-                                        onPrimary: Colors.white,
-                                        surface: Colors.white,
-                                        onSurface: _textPrimary,
-                                      ),
-                                    ),
-                                    child: child!,
-                                  );
-                                },
-                              );
-                              if (picked != null) {
-                                setState(() => selectedTime = picked);
-                              }
-                            },
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: _bg,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey.shade200),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.add,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
                               ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Time',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: _textSecondary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        selectedTime.format(context),
-                                        style: TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w700,
-                                          color: _textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Slot will be: ${selectedTime.format(context)} - ${_calculateEndTime(selectedTime).format(context)}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: _textSecondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      color: _primary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      Icons.access_time,
-                                      color: _primary,
-                                      size: 24,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Price Input
-                          Text(
-                            'HOURLY PRICE',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _textSecondary,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _bg,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: Row(
-                              children: [
-                                Text(
-                                  '₹',
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    color: _primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    controller: TextEditingController(
-                                      text: price,
-                                    ),
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                      hintText: 'Enter amount',
-                                      hintStyle: TextStyle(color: Colors.grey),
-                                    ),
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w700,
-                                      color: _textPrimary,
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                    onChanged: (value) {
-                                      setState(() => price = value);
-                                    },
-                                  ),
-                                ),
-                                Text(
-                                  '/hour',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: _textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Status Toggle
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: _bg,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'SLOT STATUS',
+                                      'Add New Time Slot',
                                       style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: _textSecondary,
-                                        letterSpacing: 1,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      isDisabled ? 'Disabled' : 'Available',
+                                      'Create a new booking slot',
                                       style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDisabled ? _danger : _success,
+                                        fontSize: 13,
+                                        color: Colors.white.withOpacity(0.9),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Time Selection - Made wider
+                              Text(
+                                'SELECT TIME',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _textSecondary,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: () async {
+                                  final TimeOfDay?
+                                  picked = await showTimePicker(
+                                    context: context,
+                                    initialTime: selectedTime,
+                                    builder: (context, child) {
+                                      return MediaQuery(
+                                        data: MediaQuery.of(context).copyWith(
+                                          alwaysUse24HourFormat: false,
+                                        ),
+                                        child: Theme(
+                                          data: ThemeData.light().copyWith(
+                                            colorScheme: ColorScheme.light(
+                                              primary: _primary,
+                                              onPrimary: Colors.white,
+                                              surface: Colors.white,
+                                              onSurface: _textPrimary,
+                                            ),
+                                            timePickerTheme:
+                                                TimePickerThemeData(
+                                                  backgroundColor: Colors.white,
+                                                ),
+                                          ),
+                                          child: child!,
+                                        ),
+                                      );
+                                    },
+                                  );
+                                  if (picked != null) {
+                                    setState(() => selectedTime = picked);
+                                  }
+                                },
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(
+                                    20,
+                                  ), // Increased padding
+                                  decoration: BoxDecoration(
+                                    color: _bg,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Time',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: _textSecondary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              selectedTime.format(context),
+                                              style: TextStyle(
+                                                fontSize:
+                                                    28, // Increased font size
+                                                fontWeight: FontWeight.w700,
+                                                color: _textPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              'Slot will be: ${selectedTime.format(context)} - ${_calculateEndTime(selectedTime).format(context)}',
+                                              style: TextStyle(
+                                                fontSize:
+                                                    13, // Increased font size
+                                                color: _textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        width: 56, // Increased size
+                                        height: 56,
+                                        decoration: BoxDecoration(
+                                          color: _primary.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.access_time,
+                                          color: _primary,
+                                          size: 28, // Increased icon size
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+
+                              // Date Selection
+                              Text(
+                                'SELECT DATE',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _textSecondary,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: () async {
+                                  final DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selectedDate,
+                                    firstDate: DateTime.now().subtract(
+                                      const Duration(days: 365),
+                                    ),
+                                    lastDate: DateTime.now().add(
+                                      const Duration(days: 365),
+                                    ),
+                                  );
+                                  if (picked != null &&
+                                      picked != selectedDate) {
+                                    setState(() => selectedDate = picked);
+                                  }
+                                },
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: _bg,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.calendar_today,
+                                            color: _primary,
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            _isSameDate(
+                                                  selectedDate,
+                                                  DateTime.now(),
+                                                )
+                                                ? 'Today'
+                                                : _formatDate(selectedDate),
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: _textPrimary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Icon(Icons.edit, color: _textSecondary),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+
+                              // Price Input
+                              Text(
+                                'HOURLY PRICE',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _textSecondary,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12, // Increased padding
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _bg,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.grey.shade200,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      '₹',
+                                      style: TextStyle(
+                                        fontSize: 28, // Increased font size
+                                        fontWeight: FontWeight.w700,
+                                        color: _primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: TextEditingController(
+                                          text: price,
+                                        ),
+                                        decoration: const InputDecoration(
+                                          border: InputBorder.none,
+                                          hintText: 'Enter amount',
+                                          hintStyle: TextStyle(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: 28, // Increased font size
+                                          fontWeight: FontWeight.w700,
+                                          color: _textPrimary,
+                                        ),
+                                        keyboardType: TextInputType.number,
+                                        onChanged: (value) {
+                                          setState(() => price = value);
+                                        },
                                       ),
                                     ),
                                     Text(
-                                      isDisabled
-                                          ? 'Slot will not be bookable'
-                                          : 'Slot will be available for booking',
+                                      '/hour',
                                       style: TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 16, // Increased font size
                                         color: _textSecondary,
                                       ),
                                     ),
                                   ],
                                 ),
-                                Transform.scale(
-                                  scale: 1.2,
-                                  child: Switch(
-                                    value: !isDisabled,
-                                    onChanged: (value) {
-                                      setState(() => isDisabled = !value);
-                                    },
-                                    activeColor: _success,
-                                    inactiveThumbColor: _disabledColor,
-                                    activeTrackColor: _success.withOpacity(0.3),
-                                    inactiveTrackColor: _disabledColor
-                                        .withOpacity(0.3),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Preview
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: _primary.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: _primary.withOpacity(0.2),
                               ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'PREVIEW',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: _primary,
-                                    letterSpacing: 1,
+                              const SizedBox(height: 20),
+
+                              // Status Toggle
+                              Container(
+                                padding: const EdgeInsets.all(
+                                  20,
+                                ), // Increased padding
+                                decoration: BoxDecoration(
+                                  color: _bg,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.grey.shade200,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                Row(
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
                                       child: Column(
@@ -1357,189 +1833,295 @@ class _PremiumSlotManagementScreenState
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            '${selectedTime.format(context)} - ${_calculateEndTime(selectedTime).format(context)}',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                            'SLOT STATUS',
                                             style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w700,
-                                              color: _textPrimary,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: _textSecondary,
+                                              letterSpacing: 1,
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.currency_rupee,
-                                                size: 16,
-                                                color: _primary,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                '₹$price/hour',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  color: _primary,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      constraints: BoxConstraints(
-                                        maxWidth: 100,
-                                      ),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: isDisabled
-                                              ? _danger.withOpacity(0.1)
-                                              : _success.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                          border: Border.all(
-                                            color: isDisabled
-                                                ? _danger.withOpacity(0.3)
-                                                : _success.withOpacity(0.3),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              isDisabled
-                                                  ? Icons.block
-                                                  : Icons.check_circle,
-                                              size: 14,
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            isDisabled
+                                                ? 'Disabled'
+                                                : 'Available',
+                                            style: TextStyle(
+                                              fontSize:
+                                                  18, // Increased font size
+                                              fontWeight: FontWeight.w600,
                                               color: isDisabled
                                                   ? _danger
                                                   : _success,
                                             ),
-                                            const SizedBox(width: 6),
-                                            Flexible(
-                                              child: Text(
-                                                isDisabled
-                                                    ? 'DISABLED'
-                                                    : 'AVAILABLE',
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: isDisabled
-                                                      ? _danger
-                                                      : _success,
-                                                ),
-                                              ),
+                                          ),
+                                          Text(
+                                            isDisabled
+                                                ? 'Slot will not be bookable'
+                                                : 'Slot will be available for booking',
+                                            style: TextStyle(
+                                              fontSize:
+                                                  13, // Increased font size
+                                              color: _textSecondary,
                                             ),
-                                          ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Transform.scale(
+                                      scale: 1.3, // Increased switch size
+                                      child: Switch(
+                                        value: !isDisabled,
+                                        onChanged: (value) {
+                                          setState(() => isDisabled = !value);
+                                        },
+                                        activeColor: _success,
+                                        inactiveThumbColor: _disabledColor,
+                                        activeTrackColor: _success.withOpacity(
+                                          0.3,
                                         ),
+                                        inactiveTrackColor: _disabledColor
+                                            .withOpacity(0.3),
                                       ),
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
+                              ),
+                              const SizedBox(height: 24),
 
-                          // Actions
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
-                                    ),
-                                    side: BorderSide(
-                                      color: Colors.grey.shade400,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
+                              // Preview
+                              Container(
+                                padding: const EdgeInsets.all(
+                                  20,
+                                ), // Increased padding
+                                decoration: BoxDecoration(
+                                  color: _primary.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _primary.withOpacity(0.2),
                                   ),
-                                  child: Text(
-                                    'CANCEL',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: _textSecondary,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'PREVIEW',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: _primary,
+                                        letterSpacing: 1,
+                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                '${selectedTime.format(context)} - ${_calculateEndTime(selectedTime).format(context)}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize:
+                                                      20, // Increased font size
+                                                  fontWeight: FontWeight.w700,
+                                                  color: _textPrimary,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    '₹$price/hour',
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      fontSize:
+                                                          16, // Increased font size
+                                                      color: _primary,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          constraints: BoxConstraints(
+                                            maxWidth:
+                                                120, // Increased max width
+                                          ),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal:
+                                                  16, // Increased padding
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isDisabled
+                                                  ? _danger.withOpacity(0.1)
+                                                  : _success.withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: isDisabled
+                                                    ? _danger.withOpacity(0.3)
+                                                    : _success.withOpacity(0.3),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  isDisabled
+                                                      ? Icons.block
+                                                      : Icons.check_circle,
+                                                  size:
+                                                      16, // Increased icon size
+                                                  color: isDisabled
+                                                      ? _danger
+                                                      : _success,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Flexible(
+                                                  child: Text(
+                                                    isDisabled
+                                                        ? 'DISABLED'
+                                                        : 'AVAILABLE',
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      fontSize:
+                                                          13, // Increased font size
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: isDisabled
+                                                          ? _danger
+                                                          : _success,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      slots.add({
-                                        'time': selectedTime.format(context),
-                                        'endTime': _calculateEndTime(
-                                          selectedTime,
-                                        ).format(context),
-                                        'status': 'available',
-                                        'price': int.parse(price),
-                                        'customer': null,
-                                        'bookingId': null,
-                                        'disabled': isDisabled,
-                                      });
-                                      slots.sort((a, b) {
-                                        int hourA = _parseTimeTo24Hour(
-                                          a['time'],
-                                        );
-                                        int hourB = _parseTimeTo24Hour(
-                                          b['time'],
-                                        );
-                                        return hourA.compareTo(hourB);
-                                      });
-                                    });
-                                    Navigator.pop(context);
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: _primary,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    elevation: 2,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.add, size: 20),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'ADD SLOT',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
+                              const SizedBox(height: 24),
+
+                              // Actions
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 18, // Increased padding
+                                        ),
+                                        side: BorderSide(
+                                          color: Colors.grey.shade400,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                       ),
-                                    ],
+                                      child: Text(
+                                        'CANCEL',
+                                        style: TextStyle(
+                                          fontSize: 16, // Increased font size
+                                          fontWeight: FontWeight.w600,
+                                          color: _textSecondary,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(
+                                    width: 16,
+                                  ), // Increased spacing
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          slots.add({
+                                            'time': selectedTime.format(
+                                              context,
+                                            ),
+                                            'endTime': _calculateEndTime(
+                                              selectedTime,
+                                            ).format(context),
+                                            'date': selectedDate,
+                                            'status': 'available',
+                                            'price': int.parse(price),
+                                            'customer': null,
+                                            'bookingId': null,
+                                            'disabled': isDisabled,
+                                            'originalPrice': int.parse(price),
+                                          });
+                                          slots.sort((a, b) {
+                                            int hourA = _parseTimeTo24Hour(
+                                              a['time'],
+                                            );
+                                            int hourB = _parseTimeTo24Hour(
+                                              b['time'],
+                                            );
+                                            return hourA.compareTo(hourB);
+                                          });
+                                        });
+                                        Navigator.pop(context);
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: _primary,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 18, // Increased padding
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        elevation: 2,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.add, size: 22),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            'ADD SLOT',
+                                            style: TextStyle(
+                                              fontSize:
+                                                  16, // Increased font size
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             );
@@ -1748,6 +2330,10 @@ class _PremiumSlotManagementScreenState
     return '${date.day} ${monthNames[date.month - 1]}';
   }
 
+  bool _isSameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
   String _formatEmergencyDateRange() {
     if (_emergencyStartDate == null || _emergencyEndDate == null) {
       return 'Select date range';
@@ -1762,6 +2348,8 @@ class _PremiumSlotManagementScreenState
         ? slots
         : _selectedFilter == 'disabled'
         ? slots.where((slot) => slot['disabled'] == true).toList()
+        : _selectedFilter == 'offers'
+        ? slots.where((slot) => _offerSlots.contains(slot['time'])).toList()
         : slots.where((slot) => slot['status'] == _selectedFilter).toList();
 
     return Scaffold(
@@ -1841,6 +2429,12 @@ class _PremiumSlotManagementScreenState
                     '$blockedCount',
                     Icons.block,
                     _danger,
+                  ),
+                  _buildCompactStatCard(
+                    'Offers',
+                    '$offerCount',
+                    Icons.local_offer,
+                    _offerColor,
                   ),
                 ],
               ),
@@ -1962,16 +2556,6 @@ class _PremiumSlotManagementScreenState
                                       ),
                                     ],
                                   ),
-                                ),
-                                IconButton(
-                                  onPressed: _toggleEmergencyMode,
-                                  icon: Icon(
-                                    Icons.close,
-                                    size: 18,
-                                    color: _danger,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
                                 ),
                               ],
                             ),
@@ -2120,6 +2704,7 @@ class _PremiumSlotManagementScreenState
     bool isBooked = slot['status'] == 'booked';
     bool isAvailable = slot['status'] == 'available';
     bool isDisabled = slot['disabled'] == true;
+    bool hasOffer = _offerSlots.contains(slot['time']);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -2146,41 +2731,121 @@ class _PremiumSlotManagementScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '${slot['time']} - ${slot['endTime']}',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: isDisabled ? _disabledColor : _textPrimary,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
+                      // Time with inline Date badge
                       Row(
                         children: [
-                          Icon(
-                            Icons.currency_rupee,
-                            size: 16,
-                            color: isDisabled ? _disabledColor : _primary,
+                          Expanded(
+                            child: Text(
+                              '${slot['time']} - ${slot['endTime']}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: isDisabled
+                                    ? _disabledColor
+                                    : _textPrimary,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
                           ),
-                          const SizedBox(width: 4),
+                          // Date badge inline with time
+                          if (slot.containsKey('date') && slot['date'] != null)
+                            Builder(
+                              builder: (context) {
+                                DateTime? slotDate;
+                                if (slot['date'] is DateTime) {
+                                  slotDate = slot['date'] as DateTime;
+                                } else if (slot['date'] is String) {
+                                  try {
+                                    slotDate = DateTime.parse(slot['date']);
+                                  } catch (_) {
+                                    slotDate = null;
+                                  }
+                                }
+                                if (slotDate == null) return const SizedBox();
+                                final bool isToday = _isSameDate(
+                                  slotDate,
+                                  DateTime.now(),
+                                );
+                                final bool isTomorrow = _isSameDate(
+                                  slotDate,
+                                  DateTime.now().add(const Duration(days: 1)),
+                                );
+
+                                String dateLabel;
+                                Color badgeColor;
+
+                                if (isToday) {
+                                  dateLabel = 'Today';
+                                  badgeColor = _primary;
+                                } else if (isTomorrow) {
+                                  dateLabel = 'Tomorrow';
+                                  badgeColor = Colors.orange;
+                                } else {
+                                  dateLabel = _formatDate(slotDate);
+                                  badgeColor = Colors.blue;
+                                }
+
+                                return Container(
+                                  margin: const EdgeInsets.only(left: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: badgeColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: badgeColor.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    dateLabel,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: badgeColor,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
                           Text(
                             '₹${slot['price']}',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: isDisabled ? _disabledColor : _primary,
+                              color: hasOffer
+                                  ? _offerColor
+                                  : (isDisabled ? _disabledColor : _primary),
                             ),
                           ),
+                          if (hasOffer && slot['originalPrice'] != null)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Text(
+                                '₹${slot['originalPrice']}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _textSecondary,
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ],
                   ),
                 ),
 
-                // Status Badge - Fixed overflow by adding constraints
+                // Status Badge
                 Container(
-                  constraints: BoxConstraints(maxWidth: 150),
+                  constraints: const BoxConstraints(maxWidth: 150),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 6,
@@ -2221,7 +2886,7 @@ class _PremiumSlotManagementScreenState
             margin: const EdgeInsets.symmetric(horizontal: 16),
           ),
 
-          // Customer Info or Actions - Fixed the overflow issue here
+          // Customer Info or Actions
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -2255,21 +2920,21 @@ class _PremiumSlotManagementScreenState
                     ),
                   ),
 
-                  // Fixed IconButton to prevent overflow
-                  Container(
-                    width: 40,
-                    child: IconButton(
-                      onPressed: () => _showBookingDetails(slot),
-                      icon: Icon(Icons.chevron_right, color: _textSecondary),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
+                  IconButton(
+                    onPressed: () => _showBookingDetails(slot),
+                    icon: Icon(Icons.chevron_right, color: _textSecondary),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
                 ] else ...[
                   Icon(
-                    isDisabled ? Icons.block : Icons.lock_open,
+                    hasOffer
+                        ? Icons.local_offer
+                        : (isDisabled ? Icons.block : Icons.lock_open),
                     size: 18,
-                    color: isDisabled ? _disabledColor : _success,
+                    color: hasOffer
+                        ? _offerColor
+                        : (isDisabled ? _disabledColor : _success),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -2277,17 +2942,22 @@ class _PremiumSlotManagementScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isDisabled
-                              ? 'Slot is disabled'
-                              : 'Slot is available for booking',
+                          hasOffer
+                              ? 'Special offer available'
+                              : (isDisabled
+                                    ? 'Slot is disabled'
+                                    : 'Slot is available for booking'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 14,
-                            color: isDisabled ? _disabledColor : _textSecondary,
+                            color: hasOffer
+                                ? _offerColor
+                                : (isDisabled
+                                      ? _disabledColor
+                                      : _textSecondary),
                           ),
                         ),
-
                         if (isDisabled && _emergencyMode)
                           Text(
                             'Emergency: ${_formatEmergencyDateRange()}',
@@ -2298,7 +2968,42 @@ class _PremiumSlotManagementScreenState
                       ],
                     ),
                   ),
-                  // Fixed Switch with proper constraints
+
+                  // Set Offer Button (only for available slots)
+                  if (isAvailable && !isDisabled)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      child: ElevatedButton.icon(
+                        onPressed: () => _toggleOfferSlot(index),
+                        icon: Icon(
+                          hasOffer
+                              ? Icons.local_offer
+                              : Icons.local_offer_outlined,
+                          size: 16,
+                        ),
+                        label: Text(
+                          hasOffer ? 'Remove Offer' : 'Set Offer',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: hasOffer
+                              ? _offerColor.withOpacity(0.1)
+                              : _offerColor,
+                          foregroundColor: hasOffer
+                              ? _offerColor
+                              : Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Switch for enabling/disabling
                   Container(
                     width: 50,
                     child: Switch(

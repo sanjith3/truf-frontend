@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:turfzone/features/home/user_home_screen.dart';
 import 'package:turfzone/features/editslottime/edit_turf_screen.dart';
-import '../bookings/my_bookings_screen.dart';
+import 'my_bookings_screen.dart';
+import 'package:turfzone/models/booking.dart';
+
+
 import 'package:turfzone/features/turfslot/slot_management_screen.dart';
 import 'package:turfzone/features/partner/join_partner_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -80,6 +83,13 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
+
+bool isSameDay(DateTime a, DateTime b) {
+  return a.year == b.year &&
+         a.month == b.month &&
+         a.day == b.day;
+}
+
   Future<void> _loadRegisteredTurf() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -87,12 +97,13 @@ class _AdminScreenState extends State<AdminScreen> {
       _userPhone = prefs.getString('userPhone') ?? "";
       _userEmail = prefs.getString('userEmail') ?? "";
       _businessName = prefs.getString('businessName') ?? "";
-      
+
       _registeredTurfNames = prefs.getStringList('registeredTurfNames') ?? [];
       _registeredTurfName = prefs.getString('registeredTurfName');
 
       // Fix: Ensure the legacy single turf name is included in the list for consistent loading
-      if (_registeredTurfName != null && !_registeredTurfNames.contains(_registeredTurfName)) {
+      if (_registeredTurfName != null &&
+          !_registeredTurfNames.contains(_registeredTurfName)) {
         _registeredTurfNames.add(_registeredTurfName!);
       }
 
@@ -101,7 +112,9 @@ class _AdminScreenState extends State<AdminScreen> {
       // Load from hardcoded static list first if matches found
       Set<String> processedNames = {};
       for (var name in _registeredTurfNames) {
-        final matches = adminTurfs.where((t) => t.name.toLowerCase() == name.toLowerCase()).toList();
+        final matches = adminTurfs
+            .where((t) => t.name.toLowerCase() == name.toLowerCase())
+            .toList();
         _filteredAdminTurfs.addAll(matches);
         if (matches.isNotEmpty) processedNames.add(name.toLowerCase());
       }
@@ -113,12 +126,12 @@ class _AdminScreenState extends State<AdminScreen> {
           // Check specific turf data first, then fall back to general legacy keys if it's the main turf
           String? loc = prefs.getString('turf_data_${name}_location');
           int? price = prefs.getInt('turf_data_${name}_price');
-          
+
           if (loc == null && name == _registeredTurfName) {
             loc = prefs.getString('registeredLocation');
             price = prefs.getInt('registeredPrice');
           }
-          
+
           _filteredAdminTurfs.add(
             AdminTurf(
               id: 'reg_${name}_${DateTime.now().millisecondsSinceEpoch}',
@@ -137,11 +150,11 @@ class _AdminScreenState extends State<AdminScreen> {
               todayBookings: 0,
               todayRevenue: 0,
               availableSlots: 24,
-            )
+            ),
           );
         }
       }
-      
+
       _updateNavScreens();
     });
   }
@@ -193,10 +206,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 children: [
                   const Text(
                     "Partner Profile",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
@@ -210,34 +220,64 @@ class _AdminScreenState extends State<AdminScreen> {
                 style: TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 30),
-              _buildProfileField("Full Name", nameController, Icons.person_outline),
+              _buildProfileField(
+                "Full Name",
+                nameController,
+                Icons.person_outline,
+              ),
               const SizedBox(height: 20),
-              _buildProfileField("Phone Number", phoneController, Icons.phone_android_outlined),
+              _buildProfileField(
+                "Phone Number",
+                phoneController,
+                Icons.phone_android_outlined,
+              ),
               const SizedBox(height: 20),
-              _buildProfileField("Email Address", emailController, Icons.email_outlined),
+              _buildProfileField(
+                "Email Address",
+                emailController,
+                Icons.email_outlined,
+              ),
               const SizedBox(height: 20),
-              _buildProfileField("Business/Brand Name", businessController, Icons.business_outlined),
+              _buildProfileField(
+                "Business/Brand Name",
+                businessController,
+                Icons.business_outlined,
+              ),
               const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () async {
                     final prefs = await SharedPreferences.getInstance();
-                    await prefs.setString('userName', nameController.text.trim());
-                    await prefs.setString('userPhone', phoneController.text.trim());
-                    await prefs.setString('userEmail', emailController.text.trim());
-                    await prefs.setString('businessName', businessController.text.trim());
-                    
+                    await prefs.setString(
+                      'userName',
+                      nameController.text.trim(),
+                    );
+                    await prefs.setString(
+                      'userPhone',
+                      phoneController.text.trim(),
+                    );
+                    await prefs.setString(
+                      'userEmail',
+                      emailController.text.trim(),
+                    );
+                    await prefs.setString(
+                      'businessName',
+                      businessController.text.trim(),
+                    );
+
                     setState(() {
                       _userName = nameController.text.trim();
                       _userPhone = phoneController.text.trim();
                       _userEmail = emailController.text.trim();
                       _businessName = businessController.text.trim();
                     });
-                    
+
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Profile updated successfully")),
+                      const SnackBar(
+                        content: Text("Profile updated successfully"),
+                      ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -265,7 +305,11 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  Widget _buildProfileField(String label, TextEditingController controller, IconData icon) {
+  Widget _buildProfileField(
+    String label,
+    TextEditingController controller,
+    IconData icon,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -382,7 +426,9 @@ class _AdminScreenState extends State<AdminScreen> {
   double get totalRevenue {
     final now = DateTime.now();
     return _turfService.bookings
-        .where((b) => b.status == BookingStatus.completed && isSameDay(b.date, now))
+        .where(
+          (b) => b.status == BookingStatus.completed && isSameDay(b.date, now),
+        )
         .where((b) => _filteredAdminTurfs.any((t) => t.name == b.turfName))
         .fold(0, (sum, b) => sum + b.amount);
   }
@@ -401,7 +447,7 @@ class _AdminScreenState extends State<AdminScreen> {
   double get averageRating => _filteredAdminTurfs.isEmpty
       ? 0
       : _filteredAdminTurfs.fold<double>(0, (sum, turf) => sum + turf.rating) /
-          _filteredAdminTurfs.length;
+            _filteredAdminTurfs.length;
 
   // Navigation Screens
   List<Widget> _navScreens = [];
@@ -410,7 +456,11 @@ class _AdminScreenState extends State<AdminScreen> {
     setState(() {
       _navScreens = [
         _buildDashboard(),
-        ReportsScreen(registeredTurfNames: _registeredTurfNames.isNotEmpty ? _registeredTurfNames : (_registeredTurfName != null ? [_registeredTurfName!] : null)),
+        ReportsScreen(
+          registeredTurfNames: _registeredTurfNames.isNotEmpty
+              ? _registeredTurfNames
+              : (_registeredTurfName != null ? [_registeredTurfName!] : null),
+        ),
       ];
     });
   }
@@ -457,23 +507,26 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_navScreens.isEmpty) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    
+    if (_navScreens.isEmpty)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      // Remove fixed AppBar from here to allow full scrolling
-      body: Column(
-        children: [
-          Expanded(child: _navScreens[_selectedNavIndex]),
-          _buildBottomNavigationBar(),
-        ],
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Expanded(child: _navScreens[_selectedNavIndex]),
+            _buildBottomNavigationBar(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildAppBar() {
     return Container(
-      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 10, bottom: 20, left: 20, right: 20),
+      padding: const EdgeInsets.only(top: 15, bottom: 20, left: 20, right: 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -499,26 +552,28 @@ class _AdminScreenState extends State<AdminScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome $_userName 👋',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome $_userName 👋',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Managing ${_filteredAdminTurfs.length} turfs',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Managing ${_filteredAdminTurfs.length} turfs',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               // Add + icon next to profile
               Row(
@@ -559,7 +614,9 @@ class _AdminScreenState extends State<AdminScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withOpacity(0.3)),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.3),
+                        ),
                       ),
                       child: const Icon(
                         Icons.person,
@@ -610,109 +667,111 @@ class _AdminScreenState extends State<AdminScreen> {
     required IconData icon,
     required Color color,
   }) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 22, color: color),
           ),
-          child: Icon(icon, size: 22, color: color),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.9)),
-        ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.9),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildDashboard() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildAppBar(),
-          
-          Padding(
+    return Column(
+      children: [
+        _buildAppBar(),
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-
-            // Section Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Turf Management',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: primaryGreen.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${_filteredAdminTurfs.where((t) => t.isActive).length} Active',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: primaryGreen,
+                // Section Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Turf Management',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
                     ),
-                  ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: primaryGreen.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_filteredAdminTurfs.where((t) => t.isActive).length} Active',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: primaryGreen,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
 
-            const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-            Text(
-              'Manage your turfs, slots, and bookings',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            ),
+                Text(
+                  'Manage your turfs, slots, and bookings',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
 
-            const SizedBox(height: 25),
+                const SizedBox(height: 25),
 
-            // Turf Cards
-            ListView.separated(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemCount: _filteredAdminTurfs.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                final turf = _filteredAdminTurfs[index];
-                return _buildTurfCard(turf);
-              },
-            ),
+                // Turf Cards
+                ..._filteredAdminTurfs.map((turf) {
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: _buildTurfCard(turf),
+                  );
+                }).toList(),
 
-            const SizedBox(height: 20),
+                const SizedBox(height: 20),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1011,26 +1070,35 @@ class _AdminScreenState extends State<AdminScreen> {
     required String label,
     required Color color,
   }) {
-    return Column(
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.black87,
+    return Expanded(
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 6),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-      ],
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 
@@ -1066,19 +1134,17 @@ class _AdminScreenState extends State<AdminScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey[300]!)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
       child: SafeArea(
+        top: false,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
@@ -1109,12 +1175,12 @@ class _AdminScreenState extends State<AdminScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
         decoration: BoxDecoration(
           color: isSelected
               ? primaryGreen.withOpacity(0.1)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
