@@ -1,6 +1,8 @@
 // slot_management_screen.dart - PREMIUM ADMIN UI WITH ADVANCED FEATURES
 import 'package:flutter/material.dart';
 import '../../services/offer_slot_service.dart';
+import '../../services/turf_data_service.dart';
+import '../../models/booking.dart';
 
 class PremiumSlotManagementScreen extends StatefulWidget {
   final dynamic turf;
@@ -24,187 +26,8 @@ class _PremiumSlotManagementScreenState
   String _emergencyReason = '';
   List<String> _offerSlots = []; // Loaded from service
 
-  @override
-  void initState() {
-    super.initState();
-    _loadOfferSlots();
-  }
-
-  Future<void> _loadOfferSlots() async {
-    final offerSlots = await OfferSlotService.getOfferSlots();
-    setState(() {
-      _offerSlots = offerSlots;
-    });
-  }
-
   // Slot data
-  List<Map<String, dynamic>> slots = [
-    {
-      'time': '6:00 AM',
-      'endTime': '7:00 AM',
-      'status': 'available',
-      'price': 500,
-      'customer': null,
-      'bookingId': null,
-      'disabled': false,
-      'originalPrice': 500,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '7:00 AM',
-      'endTime': '8:00 AM',
-      'status': 'booked',
-      'price': 500,
-      'customer': 'Rajesh Kumar',
-      'bookingId': 'BK-001',
-      'disabled': false,
-      'originalPrice': 500,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '8:00 AM',
-      'endTime': '9:00 AM',
-      'status': 'booked',
-      'price': 500,
-      'customer': 'Team Alpha',
-      'bookingId': 'BK-002',
-      'disabled': false,
-      'originalPrice': 500,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '9:00 AM',
-      'endTime': '10:00 AM',
-      'status': 'available',
-      'price': 600,
-      'customer': null,
-      'bookingId': null,
-      'disabled': false,
-      'originalPrice': 600,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '10:00 AM',
-      'endTime': '11:00 AM',
-      'status': 'booked',
-      'price': 600,
-      'customer': 'Priya Sharma',
-      'bookingId': 'BK-003',
-      'disabled': false,
-      'originalPrice': 600,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '11:00 AM',
-      'endTime': '12:00 PM',
-      'status': 'available',
-      'price': 600,
-      'customer': null,
-      'bookingId': null,
-      'disabled': true,
-      'originalPrice': 600,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '12:00 PM',
-      'endTime': '1:00 PM',
-      'status': 'booked',
-      'price': 700,
-      'customer': 'Vikram Singh',
-      'bookingId': 'BK-004',
-      'disabled': false,
-      'originalPrice': 700,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '1:00 PM',
-      'endTime': '2:00 PM',
-      'status': 'available',
-      'price': 700,
-      'customer': null,
-      'bookingId': null,
-      'disabled': false,
-      'originalPrice': 700,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '2:00 PM',
-      'endTime': '3:00 PM',
-      'status': 'booked',
-      'price': 700,
-      'customer': 'Anita Rao',
-      'bookingId': 'BK-005',
-      'disabled': false,
-      'originalPrice': 700,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '3:00 PM',
-      'endTime': '4:00 PM',
-      'status': 'booked',
-      'price': 800,
-      'customer': 'Rahul Mehta',
-      'bookingId': 'BK-006',
-      'disabled': false,
-      'originalPrice': 800,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '4:00 PM',
-      'endTime': '5:00 PM',
-      'status': 'booked',
-      'price': 800,
-      'customer': 'Suresh Kumar',
-      'bookingId': 'BK-007',
-      'disabled': false,
-      'originalPrice': 800,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '5:00 PM',
-      'endTime': '6:00 PM',
-      'status': 'available',
-      'price': 800,
-      'customer': null,
-      'bookingId': null,
-      'disabled': false,
-      'originalPrice': 800,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '6:00 PM',
-      'endTime': '7:00 PM',
-      'status': 'booked',
-      'price': 900,
-      'customer': 'Neha Gupta',
-      'bookingId': 'BK-008',
-      'disabled': false,
-      'originalPrice': 900,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '7:00 PM',
-      'endTime': '8:00 PM',
-      'status': 'available',
-      'price': 900,
-      'customer': null,
-      'bookingId': null,
-      'disabled': false,
-      'originalPrice': 900,
-      'date': DateTime.now(),
-    },
-    {
-      'time': '8:00 PM',
-      'endTime': '9:00 PM',
-      'status': 'booked',
-      'price': 1000,
-      'customer': 'Amit Sharma',
-      'bookingId': 'BK-009',
-      'disabled': false,
-      'originalPrice': 1000,
-      'date': DateTime.now(),
-    },
-  ];
+  List<Map<String, dynamic>> slots = [];
 
   // Colors
   final Color _primary = const Color(0xFF00C853);
@@ -218,6 +41,150 @@ class _PremiumSlotManagementScreenState
   final Color _textPrimary = const Color(0xFF1A1A1A);
   final Color _textSecondary = const Color(0xFF666666);
   final Color _disabledColor = const Color(0xFF9E9E9E);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOfferSlots();
+  }
+
+  Future<void> _loadOfferSlots() async {
+    final offerSlots = await OfferSlotService.getOfferSlots();
+    if (mounted) {
+      setState(() {
+        _offerSlots = offerSlots;
+      });
+      _generateSlots();
+    }
+  }
+  
+  void _generateSlots() {
+    final turfName = widget.turf?.name ?? '';
+    final List<Map<String, dynamic>> saved = TurfDataService().getSavedSlots(turfName, _selectedDate) ?? [];
+    
+    // Get bookings for this turf and date for real-time reconciliation
+    final bookings = TurfDataService().bookings.where((b) => 
+      b.turfName == turfName && 
+      b.date.year == _selectedDate.year &&
+      b.date.month == _selectedDate.month &&
+      b.date.day == _selectedDate.day &&
+      b.status != BookingStatus.cancelled
+    ).toList();
+
+    if (saved.isNotEmpty) {
+      setState(() {
+        // Load saved slots and reconcile status with real bookings
+        slots = saved.map((s) {
+          final slotMap = Map<String, dynamic>.from(s);
+          // Re-check booking status
+          Booking? booking;
+          final matchingBookings = bookings.where(
+            (b) => '${b.startTime} - ${b.endTime}' == slotMap['time']
+          ).toList();
+          
+          if (matchingBookings.isNotEmpty) {
+            booking = matchingBookings.first;
+            slotMap['status'] = 'booked';
+            slotMap['customer'] = booking.userName;
+            slotMap['userPhone'] = booking.userPhone;
+            slotMap['bookingId'] = booking.bookingId;
+          } else if (slotMap['status'] == 'booked') {
+            // If it was booked but now booking is gone, set to available
+            slotMap['status'] = 'available';
+            slotMap['customer'] = null;
+            slotMap['bookingId'] = null;
+          }
+          return slotMap;
+        }).toList();
+      });
+      return;
+    }
+    
+    final List<Map<String, dynamic>> newSlots = [];
+    final defaultPrice = widget.turf?.price ?? 500;
+    
+    // Generate slots from 6 AM to 1 AM next day
+    for (int hour = 6; hour <= 23; hour++) {
+      _addSlot(hour, newSlots, bookings, defaultPrice);
+    }
+    
+    // Midnight slot
+    _addSlot(0, newSlots, bookings, defaultPrice);
+
+    setState(() {
+      slots = newSlots;
+    });
+    
+    // Save generated defaults
+    TurfDataService().saveSlots(turfName, _selectedDate, slots);
+  }
+
+  void _addSlot(int hour, List<Map<String, dynamic>> slotList, List<dynamic> bookings, int defaultPrice) {
+    bool isAM = hour < 12;
+    String period = isAM ? 'AM' : 'PM';
+    int displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    
+    int nextHour = hour + 1;
+    if (nextHour == 24) nextHour = 0;
+    bool nextIsAM = nextHour < 12;
+    String nextPeriod = nextIsAM ? 'AM' : 'PM';
+    int nextDisplayHour = nextHour > 12 ? nextHour - 12 : (nextHour == 0 ? 12 : nextHour);
+
+    String startTime = '$displayHour:00 $period';
+    String endTime = '$nextDisplayHour:00 $nextPeriod';
+    String timeKey = '$startTime - $endTime';
+    
+    // Check if booked
+    Booking? booking;
+    final matchingBookings = bookings.where(
+      (b) => '${b.startTime} - ${b.endTime}' == timeKey
+    ).toList();
+    
+    if (matchingBookings.isNotEmpty) {
+      booking = matchingBookings.first as Booking;
+    }
+
+    bool isBooked = booking != null;
+
+    bool isEmergencyForDate = _emergencyMode;
+    if (_emergencyMode &&
+        _emergencyStartDate != null &&
+        _emergencyEndDate != null) {
+      DateTime date = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+      );
+      DateTime start = DateTime(
+        _emergencyStartDate!.year,
+        _emergencyStartDate!.month,
+        _emergencyStartDate!.day,
+      );
+      DateTime end = DateTime(
+        _emergencyEndDate!.year,
+        _emergencyEndDate!.month,
+        _emergencyEndDate!.day,
+      );
+
+      isEmergencyForDate =
+          (date.isAtSameMomentAs(start) || date.isAfter(start)) &&
+          (date.isAtSameMomentAs(end) || date.isBefore(end));
+    }
+
+    slotList.add({
+      'time': timeKey, // Fixed format for compatibility
+      'startTime': startTime,
+      'endTime': endTime,
+      'status': isBooked ? 'booked' : 'available',
+      'price': defaultPrice,
+      'customer': isBooked ? (booking?.userName ?? 'Unknown') : null,
+      'userPhone': isBooked ? (booking?.userPhone ?? '') : null,
+      'bookingId': isBooked ? (booking?.bookingId ?? '') : null,
+      'disabled': isEmergencyForDate,
+      'originalPrice': defaultPrice,
+      'date': _selectedDate,
+    });
+  }
 
   // Calculate stats
   int get availableCount =>
@@ -283,6 +250,9 @@ class _PremiumSlotManagementScreenState
         slots[index]['disabled'] = value;
       }
     });
+    // Save the updated slots list
+    final turfName = widget.turf?.name ?? '';
+    TurfDataService().saveSlots(turfName, _selectedDate, slots);
   }
 
   void _toggleEmergencyMode() {
@@ -312,6 +282,9 @@ class _PremiumSlotManagementScreenState
                       slot['disabled'] = false;
                     }
                   }
+                  // Save the updated slots list
+                  final turfName = widget.turf?.name ?? '';
+                  TurfDataService().saveSlots(turfName, _selectedDate, slots);
                 });
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -569,14 +542,18 @@ class _PremiumSlotManagementScreenState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Disable all available slots for the selected date range:',
-                    style: TextStyle(fontSize: 14, color: _textSecondary),
                   ),
                   const SizedBox(height: 20),
 
                   // Start Date
-                  GestureDetector(
+                  ListTile(
+                    title: const Text('Start Date'),
+                    subtitle: Text(
+                      '${tempStartDate.day} ${_getMonthName(tempStartDate.month)} ${tempStartDate.year}',
+                    ),
+                    trailing: const Icon(Icons.calendar_today),
                     onTap: () async {
                       final DateTime? picked = await showDatePicker(
                         context: context,
@@ -595,47 +572,15 @@ class _PremiumSlotManagementScreenState
                         });
                       }
                     },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _bg,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.calendar_today, size: 18, color: _primary),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Start Date',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: _textSecondary,
-                                  ),
-                                ),
-                                Text(
-                                  '${tempStartDate.day} ${_getMonthName(tempStartDate.month)} ${tempStartDate.year}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: _textPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
-                  const SizedBox(height: 12),
 
                   // End Date
-                  GestureDetector(
+                  ListTile(
+                    title: const Text('End Date'),
+                    subtitle: Text(
+                      '${tempEndDate.day} ${_getMonthName(tempEndDate.month)} ${tempEndDate.year}',
+                    ),
+                    trailing: const Icon(Icons.calendar_today),
                     onTap: () async {
                       final DateTime? picked = await showDatePicker(
                         context: context,
@@ -649,85 +594,20 @@ class _PremiumSlotManagementScreenState
                         });
                       }
                     },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _bg,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.calendar_today, size: 18, color: _primary),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'End Date',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: _textSecondary,
-                                  ),
-                                ),
-                                Text(
-                                  '${tempEndDate.day} ${_getMonthName(tempEndDate.month)} ${tempEndDate.year}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: _textPrimary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Date Range: ${tempStartDate.day}${_getOrdinalSuffix(tempStartDate.day)} ${_getMonthName(tempStartDate.month)} to ${tempEndDate.day}${_getOrdinalSuffix(tempEndDate.day)} ${_getMonthName(tempEndDate.month)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Total Days: ${tempEndDate.difference(tempStartDate).inDays + 1}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+
                   const SizedBox(height: 16),
 
                   // Reason/Description
-                  Text(
+                  const Text(
                     'Emergency Reason (Optional)',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _textPrimary,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Enter reason for emergency mode...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: _primary),
-                      ),
-                      contentPadding: const EdgeInsets.all(12),
+                    decoration: const InputDecoration(
+                      hintText: 'Enter reason...',
+                      border: OutlineInputBorder(),
                     ),
                     maxLines: 3,
                     onChanged: (value) {
@@ -744,18 +624,20 @@ class _PremiumSlotManagementScreenState
               ),
               ElevatedButton(
                 onPressed: () {
-                  setState(() {
+                  // Apply emergency mode logic here
+                    setState(() {
                     _emergencyMode = true;
                     _emergencyStartDate = tempStartDate;
                     _emergencyEndDate = tempEndDate;
                     _emergencyReason = tempReason;
-                    for (var slot in slots) {
-                      if (slot['status'] == 'available') {
-                        slot['disabled'] = true;
-                      }
-                    }
+                    // Note: In a real app this would call an API
+                    // For now we just update local state which affects _generateSlots
                   });
                   Navigator.pop(context);
+                  this.setState(() {
+                     _generateSlots(); // Regenerate slots to reflect disabled status
+                  });
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text('Emergency mode enabled'),
@@ -2080,6 +1962,9 @@ class _PremiumSlotManagementScreenState
                                             );
                                             return hourA.compareTo(hourB);
                                           });
+                                          // Save the updated slots list
+                                          final turfName = widget.turf?.name ?? '';
+                                          TurfDataService().saveSlots(turfName, _selectedDate, slots);
                                         });
                                         Navigator.pop(context);
                                       },
@@ -2398,6 +2283,81 @@ class _PremiumSlotManagementScreenState
       body: SingleChildScrollView(
         child: Column(
           children: [
+            // Date Selector
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.calendar_month, color: _primary),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Selected Date',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${_selectedDate.day} ${_getMonthName(_selectedDate.month)}, ${_selectedDate.year}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: _textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: _selectedDate,
+                        firstDate: DateTime.now().subtract(
+                          const Duration(days: 365),
+                        ),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null && picked != _selectedDate) {
+                        setState(() {
+                          _selectedDate = picked;
+                        });
+                        _generateSlots();
+                      }
+                    },
+                    icon: const Icon(Icons.edit_calendar),
+                    color: _primary,
+                    tooltip: 'Change Date',
+                  ),
+                ],
+              ),
+            ),
+
             // Compact Stats Cards
             Container(
               color: Colors.white,

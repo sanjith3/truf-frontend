@@ -23,6 +23,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userPhone = "+91 98765 43210";
   File? _userImage;
   bool _isPartner = false;
+  String _memberSince = "Jan 2023";
 
   @override
   void initState() {
@@ -47,14 +48,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
       String? phone = prefs.getString('userPhone');
       _userPhone = phone != null ? "+91 $phone" : "Phone number not set";
       _isPartner = prefs.getBool('isPartner') ?? false;
+      
+      // Load registration date
+      if (phone != null) {
+        final regDateStr = prefs.getString('registrationDate_$phone');
+        if (regDateStr != null) {
+          try {
+            final regDate = DateTime.parse(regDateStr);
+            final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            _memberSince = '${months[regDate.month - 1]} ${regDate.year}';
+          } catch (e) {
+            // Use default if parsing fails
+            _memberSince = 'Jan 2023';
+          }
+        }
+      }
     });
   }
   Widget build(BuildContext context) {
-    // Mock data
     final userStats = {
       'totalBookings': 24,
       'credits': 1250,
-      'memberSince': 'Jan 2023',
+      'memberSince': _memberSince,
     };
 
     return Scaffold(

@@ -1,5 +1,5 @@
 import '../models/turf.dart';
-import '../features/bookings/my_bookings_screen.dart';
+import '../models/booking.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -9,6 +9,45 @@ class TurfDataService extends ChangeNotifier {
   factory TurfDataService() => _instance;
   TurfDataService._internal() {
     _loadSavedTurfs();
+    _loadCustomSlots();
+  }
+
+  // Key: "turfName_YYYY-MM-DD" -> List of slot maps
+  final Map<String, List<Map<String, dynamic>>> _customSlots = {};
+
+  Future<void> saveSlots(String turfName, DateTime date, List<Map<String, dynamic>> slots) async {
+    final key = "${turfName}_${date.year}-${date.month}-${date.day}";
+    _customSlots[key] = slots;
+    await _persistCustomSlots();
+    notifyListeners();
+  }
+
+  List<Map<String, dynamic>>? getSavedSlots(String turfName, DateTime date) {
+    final key = "${turfName}_${date.year}-${date.month}-${date.day}";
+    return _customSlots[key];
+  }
+
+  Future<void> _persistCustomSlots() async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('custom_slots_data', jsonEncode(_customSlots));
+  }
+
+  Future<void> _loadCustomSlots() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? data = prefs.getString('custom_slots_data');
+    if (data != null) {
+      try {
+        final decoded = jsonDecode(data) as Map<String, dynamic>;
+        decoded.forEach((key, value) {
+          _customSlots[key] = List<Map<String, dynamic>>.from(
+            (value as List).map((i) => Map<String, dynamic>.from(i))
+          );
+        });
+        notifyListeners();
+      } catch (e) {
+        debugPrint("Error loading custom slots: $e");
+      }
+    }
   }
 
   final List<Turf> _turfs = [
@@ -126,6 +165,8 @@ class TurfDataService extends ChangeNotifier {
       Booking(
         id: '1',
         turfName: 'Green Field Arena',
+        userName: 'Arjun Kumar',
+        userPhone: '9876543210',
         location: 'PN Pudur',
         distance: 2.5,
         rating: 4.8,
@@ -143,6 +184,8 @@ class TurfDataService extends ChangeNotifier {
       Booking(
         id: '2',
         turfName: 'Green Field Arena',
+        userName: 'Sanjay Ram',
+        userPhone: '9876543211',
         location: 'PN Pudur',
         distance: 2.5,
         rating: 4.8,
@@ -160,6 +203,8 @@ class TurfDataService extends ChangeNotifier {
       Booking(
         id: '3',
         turfName: 'Green Field Arena',
+        userName: 'Vijay Singh',
+        userPhone: '9876543212',
         location: 'PN Pudur',
         distance: 2.5,
         rating: 4.8,
@@ -178,6 +223,8 @@ class TurfDataService extends ChangeNotifier {
       Booking(
         id: '4',
         turfName: 'City Sports Turf',
+        userName: 'Rahul Dravid',
+        userPhone: '9876543213',
         location: 'Gandhipuram',
         distance: 4.2,
         rating: 4.5,
@@ -195,6 +242,8 @@ class TurfDataService extends ChangeNotifier {
       Booking(
         id: '5',
         turfName: 'City Sports Turf',
+        userName: 'Kunal Guna',
+        userPhone: '9876543214',
         location: 'Gandhipuram',
         distance: 4.2,
         rating: 4.5,
@@ -213,6 +262,8 @@ class TurfDataService extends ChangeNotifier {
       Booking(
         id: '6',
         turfName: 'Elite Football Ground',
+        userName: 'Suresh Raina',
+        userPhone: '9876543215',
         location: 'Race Course',
         distance: 3.1,
         rating: 4.9,

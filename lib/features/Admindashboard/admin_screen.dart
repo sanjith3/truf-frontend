@@ -98,32 +98,70 @@ bool isSameDay(DateTime a, DateTime b) {
       _userEmail = prefs.getString('userEmail') ?? "";
       _businessName = prefs.getString('businessName') ?? "";
 
-      _registeredTurfNames = prefs.getStringList('registeredTurfNames') ?? [];
+      _registeredTurfNames = prefs.getStringList('registeredTurfNames_$_userPhone') ?? [];
       _registeredTurfName = prefs.getString('registeredTurfName');
 
-      // Fix: Ensure the legacy single turf name is included in the list for consistent loading
       if (_registeredTurfName != null &&
           !_registeredTurfNames.contains(_registeredTurfName)) {
         _registeredTurfNames.add(_registeredTurfName!);
       }
 
       _filteredAdminTurfs = [];
-
-      // Load from hardcoded static list first if matches found
       Set<String> processedNames = {};
+      final now = DateTime.now();
+
       for (var name in _registeredTurfNames) {
+        if (processedNames.contains(name.toLowerCase())) continue;
+
+        // Stats calculation helper for this turf
+        final turfBookings = TurfDataService().bookings.where((b) => 
+          b.turfName == name && 
+          isSameDay(b.date, now) &&
+          b.status != BookingStatus.cancelled
+        ).toList();
+
+        int todayBookings = turfBookings.length;
+        double todayRevenue = turfBookings.fold(0.0, (sum, b) => sum + b.amount);
+        
+        final savedSlots = TurfDataService().getSavedSlots(name, now);
+        int availableSlots;
+        if (savedSlots != null) {
+           availableSlots = savedSlots.where((s) => 
+             s['status'] == 'available' && s['disabled'] != true
+           ).length;
+        } else {
+           availableSlots = 24 - todayBookings;
+        }
+
         final matches = adminTurfs
             .where((t) => t.name.toLowerCase() == name.toLowerCase())
             .toList();
-        _filteredAdminTurfs.addAll(matches);
-        if (matches.isNotEmpty) processedNames.add(name.toLowerCase());
-      }
 
-      // Add dynamic turfs registered via the app that aren't in the static list
-      for (var name in _registeredTurfNames) {
-        if (!processedNames.contains(name.toLowerCase())) {
-          // Load individual details for this specific turf
-          // Check specific turf data first, then fall back to general legacy keys if it's the main turf
+        if (matches.isNotEmpty) {
+          // Add from static list but WITH real stats
+          for (var mat in matches) {
+            _filteredAdminTurfs.add(
+              AdminTurf(
+                id: mat.id,
+                name: mat.name,
+                location: mat.location,
+                distance: mat.distance,
+                price: mat.price,
+                rating: mat.rating,
+                images: mat.images,
+                amenities: mat.amenities,
+                mapLink: mat.mapLink,
+                address: mat.address,
+                description: mat.description,
+                todayBookings: todayBookings,
+                todayRevenue: todayRevenue.toDouble(),
+                availableSlots: availableSlots,
+                isActive: mat.isActive,
+              ),
+            );
+          }
+        } else {
+          // Dynamic turf
           String? loc = prefs.getString('turf_data_${name}_location');
           int? price = prefs.getInt('turf_data_${name}_price');
 
@@ -134,7 +172,7 @@ bool isSameDay(DateTime a, DateTime b) {
 
           _filteredAdminTurfs.add(
             AdminTurf(
-              id: 'reg_${name}_${DateTime.now().millisecondsSinceEpoch}',
+              id: 'reg_${name}_${now.millisecondsSinceEpoch}',
               name: name,
               location: loc ?? "Registered Location",
               distance: 0.0,
@@ -147,12 +185,13 @@ bool isSameDay(DateTime a, DateTime b) {
               mapLink: "",
               address: "Your Registered Address",
               description: "Your newly registered turf",
-              todayBookings: 0,
-              todayRevenue: 0,
-              availableSlots: 24,
+              todayBookings: todayBookings,
+              todayRevenue: todayRevenue.toDouble(),
+              availableSlots: availableSlots,
             ),
           );
         }
+        processedNames.add(name.toLowerCase());
       }
 
       _updateNavScreens();

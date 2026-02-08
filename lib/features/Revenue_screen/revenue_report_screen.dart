@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/turf_data_service.dart';
 import '../bookings/my_bookings_screen.dart';
+import '../../models/booking.dart';
 
 class RevenueReportScreen extends StatefulWidget {
   final List<String>? registeredTurfNames;

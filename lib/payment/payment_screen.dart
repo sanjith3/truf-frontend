@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../features/bookings/my_bookings_screen.dart';
 import '../features/home/user_home_screen.dart';
 import '../models/turf.dart';
 import '../services/turf_data_service.dart';
+import '../models/booking.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Turf turf;
@@ -29,6 +31,22 @@ class PaymentScreen extends StatefulWidget {
 class _PaymentScreenState extends State<PaymentScreen> {
   String _selectedPaymentMethod = 'gpay';
   bool _isProcessing = false;
+  String _userName = 'Guest User';
+  String _userPhone = '0000000000';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userName = prefs.getString('userName') ?? 'Guest User';
+      _userPhone = prefs.getString('userPhone') ?? '0000000000';
+    });
+  }
 
   final List<PaymentMethod> _paymentMethods = [
     PaymentMethod(
@@ -75,27 +93,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     // Simulate payment processing
     Future.delayed(const Duration(seconds: 2), () {
-      // Create and add the booking to TurfDataService for "lively" reports
-      final newBooking = Booking(
-        id: "BK${DateTime.now().millisecondsSinceEpoch}",
-        turfName: widget.turf.name,
-        location: widget.turf.location,
-        distance: widget.turf.distance,
-        rating: widget.turf.rating,
-        date: widget.selectedDate,
-        startTime: widget.selectedTimeSlots.first.split(' - ')[0],
-        endTime: widget.selectedTimeSlots.last.split(' - ')[1],
-        amount: widget.totalAmount,
-        status: BookingStatus.completed,
-        paymentStatus: 'Paid',
-        bookingId: "TURF-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch % 10000}",
-        amenities: widget.turf.amenities,
-        mapLink: widget.turf.mapLink,
-        address: widget.turf.address,
-      );
-      
-      TurfDataService().addBooking(newBooking);
-
       if (mounted) {
         setState(() {
           _isProcessing = false;
@@ -110,6 +107,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final newBooking = Booking(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       turfName: widget.turf.name,
+      userName: _userName,
+      userPhone: _userPhone,
       location: widget.turf.location,
       distance: widget.turf.distance,
       rating: widget.turf.rating,

@@ -5,6 +5,7 @@ import '../payment/payment_summary_screen.dart';
 import '../services/offer_slot_service.dart';
 import '../services/turf_data_service.dart';
 import '../features/bookings/my_bookings_screen.dart';
+import '../models/booking.dart';
 
 class BookingScreen extends StatefulWidget {
   final Turf turf;
@@ -38,13 +39,28 @@ class _BookingScreenState extends State<BookingScreen> {
 
   // Calculate price for a single slot based on whether it has an offer
   double _getSlotPrice(String slotTime) {
+    // Check for custom price in saved slots
+    final turfName = widget.turf.name;
+    final saved = TurfDataService().getSavedSlots(turfName, _selectedDate);
+    double basePrice = widget.turf.price.toDouble();
+
+    if (saved != null) {
+      final slot = saved.firstWhere(
+        (s) => s['time'] == slotTime,
+        orElse: () => <String, dynamic>{},
+      );
+      if (slot.containsKey('price')) {
+        basePrice = (slot['price'] as num).toDouble();
+      }
+    }
+
     // Apply discount ONLY if:
     // 1. This specific slot has an offer tag AND
     // 2. The turf is in the offer turfs list
     if (_hasTurfOffer && _offerSlots.contains(slotTime)) {
-      return widget.turf.price * 0.8; // 20% discount
+      return basePrice * 0.8; // 20% discount
     }
-    return widget.turf.price.toDouble();
+    return basePrice;
   }
 
   @override
@@ -64,12 +80,14 @@ class _BookingScreenState extends State<BookingScreen> {
 
   void _generateTimeSlots() {
     List<TimeSlot> slots = [];
+    final turfName = widget.turf.name;
 
     // Filter real bookings from service for THIS turf on THIS date
-    final existingBookings = TurfDataService().bookings
+    final existingBookings = TurfDataService()
+        .bookings
         .where(
           (b) =>
-              b.turfName == widget.turf.name &&
+              b.turfName == turfName &&
               b.date.year == _selectedDate.year &&
               b.date.month == _selectedDate.month &&
               b.date.day == _selectedDate.day &&
@@ -81,42 +99,63 @@ class _BookingScreenState extends State<BookingScreen> {
         .map((b) => "${b.startTime} - ${b.endTime}")
         .toList();
 
-    // Generate time slots from 6 AM to 1 AM
-    for (int hour = 6; hour <= 23; hour++) {
-      bool isAM = hour < 12;
-      String period = isAM ? 'AM' : 'PM';
-      int displayHour = hour > 12 ? hour - 12 : hour;
-      if (displayHour == 0) displayHour = 12;
+    // Check if we have saved slots from Slot Management
+    final saved = TurfDataService().getSavedSlots(turfName, _selectedDate);
 
-      // Next hour
-      int nextHour = hour + 1;
-      if (nextHour == 24) nextHour = 0;
-      bool nextIsAM = nextHour < 12;
-      String nextPeriod = nextIsAM ? 'AM' : 'PM';
-      int nextDisplayHour = nextHour > 12 ? nextHour - 12 : nextHour;
-      if (nextDisplayHour == 0) nextDisplayHour = 12;
+    if (saved != null && saved.isNotEmpty) {
+      for (var s in saved) {
+        String slotTime = s['time'];
+        // Re-check booking status against real-time bookings
+        bool isBooked = bookedSlotTimes.contains(slotTime) || s['status'] == 'booked';
+        bool isDisabled = s['disabled'] == true;
+        bool hasOffer = _hasTurfOffer && _offerSlots.contains(slotTime);
 
-      String startTime = '$displayHour:00 $period';
-      String endTime = '$nextDisplayHour:00 $nextPeriod';
-      String slot = '$startTime - $endTime';
+        slots.add(
+          TimeSlot(
+            time: slotTime,
+            // Slot is available if it's NOT booked AND NOT disabled
+            isAvailable: !isBooked && !isDisabled,
+            hasOffer: hasOffer,
+          ),
+        );
+      }
+    } else {
+      // Fallback: Generate default time slots from 6 AM to 1 AM
+      for (int hour = 6; hour <= 23; hour++) {
+        bool isAM = hour < 12;
+        String period = isAM ? 'AM' : 'PM';
+        int displayHour = hour > 12 ? hour - 12 : hour;
+        if (displayHour == 0) displayHour = 12;
 
-      bool hasOffer = _hasTurfOffer && _offerSlots.contains(slot);
-      bool isBooked = bookedSlotTimes.contains(slot);
+        int nextHour = hour + 1;
+        if (nextHour == 24) nextHour = 0;
+        bool nextIsAM = nextHour < 12;
+        String nextPeriod = nextIsAM ? 'AM' : 'PM';
+        int nextDisplayHour = nextHour > 12 ? nextHour - 12 : nextHour;
+        if (nextDisplayHour == 0) nextDisplayHour = 12;
 
+        String startTime = '$displayHour:00 $period';
+        String endTime = '$nextDisplayHour:00 $nextPeriod';
+        String slot = '$startTime - $endTime';
+
+        bool hasOffer = _hasTurfOffer && _offerSlots.contains(slot);
+        bool isBooked = bookedSlotTimes.contains(slot);
+
+        slots.add(
+          TimeSlot(time: slot, isAvailable: !isBooked, hasOffer: hasOffer),
+        );
+      }
+
+      // Add midnight slot
+      String midnightSlot = '12:00 AM - 01:00 AM';
       slots.add(
-        TimeSlot(time: slot, isAvailable: !isBooked, hasOffer: hasOffer),
+        TimeSlot(
+          time: midnightSlot,
+          isAvailable: !bookedSlotTimes.contains(midnightSlot),
+          hasOffer: _hasTurfOffer && _offerSlots.contains(midnightSlot),
+        ),
       );
     }
-
-    // Add midnight slot
-    String midnightSlot = '12:00 AM - 01:00 AM';
-    slots.add(
-      TimeSlot(
-        time: midnightSlot,
-        isAvailable: !bookedSlotTimes.contains(midnightSlot),
-        hasOffer: _hasTurfOffer && _offerSlots.contains(midnightSlot),
-      ),
-    );
 
     setState(() {
       _availableTimeSlots = slots;

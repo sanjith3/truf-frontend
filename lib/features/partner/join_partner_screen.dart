@@ -306,7 +306,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     });
   }
 
-  void _submitForm() {
+  void _submitForm() async {
     if (!_formKey.currentState!.validate()) {
       _showSnackBar('Please fix all errors before submitting', isError: true);
       return;
@@ -317,12 +317,27 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
       return;
     }
 
+    final prefs = await SharedPreferences.getInstance();
+    
+    // RE-REGISTRATION CHECK
+    String normName = _fullNameController.text.trim().toLowerCase();
+    String normPhone = _phoneController.text.trim();
+    String partnerKey = "${normName}_$normPhone";
+    List<String> partnerKeys = prefs.getStringList('all_partners') ?? [];
+    
+    if (partnerKeys.contains(partnerKey)) {
+      _showSnackBar('You are already registered as a partner with this phone number.', isError: true);
+      return;
+    }
+
     // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const ProcessingDialog(),
-    );
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const ProcessingDialog(),
+      );
+    }
 
     // Create new Turf object
     final newTurf = Turf(
@@ -347,39 +362,37 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     TurfDataService().addTurf(newTurf);
 
     // Save partner status and registered turf details
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setBool('isPartner', true);
-      
-      // Update the list of all registered turfs for this partner
-      List<String> turfNames = prefs.getStringList('registeredTurfNames') ?? [];
-      if (!turfNames.contains(newTurf.name)) {
-        turfNames.add(newTurf.name);
-      }
-      prefs.setStringList('registeredTurfNames', turfNames);
-      
-      // Keep these for backward compatibility / current focus
-      prefs.setString('registeredTurfName', newTurf.name);
-      // Store specific turf data using its name to avoid overwriting multiple turfs
-      prefs.setString('turf_data_${newTurf.name}_location', newTurf.location);
-      prefs.setInt('turf_data_${newTurf.name}_price', newTurf.price);
+    await prefs.setBool('isPartner', true);
 
-      // PERSISTENT PARTNER RECORD (for future logins)
-      // Normalize name and phone for verification
-      String normName = _fullNameController.text.trim().toLowerCase();
-      String normPhone = _phoneController.text.trim();
-      String partnerKey = "${normName}_$normPhone";
+    // Update the list of all registered turfs for this partner
+    String userPhone = _phoneController.text.trim();
+    List<String> turfNames =
+        prefs.getStringList('registeredTurfNames_$userPhone') ?? [];
+    if (!turfNames.contains(newTurf.name)) {
+      turfNames.add(newTurf.name);
+    }
+    await prefs.setStringList('registeredTurfNames_$userPhone', turfNames);
 
-      List<String> partnerKeys = prefs.getStringList('all_partners') ?? [];
-      if (!partnerKeys.contains(partnerKey)) {
-        partnerKeys.add(partnerKey);
-        prefs.setStringList('all_partners', partnerKeys);
-      }
+    // Keep these for backward compatibility / current focus
+    await prefs.setString('registeredTurfName', newTurf.name);
+    // Store specific turf data using its name to avoid overwriting multiple turfs
+    await prefs.setString(
+      'turf_data_${newTurf.name}_location',
+      newTurf.location,
+    );
+    await prefs.setInt('turf_data_${newTurf.name}_price', newTurf.price);
 
-      // Store specific turf data for this partner key (Legacy/Current Focus)
-      prefs.setString('turf_${partnerKey}_name', newTurf.name);
-      prefs.setString('turf_${partnerKey}_location', newTurf.location);
-      prefs.setInt('turf_${partnerKey}_price', newTurf.price);
-    });
+    // PERSISTENT PARTNER RECORD (for future logins)
+    // already calculated partnerKey above
+    if (!partnerKeys.contains(partnerKey)) {
+      partnerKeys.add(partnerKey);
+      await prefs.setStringList('all_partners', partnerKeys);
+    }
+
+    // Store specific turf data for this partner key (Legacy/Current Focus)
+    await prefs.setString('turf_${partnerKey}_name', newTurf.name);
+    await prefs.setString('turf_${partnerKey}_location', newTurf.location);
+    await prefs.setInt('turf_${partnerKey}_price', newTurf.price);
 
     // Simulate API call
     Future.delayed(const Duration(seconds: 2), () {
@@ -788,21 +801,18 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
         _buildCompactTextField(
           controller: _priceController,
           label: "Price Per Hour",
-          hint: "4-digit price (e.g., 1200)",
+          hint: "Enter price per hour",
           icon: Icons.currency_rupee_outlined,
           prefixText: "₹ ",
           keyboardType: TextInputType.number,
           isRequired: true,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(4),
+            LengthLimitingTextInputFormatter(10),
           ],
           validator: (value) {
             if (value == null || value.isEmpty) {
               return 'Please enter price';
-            }
-            if (value.length != 4) {
-              return 'Price must be exactly 4 digits';
             }
             return null;
           },
@@ -941,20 +951,17 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
         _buildCompactTextField(
           controller: _zipCodeController,
           label: "PIN Code",
-          hint: "6-digit code",
+          hint: "Enter PIN code",
           icon: Icons.pin_outlined,
           keyboardType: TextInputType.number,
           isRequired: true,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(6),
+            LengthLimitingTextInputFormatter(10),
           ],
           validator: (value) {
             if (value == null || value.isEmpty) {
               return 'Enter PIN code';
-            }
-            if (value.length != 6) {
-              return 'Must be 6 digits';
             }
             return null;
           },
@@ -1075,15 +1082,15 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
         _buildCompactTextField(
           controller: _ifscCodeController,
           label: "IFSC Code",
-          hint: "11-character code",
+          hint: "Enter IFSC code",
           icon: Icons.code,
           isRequired: true,
           inputFormatters: [
-            LengthLimitingTextInputFormatter(11),
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+            LengthLimitingTextInputFormatter(20),
           ],
           validator: (value) {
             if (value == null || value.isEmpty) return 'Enter IFSC code';
-            if (value.length != 11) return 'IFSC must be 11 characters';
             return null;
           },
         ),

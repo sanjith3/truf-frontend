@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'my_bookings_screen.dart';
+import '../../models/booking.dart';
 
 class BookingDetailsScreen extends StatelessWidget {
   final Booking booking;
@@ -401,6 +401,8 @@ class BookingDetailsScreen extends StatelessWidget {
 
   Color _getStatusColor(BookingStatus status) {
     switch (status) {
+      case BookingStatus.pending:
+      case BookingStatus.confirmed:
       case BookingStatus.upcoming:
         return const Color(0xFF00C853);
       case BookingStatus.completed:
@@ -412,6 +414,8 @@ class BookingDetailsScreen extends StatelessWidget {
 
   IconData _getStatusIcon(BookingStatus status) {
     switch (status) {
+      case BookingStatus.pending:
+      case BookingStatus.confirmed:
       case BookingStatus.upcoming:
         return Icons.event_available;
       case BookingStatus.completed:
@@ -423,6 +427,10 @@ class BookingDetailsScreen extends StatelessWidget {
 
   String _getStatusText(BookingStatus status) {
     switch (status) {
+      case BookingStatus.pending:
+        return "Pending";
+      case BookingStatus.confirmed:
+        return "Confirmed";
       case BookingStatus.upcoming:
         return "Upcoming";
       case BookingStatus.completed:

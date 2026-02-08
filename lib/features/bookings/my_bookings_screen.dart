@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'booking_details_screen.dart';
 import '../../services/turf_data_service.dart';
+import '../../models/booking.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -57,7 +58,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     bool updated = false;
 
     for (var booking in _allBookings) {
-      if (booking.status == BookingStatus.upcoming) {
+      if (booking.status == BookingStatus.upcoming || 
+          booking.status == BookingStatus.pending || 
+          booking.status == BookingStatus.confirmed) {
         // Check if booking time has passed
         final bookingDateTime = DateTime(
           booking.date.year,
@@ -85,7 +88,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   List<Booking> get _upcomingBookings {
     return _allBookings
-        .where((b) => b.status == BookingStatus.upcoming)
+        .where((b) => 
+            b.status == BookingStatus.upcoming || 
+            b.status == BookingStatus.pending || 
+            b.status == BookingStatus.confirmed)
         .toList();
   }
 
@@ -504,6 +510,8 @@ class BookingTurfCard extends StatelessWidget {
     IconData statusIcon;
 
     switch (booking.status) {
+      case BookingStatus.pending:
+      case BookingStatus.confirmed:
       case BookingStatus.upcoming:
         statusColor = const Color(0xFF00C853);
         statusText = "Upcoming";
@@ -829,44 +837,6 @@ class BookingTurfCard extends StatelessWidget {
     );
   }
 }
-
-class Booking {
-  final String id;
-  final String turfName;
-  final String location;
-  final double distance;
-  final double rating;
-  final DateTime date;
-  final String startTime;
-  final String endTime;
-  final double amount;
-  BookingStatus status;
-  String paymentStatus;
-  final String bookingId;
-  final List<String> amenities;
-  final String mapLink;
-  final String address;
-
-  Booking({
-    required this.id,
-    required this.turfName,
-    required this.location,
-    required this.distance,
-    required this.rating,
-    required this.date,
-    required this.startTime,
-    required this.endTime,
-    required this.amount,
-    required this.status,
-    required this.paymentStatus,
-    required this.bookingId,
-    required this.amenities,
-    required this.mapLink,
-    required this.address,
-  });
-}
-
-enum BookingStatus { upcoming, completed, cancelled }
 
 bool isSameDay(DateTime date1, DateTime date2) {
   return date1.year == date2.year &&
