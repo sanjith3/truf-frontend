@@ -4,7 +4,6 @@ import 'package:turfzone/features/editslottime/edit_turf_screen.dart';
 import 'my_bookings_screen.dart';
 import 'package:turfzone/models/booking.dart';
 
-
 import 'package:turfzone/features/turfslot/slot_management_screen.dart';
 import 'package:turfzone/features/partner/join_partner_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -57,7 +56,8 @@ class AdminScreen extends StatefulWidget {
 
 class _AdminScreenState extends State<AdminScreen> {
   int _selectedNavIndex = 0;
-  final Color primaryGreen = Colors.green[800]!;
+  final Color primaryGreen = const Color(0xFF1DB954);
+  final Color backgroundColor = const Color(0xFFF8F9FA);
   String? _registeredTurfName;
   List<String> _registeredTurfNames = [];
   List<AdminTurf> _filteredAdminTurfs = [];
@@ -83,12 +83,9 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-
-bool isSameDay(DateTime a, DateTime b) {
-  return a.year == b.year &&
-         a.month == b.month &&
-         a.day == b.day;
-}
+  bool isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
 
   Future<void> _loadRegisteredTurf() async {
     final prefs = await SharedPreferences.getInstance();
@@ -98,7 +95,8 @@ bool isSameDay(DateTime a, DateTime b) {
       _userEmail = prefs.getString('userEmail') ?? "";
       _businessName = prefs.getString('businessName') ?? "";
 
-      _registeredTurfNames = prefs.getStringList('registeredTurfNames_$_userPhone') ?? [];
+      _registeredTurfNames =
+          prefs.getStringList('registeredTurfNames_$_userPhone') ?? [];
       _registeredTurfName = prefs.getString('registeredTurfName');
 
       if (_registeredTurfName != null &&
@@ -114,23 +112,29 @@ bool isSameDay(DateTime a, DateTime b) {
         if (processedNames.contains(name.toLowerCase())) continue;
 
         // Stats calculation helper for this turf
-        final turfBookings = TurfDataService().bookings.where((b) => 
-          b.turfName == name && 
-          isSameDay(b.date, now) &&
-          b.status != BookingStatus.cancelled
-        ).toList();
+        final turfBookings = TurfDataService().bookings
+            .where(
+              (b) =>
+                  b.turfName == name &&
+                  isSameDay(b.date, now) &&
+                  b.status != BookingStatus.cancelled,
+            )
+            .toList();
 
         int todayBookings = turfBookings.length;
-        double todayRevenue = turfBookings.fold(0.0, (sum, b) => sum + b.amount);
-        
+        double todayRevenue = turfBookings.fold(
+          0.0,
+          (sum, b) => sum + b.amount,
+        );
+
         final savedSlots = TurfDataService().getSavedSlots(name, now);
         int availableSlots;
         if (savedSlots != null) {
-           availableSlots = savedSlots.where((s) => 
-             s['status'] == 'available' && s['disabled'] != true
-           ).length;
+          availableSlots = savedSlots
+              .where((s) => s['status'] == 'available' && s['disabled'] != true)
+              .length;
         } else {
-           availableSlots = 24 - todayBookings;
+          availableSlots = 24 - todayBookings;
         }
 
         final matches = adminTurfs
@@ -217,7 +221,7 @@ bool isSameDay(DateTime a, DateTime b) {
         height: MediaQuery.of(context).size.height * 0.85,
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -245,18 +249,31 @@ bool isSameDay(DateTime a, DateTime b) {
                 children: [
                   const Text(
                     "Partner Profile",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, size: 20),
+                      color: Colors.grey[600],
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
               const Text(
                 "Your business information",
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: Colors.grey, fontSize: 14),
               ),
               const SizedBox(height: 30),
               _buildProfileField(
@@ -285,6 +302,7 @@ bool isSameDay(DateTime a, DateTime b) {
               const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
+                height: 56,
                 child: ElevatedButton(
                   onPressed: () async {
                     final prefs = await SharedPreferences.getInstance();
@@ -316,12 +334,12 @@ bool isSameDay(DateTime a, DateTime b) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text("Profile updated successfully"),
+                        backgroundColor: Color(0xFF1DB954),
                       ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryGreen,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -330,7 +348,7 @@ bool isSameDay(DateTime a, DateTime b) {
                     "Save Changes",
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
                       color: Colors.white,
                     ),
                   ),
@@ -357,7 +375,7 @@ bool isSameDay(DateTime a, DateTime b) {
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Colors.black54,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
@@ -511,46 +529,17 @@ bool isSameDay(DateTime a, DateTime b) {
     });
   }
 
-  void _deleteTurf(String turfId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Delete Turf"),
-        content: const Text(
-          "Are you sure you want to delete this turf? This action cannot be undone.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _filteredAdminTurfs.removeWhere((t) => t.id == turfId);
-              });
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text("Turf deleted successfully"),
-                  backgroundColor: primaryGreen,
-                ),
-              );
-            },
-            child: const Text("Delete", style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_navScreens.isEmpty)
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_navScreens.isEmpty) {
+      return Scaffold(
+        backgroundColor: backgroundColor,
+        body: Center(child: CircularProgressIndicator(color: primaryGreen)),
+      );
+    }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: backgroundColor,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -565,21 +554,21 @@ bool isSameDay(DateTime a, DateTime b) {
 
   Widget _buildAppBar() {
     return Container(
-      padding: const EdgeInsets.only(top: 15, bottom: 20, left: 20, right: 20),
+      padding: const EdgeInsets.only(top: 16, bottom: 20, left: 20, right: 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [primaryGreen, Colors.green[700]!],
+          colors: [Colors.green.shade800, Colors.green.shade700],
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.15),
-            blurRadius: 15,
+            blurRadius: 20,
             offset: const Offset(0, 4),
           ),
         ],
@@ -587,9 +576,9 @@ bool isSameDay(DateTime a, DateTime b) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Welcome Section
+          // Welcome Section - FIXED ALIGNMENT
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -602,6 +591,8 @@ bool isSameDay(DateTime a, DateTime b) {
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -614,17 +605,22 @@ bool isSameDay(DateTime a, DateTime b) {
                   ],
                 ),
               ),
-              // Add + icon next to profile
+              const SizedBox(width: 12),
+              // Icons Row - Fixed alignment
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // + Icon for adding new turf
+                  // Add Icon Button
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1.5,
+                      ),
                     ),
                     child: IconButton(
                       onPressed: () {
@@ -638,30 +634,32 @@ bool isSameDay(DateTime a, DateTime b) {
                       icon: const Icon(
                         Icons.add,
                         color: Colors.white,
-                        size: 22,
+                        size: 20,
                       ),
                       padding: EdgeInsets.zero,
                     ),
                   ),
                   const SizedBox(width: 10),
-                  // Profile Icon
-                  GestureDetector(
-                    onTap: _showPartnerProfile,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                        ),
+                  // Profile Icon Button
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1.5,
                       ),
-                      child: const Icon(
+                    ),
+                    child: IconButton(
+                      onPressed: _showPartnerProfile,
+                      icon: const Icon(
                         Icons.person,
                         color: Colors.white,
-                        size: 28,
+                        size: 20,
                       ),
+                      padding: EdgeInsets.zero,
                     ),
                   ),
                 ],
@@ -669,7 +667,7 @@ bool isSameDay(DateTime a, DateTime b) {
             ],
           ),
 
-          const SizedBox(height: 25),
+          const SizedBox(height: 24),
 
           // Quick Stats
           Row(
@@ -715,14 +713,14 @@ bool isSameDay(DateTime a, DateTime b) {
               color: Colors.white.withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, size: 22, color: color),
+            child: Icon(icon, size: 20, color: color),
           ),
           const SizedBox(height: 8),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
               color: Colors.white,
             ),
             maxLines: 1,
@@ -755,47 +753,52 @@ bool isSameDay(DateTime a, DateTime b) {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Section Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // Turf Management Section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Turf Management',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: primaryGreen.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${_filteredAdminTurfs.where((t) => t.isActive).length} Active',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: primaryGreen,
+                    // Turf Management title with active counter - FIRST
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Turf Management',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
                         ),
-                      ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: primaryGreen.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${_filteredAdminTurfs.where((t) => t.isActive).length} Active',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: primaryGreen,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    // Grey text below - SECOND
+                    Text(
+                      'Manage your turf, slots and bookings',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 8),
-
-                Text(
-                  'Manage your turfs, slots, and bookings',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-
-                const SizedBox(height: 25),
+                const SizedBox(height: 16),
 
                 // Turf Cards
                 ..._filteredAdminTurfs.map((turf) {
@@ -822,7 +825,7 @@ bool isSameDay(DateTime a, DateTime b) {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
@@ -842,6 +845,20 @@ bool isSameDay(DateTime a, DateTime b) {
                   height: 140,
                   width: double.infinity,
                   fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      height: 140,
+                      width: double.infinity,
+                      color: Colors.grey[200],
+                      child: const Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey,
+                          size: 40,
+                        ),
+                      ),
+                    );
+                  },
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
                     return Container(
@@ -886,32 +903,31 @@ bool isSameDay(DateTime a, DateTime b) {
                 ),
               ),
 
-              // Quick Actions - Removed delete icon
+              // View Details Button - Smaller size
               Positioned(
                 bottom: 12,
                 left: 12,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      // View Details only
-                      _buildActionButton(
-                        icon: Icons.visibility_outlined,
-                        color: Colors.blue[700]!,
-                        onTap: () => _showTurfDetails(turf),
-                      ),
-                    ],
+                child: GestureDetector(
+                  onTap: () => _showTurfDetails(turf),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.visibility_outlined,
+                      size: 16,
+                      color: Colors.blue[700],
+                    ),
                   ),
                 ),
               ),
@@ -920,7 +936,7 @@ bool isSameDay(DateTime a, DateTime b) {
 
           // Info Section
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1001,7 +1017,7 @@ bool isSameDay(DateTime a, DateTime b) {
                     ),
                     _buildTurfStat(
                       icon: Icons.trending_up,
-                      value: '₹${turf.todayRevenue}',
+                      value: '₹${turf.todayRevenue.toInt()}',
                       label: 'Revenue',
                       color: primaryGreen,
                     ),
@@ -1019,7 +1035,7 @@ bool isSameDay(DateTime a, DateTime b) {
                 // Action Buttons
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
+                    color: backgroundColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -1027,7 +1043,7 @@ bool isSameDay(DateTime a, DateTime b) {
                       Expanded(
                         child: _buildTurfActionButton(
                           icon: Icons.schedule,
-                          label: 'Manage Slots',
+                          label: 'Slots',
                           color: Colors.blue,
                           onTap: () {
                             Navigator.push(
@@ -1044,13 +1060,13 @@ bool isSameDay(DateTime a, DateTime b) {
                       Expanded(
                         child: _buildTurfActionButton(
                           icon: Icons.edit,
-                          label: 'Edit Turf',
+                          label: 'Edit',
                           color: Colors.orange,
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => EditTurfScreen(),
+                                builder: (_) => const EditTurfScreen(),
                               ),
                             );
                           },
@@ -1066,7 +1082,7 @@ bool isSameDay(DateTime a, DateTime b) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => MyBookingsScreen(),
+                                builder: (_) => const MyBookingsScreen(),
                               ),
                             );
                           },
@@ -1079,26 +1095,6 @@ bool isSameDay(DateTime a, DateTime b) {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Icon(icon, size: 20, color: color),
       ),
     );
   }
@@ -1249,8 +1245,8 @@ bool isSameDay(DateTime a, DateTime b) {
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(25),
-          topRight: Radius.circular(25),
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
         ),
       ),
       isScrollControlled: true,
@@ -1369,6 +1365,7 @@ bool isSameDay(DateTime a, DateTime b) {
                   // Close Button
                   SizedBox(
                     width: double.infinity,
+                    height: 56,
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(context),
                       style: ElevatedButton.styleFrom(
@@ -1376,7 +1373,6 @@ bool isSameDay(DateTime a, DateTime b) {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                       child: const Text(
                         'Close',

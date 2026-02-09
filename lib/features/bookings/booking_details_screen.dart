@@ -75,7 +75,9 @@ class BookingDetailsScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        booking.status == BookingStatus.upcoming ? "Booking Confirmed" : _getStatusText(booking.status),
+                        booking.status == BookingStatus.upcoming
+                            ? "Booking Confirmed"
+                            : _getStatusText(booking.status),
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -85,10 +87,7 @@ class BookingDetailsScreen extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         "Booking ID: ${booking.bookingId}",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -124,6 +123,44 @@ class BookingDetailsScreen extends StatelessWidget {
                       height: 150,
                       width: double.infinity,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 150,
+                          width: double.infinity,
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.image_not_supported,
+                                  color: Colors.grey,
+                                  size: 40,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  "Image not available",
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          height: 150,
+                          width: double.infinity,
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   Padding(
@@ -260,7 +297,10 @@ class BookingDetailsScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  _buildPaymentRow("Base Price", "₹${baseAmount.toStringAsFixed(0)}"),
+                  _buildPaymentRow(
+                    "Base Price",
+                    "₹${baseAmount.toStringAsFixed(0)}",
+                  ),
                   _buildPaymentRow("Platform Fee", "₹$platformFee"),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),

@@ -33,6 +33,7 @@ class _BookingScreenState extends State<BookingScreen> {
       'Elite Football Ground',
       'Shuttle Masters Academy',
       'Royal Turf Ground',
+      'City Sports Turf', // Added for demo
     ];
     return offerTurfNames.contains(widget.turf.name);
   }
@@ -83,8 +84,7 @@ class _BookingScreenState extends State<BookingScreen> {
     final turfName = widget.turf.name;
 
     // Filter real bookings from service for THIS turf on THIS date
-    final existingBookings = TurfDataService()
-        .bookings
+    final existingBookings = TurfDataService().bookings
         .where(
           (b) =>
               b.turfName == turfName &&
@@ -106,7 +106,8 @@ class _BookingScreenState extends State<BookingScreen> {
       for (var s in saved) {
         String slotTime = s['time'];
         // Re-check booking status against real-time bookings
-        bool isBooked = bookedSlotTimes.contains(slotTime) || s['status'] == 'booked';
+        bool isBooked =
+            bookedSlotTimes.contains(slotTime) || s['status'] == 'booked';
         bool isDisabled = s['disabled'] == true;
         bool hasOffer = _hasTurfOffer && _offerSlots.contains(slotTime);
 
@@ -121,6 +122,17 @@ class _BookingScreenState extends State<BookingScreen> {
       }
     } else {
       // Fallback: Generate default time slots from 6 AM to 1 AM
+      // Define demo offer slots for visual demonstration
+      final demoOfferSlots = _hasTurfOffer
+          ? [
+              '6:00 AM - 7:00 AM',
+              '8:00 AM - 9:00 AM',
+              '10:00 AM - 11:00 AM',
+              '12:00 PM - 1:00 PM',
+              '2:00 PM - 3:00 PM',
+            ]
+          : [];
+
       for (int hour = 6; hour <= 23; hour++) {
         bool isAM = hour < 12;
         String period = isAM ? 'AM' : 'PM';
@@ -138,7 +150,10 @@ class _BookingScreenState extends State<BookingScreen> {
         String endTime = '$nextDisplayHour:00 $nextPeriod';
         String slot = '$startTime - $endTime';
 
-        bool hasOffer = _hasTurfOffer && _offerSlots.contains(slot);
+        // Check if slot has offer from service OR from demo list
+        bool hasOffer =
+            (_hasTurfOffer && _offerSlots.contains(slot)) ||
+            demoOfferSlots.contains(slot);
         bool isBooked = bookedSlotTimes.contains(slot);
 
         slots.add(
@@ -195,19 +210,40 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _proceedToPayment() {
-    if (_selectedTimeSlots.isNotEmpty) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PaymentSummaryScreen(
-            turf: widget.turf,
-            selectedDate: _selectedDate,
-            selectedTimeSlots: _selectedTimeSlots,
-            totalAmount: _calculateTotal(),
-          ),
+    if (_selectedTimeSlots.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one time slot'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
         ),
       );
+      return;
     }
+
+    final totalAmount = _calculateTotal();
+    if (totalAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid booking amount. Please try again.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentSummaryScreen(
+          turf: widget.turf,
+          selectedDate: _selectedDate,
+          selectedTimeSlots: _selectedTimeSlots,
+          totalAmount: totalAmount,
+        ),
+      ),
+    );
   }
 
   @override
@@ -689,7 +725,8 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   String _getDayName(int weekday) {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    // Dart's weekday: 1=Monday, 2=Tuesday, ..., 7=Sunday
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return days[weekday - 1];
   }
 

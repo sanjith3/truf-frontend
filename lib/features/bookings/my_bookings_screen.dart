@@ -43,6 +43,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     _startStatusCheckTimer();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh bookings when returning to this screen
+    setState(() {});
+  }
+
   void _startStatusCheckTimer() {
     // Check every minute for bookings that should be moved to completed
     Future.delayed(const Duration(minutes: 1), () {
@@ -58,16 +65,20 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     bool updated = false;
 
     for (var booking in _allBookings) {
-      if (booking.status == BookingStatus.upcoming || 
-          booking.status == BookingStatus.pending || 
+      if (booking.status == BookingStatus.upcoming ||
+          booking.status == BookingStatus.pending ||
           booking.status == BookingStatus.confirmed) {
         // Check if booking time has passed
         final bookingDateTime = DateTime(
           booking.date.year,
           booking.date.month,
           booking.date.day,
-          int.parse(booking.startTime.split(':')[0].replaceAll(RegExp(r'[^0-9]'), '')),
-          int.parse(booking.startTime.split(':')[1].replaceAll(RegExp(r'[^0-9]'), '')),
+          int.parse(
+            booking.startTime.split(':')[0].replaceAll(RegExp(r'[^0-9]'), ''),
+          ),
+          int.parse(
+            booking.startTime.split(':')[1].replaceAll(RegExp(r'[^0-9]'), ''),
+          ),
         );
 
         // If current time is after booking end time + 1 hour buffer, mark as completed
@@ -88,10 +99,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   List<Booking> get _upcomingBookings {
     return _allBookings
-        .where((b) => 
-            b.status == BookingStatus.upcoming || 
-            b.status == BookingStatus.pending || 
-            b.status == BookingStatus.confirmed)
+        .where(
+          (b) =>
+              b.status == BookingStatus.upcoming ||
+              b.status == BookingStatus.pending ||
+              b.status == BookingStatus.confirmed,
+        )
         .toList();
   }
 
@@ -721,10 +734,7 @@ class BookingTurfCard extends StatelessWidget {
                 // Date & Time
                 Row(
                   children: [
-                    _buildFeatureInfo(
-                      Icons.calendar_today,
-                      dateText,
-                    ),
+                    _buildFeatureInfo(Icons.calendar_today, dateText),
                     const SizedBox(width: 12),
                     _buildFeatureInfo(
                       Icons.access_time,

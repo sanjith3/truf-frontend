@@ -31,8 +31,10 @@ class PaymentScreen extends StatefulWidget {
 class _PaymentScreenState extends State<PaymentScreen> {
   String _selectedPaymentMethod = 'gpay';
   bool _isProcessing = false;
+  bool _isLoadingUserInfo = true;
   String _userName = 'Guest User';
   String _userPhone = '0000000000';
+  String? _userInfoError;
 
   @override
   void initState() {
@@ -41,11 +43,31 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> _loadUserInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userName = prefs.getString('userName') ?? 'Guest User';
-      _userPhone = prefs.getString('userPhone') ?? '0000000000';
-    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _userName = prefs.getString('userName') ?? 'Guest User';
+        _userPhone = prefs.getString('userPhone') ?? '0000000000';
+        _isLoadingUserInfo = false;
+
+        // Validate user info
+        if (_userName.isEmpty || _userName == 'Guest User') {
+          _userInfoError = 'Please set up your profile before booking';
+        } else if (_userPhone.isEmpty || _userPhone == '0000000000') {
+          _userInfoError = 'Valid phone number required for booking';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _userInfoError = 'Failed to load user information: $e';
+        _isLoadingUserInfo = false;
+      });
+    }
+  }
+
+  bool _isValidPhoneNumber(String phone) {
+    final phoneRegex = RegExp(r'^[0-9]{10}$');
+    return phoneRegex.hasMatch(phone.replaceAll(RegExp(r'[^\d]'), ''));
   }
 
   final List<PaymentMethod> _paymentMethods = [
@@ -87,6 +109,29 @@ class _PaymentScreenState extends State<PaymentScreen> {
   ];
 
   void _processPayment() {
+    // Validate user info before processing
+    if (_userInfoError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_userInfoError!),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    if (!_isValidPhoneNumber(_userPhone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid phone number. Please update your profile.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isProcessing = true;
     });
@@ -118,7 +163,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
       amount: widget.totalAmount,
       status: BookingStatus.upcoming,
       paymentStatus: 'Paid',
-      bookingId: 'TURF-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+      bookingId:
+          'TURF-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
       amenities: widget.turf.amenities,
       mapLink: widget.turf.mapLink,
       address: widget.turf.address,
@@ -137,103 +183,103 @@ class _PaymentScreenState extends State<PaymentScreen> {
         return PopScope(
           canPop: false,
           child: Container(
-          padding: const EdgeInsets.all(30),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1DB954).withAlpha(51),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check,
-                  size: 40,
-                  color: Color(0xFF1DB954),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                "Payment Successful!",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                "Your booking at ${widget.turf.name} is confirmed",
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 25),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Column(
-                  children: [
-                    _buildConfirmationRow("Turf", widget.turf.name),
-                    _buildConfirmationRow(
-                      "Date",
-                      "${widget.selectedDate.day}/${widget.selectedDate.month}/${widget.selectedDate.year}",
-                    ),
-                    _buildConfirmationRow(
-                      "Duration",
-                      "${widget.selectedTimeSlots.length} hour(s)",
-                    ),
-                    ...widget.selectedTimeSlots
-                        .map((slot) => _buildConfirmationRow("Slot", slot))
-                        .toList(),
-                    const Divider(height: 20),
-                    _buildConfirmationRow(
-                      "Amount Paid",
-                      "₹${widget.totalAmount.toStringAsFixed(0)}",
-                      isBold: true,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const UserHomeScreen(),
-                      ),
-                      (route) => false,
-                    );
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const MyBookingsScreen(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1DB954),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
+            padding: const EdgeInsets.all(30),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1DB954).withAlpha(51),
+                    shape: BoxShape.circle,
                   ),
-                  child: const Text(
-                    "GO TO MY BOOKINGS",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                  child: const Icon(
+                    Icons.check,
+                    size: 40,
+                    color: Color(0xFF1DB954),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 20),
+                const Text(
+                  "Payment Successful!",
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  "Your booking at ${widget.turf.name} is confirmed",
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 25),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildConfirmationRow("Turf", widget.turf.name),
+                      _buildConfirmationRow(
+                        "Date",
+                        "${widget.selectedDate.day}/${widget.selectedDate.month}/${widget.selectedDate.year}",
+                      ),
+                      _buildConfirmationRow(
+                        "Duration",
+                        "${widget.selectedTimeSlots.length} hour(s)",
+                      ),
+                      ...widget.selectedTimeSlots
+                          .map((slot) => _buildConfirmationRow("Slot", slot))
+                          .toList(),
+                      const Divider(height: 20),
+                      _buildConfirmationRow(
+                        "Amount Paid",
+                        "₹${widget.totalAmount.toStringAsFixed(0)}",
+                        isBold: true,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 30),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const UserHomeScreen(),
+                        ),
+                        (route) => false,
+                      );
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const MyBookingsScreen(),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1DB954),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                    child: const Text(
+                      "GO TO MY BOOKINGS",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
         );
       },
     );
@@ -279,266 +325,309 @@ class _PaymentScreenState extends State<PaymentScreen> {
         backgroundColor: const Color(0xFF1DB954),
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          // Compact Total Amount Display
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+      body: _isLoadingUserInfo
+          ? const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1DB954)),
               ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            )
+          : Column(
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Total Amount",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
+                // Error Message (if any)
+                if (_userInfoError != null)
+                  Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      border: Border.all(color: Colors.red.shade200),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
+                    child: Row(
                       children: [
-                        Text(
-                          "₹${widget.totalAmount.toStringAsFixed(0)}",
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.green.shade100),
-                          ),
+                        Icon(Icons.warning, color: Colors.red.shade700),
+                        const SizedBox(width: 12),
+                        Expanded(
                           child: Text(
-                            "₹${widget.platformFee.toInt()} fee",
+                            _userInfoError!,
                             style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.green.shade800,
-                              fontWeight: FontWeight.w500,
+                              color: Colors.red.shade700,
+                              fontSize: 13,
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      "${widget.selectedTimeSlots.length} hour${widget.selectedTimeSlots.length > 1 ? 's' : ''}",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.turf.name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Payment Methods
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Choose Payment Method",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 20),
-
-                  // Payment Methods List
-                  Column(
-                    children: _paymentMethods.map((method) {
-                      return _buildPaymentMethodCard(method);
-                    }).toList(),
+                // Compact Total Amount Display
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
                   ),
-
-                  const SizedBox(height: 25),
-
-                  // Selected Payment Method Details
-                  if (selectedMethod.description.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        color: selectedMethod.color.withAlpha(13),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: selectedMethod.color.withAlpha(51),
-                        ),
-                      ),
-                      child: Row(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: selectedMethod.color.withAlpha(26),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Image.asset(
-                              selectedMethod.imageAsset,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  color: Colors.grey.shade200,
-                                  child: Center(
-                                    child: Text(
-                                      selectedMethod.name.substring(0, 2),
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: selectedMethod.color,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
+                          Text(
+                            "Total Amount",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Paying with ${selectedMethod.name}",
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                "₹${widget.totalAmount.toStringAsFixed(0)}",
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: Colors.green.shade100,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  selectedMethod.description,
+                                child: Text(
+                                  "₹${widget.platformFee.toInt()} fee",
                                   style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
+                                    fontSize: 10,
+                                    color: Colors.green.shade800,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            "${widget.selectedTimeSlots.length} hour${widget.selectedTimeSlots.length > 1 ? 's' : ''}",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.turf.name,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Payment Methods
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Choose Payment Method",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Payment Methods List
+                        Column(
+                          children: _paymentMethods.map((method) {
+                            return _buildPaymentMethodCard(method);
+                          }).toList(),
+                        ),
+
+                        const SizedBox(height: 25),
+
+                        // Selected Payment Method Details
+                        if (selectedMethod.description.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(15),
+                            decoration: BoxDecoration(
+                              color: selectedMethod.color.withAlpha(13),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: selectedMethod.color.withAlpha(51),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: selectedMethod.color.withAlpha(26),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Image.asset(
+                                    selectedMethod.imageAsset,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.grey.shade200,
+                                        child: Center(
+                                          child: Text(
+                                            selectedMethod.name.substring(0, 2),
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: selectedMethod.color,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Paying with ${selectedMethod.name}",
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        selectedMethod.description,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ],
-                      ),
-                    ),
 
-                  const SizedBox(height: 25),
+                        const SizedBox(height: 25),
 
-                  // Terms & Conditions
-                  Container(
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: const Text(
-                      "• Your payment is secured with 256-bit SSL encryption\n"
-                      "• No card details are stored on our servers\n"
-                      "• Refunds are processed within 5-7 working days",
-                      style: TextStyle(fontSize: 12, height: 1.5),
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-
-      // Pay Now Button
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade200)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(26),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            onPressed: _isProcessing ? null : _processPayment,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1DB954),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              elevation: 3,
-            ),
-            child: _isProcessing
-                ? const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
+                        // Terms & Conditions
+                        Container(
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: const Text(
+                            "• Your payment is secured with 256-bit SSL encryption\n"
+                            "• No card details are stored on our servers\n"
+                            "• Refunds are processed within 5-7 working days",
+                            style: TextStyle(fontSize: 12, height: 1.5),
                           ),
                         ),
-                      ),
-                      SizedBox(width: 10),
-                      Text("Processing..."),
-                    ],
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.lock, size: 20),
-                      const SizedBox(width: 10),
-                      Text(
-                        "PAY SECURELY - ₹${widget.totalAmount.toStringAsFixed(0)}",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+
+                        const SizedBox(height: 30),
+                      ],
+                    ),
                   ),
+                ),
+              ],
+            ),
+
+      // Pay Now Button
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Colors.grey.shade200)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(26),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
+              ),
+            ],
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: _isProcessing ? null : _processPayment,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1DB954),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                elevation: 3,
+              ),
+              child: _isProcessing
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Text("Processing..."),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.lock, size: 20),
+                        const SizedBox(width: 10),
+                        Text(
+                          "PAY SECURELY - ₹${widget.totalAmount.toStringAsFixed(0)}",
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),

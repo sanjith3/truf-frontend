@@ -16,6 +16,12 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   final TurfDataService _turfService = TurfDataService();
+  final Color _primaryColor = const Color(0xFF1DB954); // TurfZone Green
+  final Color _secondaryColor = const Color(0xFF4CD964);
+  final Color _backgroundColor = const Color(0xFFF8F9FA);
+  final Color _cardColor = Colors.white;
+  final Color _textColor = const Color(0xFF2D3748);
+  final Color _hintColor = const Color(0xFFA0AEC0);
 
   @override
   void initState() {
@@ -56,23 +62,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final totalBookings = completed.length;
     final avgRev = totalBookings == 0 ? 0 : (totalRev / totalBookings).round();
 
-    debugPrint("ReportsScreen built with turfs: ${widget.registeredTurfNames}");
     return Scaffold(
-      backgroundColor: Color(0xFFF8F9FA),
+      backgroundColor: _backgroundColor,
       appBar: AppBar(
         title: Text(
           'Reports & Analytics',
           style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
+        backgroundColor: _primaryColor,
+        elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false,
-        shape: Border(bottom: BorderSide(color: Colors.grey[200]!, width: 1)),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -80,96 +85,158 @@ class _ReportsScreenState extends State<ReportsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Quick Stats Section
+              // Header with Greeting
               Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[200]!),
+                margin: const EdgeInsets.only(bottom: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.registeredTurfNames != null
+                          ? 'Your Turf Analytics'
+                          : 'Performance Dashboard',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: _textColor,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'View detailed reports and insights',
+                      style: TextStyle(fontSize: 14, color: _hintColor),
+                    ),
+                  ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'TODAY\'S OVERVIEW',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[600],
-                          letterSpacing: 1,
+              ),
+
+              // Today's Overview Card
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_primaryColor, _secondaryColor],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _primaryColor.withOpacity(0.3),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.timeline,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildStatItem(
-                            title: 'Revenue',
-                            value:
-                                '₹${NumberFormat('#,##,###').format(totalRev.toInt())}',
-                            icon: Icons.currency_rupee,
-                            color: Colors.green[700]!,
+                        const SizedBox(width: 12),
+                        Text(
+                          'TODAY\'S OVERVIEW',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withOpacity(0.9),
+                            letterSpacing: 1,
                           ),
-                          _buildStatItem(
-                            title: 'Bookings',
-                            value: '$totalBookings',
-                            icon: Icons.calendar_today,
-                            color: Colors.blue[700]!,
-                          ),
-                          _buildStatItem(
-                            title: 'Average',
-                            value: '₹$avgRev',
-                            icon: Icons.trending_up,
-                            color: Colors.orange[700]!,
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildStatItem(
+                          title: 'Revenue',
+                          value:
+                              '₹${NumberFormat('#,##,###').format(totalRev.toInt())}',
+                          icon: Icons.currency_rupee,
+                          color: Colors.white,
+                        ),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        _buildStatItem(
+                          title: 'Bookings',
+                          value: '$totalBookings',
+                          icon: Icons.calendar_today,
+                          color: Colors.white,
+                        ),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        _buildStatItem(
+                          title: 'Average',
+                          value: '₹$avgRev',
+                          icon: Icons.trending_up,
+                          color: Colors.white,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Reports Section Header
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  'Reports',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: _textColor,
                   ),
                 ),
               ),
-
-              SizedBox(height: 24),
-
-              // Reports Section
-              Text(
-                'Detailed Reports',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Access detailed analytics and insights',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
-
-              SizedBox(height: 20),
 
               // Revenue Report Card
               _buildCleanReportCard(
                 title: 'Revenue Report',
-                description: 'Detailed revenue analysis, trends and breakdown',
+                description: 'Revenue analysis and trends',
                 icon: Icons.trending_up,
+                iconColor: Colors.green[700]!,
                 stats: [
                   _buildMiniStatItem(
-                    label: 'Total Revenue',
+                    label: 'Total',
                     value:
                         '₹${NumberFormat('#,##,###').format(totalRev.toInt())}',
+                    color: Colors.green[700]!,
                   ),
                   _buildMiniStatItem(
-                    label: 'Avg per Booking',
+                    label: 'Average',
                     value: '₹${NumberFormat('#,##,###').format(avgRev)}',
+                    color: Colors.blue[700]!,
                   ),
                   _buildMiniStatItem(
                     label: 'Growth',
                     value: widget.registeredTurfNames != null
                         ? "+15.2%"
                         : "+12.5%",
+                    color: Colors.green[700]!,
                   ),
                 ],
                 screen: RevenueReportScreen(
@@ -177,27 +244,37 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
               ),
 
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
 
               // Booking Analytics Card
               _buildCleanReportCard(
                 title: 'Booking Analytics',
-                description: 'Booking patterns, customer behavior insights',
+                description: 'Booking patterns and insights',
                 icon: Icons.analytics,
+                iconColor: Colors.blue[700]!,
                 stats: [
                   _buildMiniStatItem(
-                    label: 'Total Bookings',
+                    label: 'Total',
                     value: '$totalBookings',
+                    color: Colors.blue[700]!,
                   ),
-                  _buildMiniStatItem(label: 'Success Rate', value: '95%'),
-                  _buildMiniStatItem(label: 'Peak Hours', value: '6-9 PM'),
+                  _buildMiniStatItem(
+                    label: 'Success',
+                    value: '95%',
+                    color: Colors.green[700]!,
+                  ),
+                  _buildMiniStatItem(
+                    label: 'Peak',
+                    value: '6-9 PM',
+                    color: Colors.orange[700]!,
+                  ),
                 ],
                 screen: BookingAnalyticsScreen(
                   registeredTurfNames: widget.registeredTurfNames,
                 ),
               ),
 
-              SizedBox(height: 32),
+              const SizedBox(height: 32),
             ],
           ),
         ),
@@ -214,26 +291,30 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Expanded(
       child: Column(
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, size: 24, color: color),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: color.withOpacity(0.9)),
+              const SizedBox(width: 6),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 4),
           Text(
-            value,
+            title,
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              fontSize: 12,
+              color: color.withOpacity(0.8),
+              fontWeight: FontWeight.w500,
             ),
           ),
-          SizedBox(height: 4),
-          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );
@@ -243,19 +324,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
     required String title,
     required String description,
     required IconData icon,
+    required Color iconColor,
     required List<Widget> stats,
     required Widget screen,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -271,15 +352,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 Row(
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
+                        color: iconColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(icon, size: 24, color: Colors.black87),
+                      child: Icon(icon, size: 22, color: iconColor),
                     ),
-                    SizedBox(width: 16),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,18 +368,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           Text(
                             title,
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: _textColor,
                             ),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             description,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
+                            style: TextStyle(fontSize: 13, color: _hintColor),
                           ),
                         ],
                       ),
@@ -306,14 +384,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ],
                 ),
 
-                SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // Stats
+                // Stats Row
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(10),
+                    color: _backgroundColor,
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -324,24 +402,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
 
+          // Divider
+          Container(height: 1, color: Colors.grey[100]),
+
           // Footer with View Button
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(12),
-                bottomRight: Radius.circular(12),
-              ),
-            ),
+            padding: const EdgeInsets.all(20),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Expanded(
-                  child: Text(
-                    'View detailed analysis and insights',
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                  ),
-                ),
                 GestureDetector(
                   onTap: () {
                     Navigator.push(
@@ -355,8 +424,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: BorderRadius.circular(8),
+                      color: _primaryColor,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       'View Report',
@@ -376,7 +445,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _buildMiniStatItem({required String label, required String value}) {
+  Widget _buildMiniStatItem({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -386,11 +459,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              color: color,
             ),
           ),
-          SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: _hintColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );

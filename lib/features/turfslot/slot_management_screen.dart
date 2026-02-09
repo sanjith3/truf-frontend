@@ -57,19 +57,23 @@ class _PremiumSlotManagementScreenState
       _generateSlots();
     }
   }
-  
+
   void _generateSlots() {
     final turfName = widget.turf?.name ?? '';
-    final List<Map<String, dynamic>> saved = TurfDataService().getSavedSlots(turfName, _selectedDate) ?? [];
-    
+    final List<Map<String, dynamic>> saved =
+        TurfDataService().getSavedSlots(turfName, _selectedDate) ?? [];
+
     // Get bookings for this turf and date for real-time reconciliation
-    final bookings = TurfDataService().bookings.where((b) => 
-      b.turfName == turfName && 
-      b.date.year == _selectedDate.year &&
-      b.date.month == _selectedDate.month &&
-      b.date.day == _selectedDate.day &&
-      b.status != BookingStatus.cancelled
-    ).toList();
+    final bookings = TurfDataService().bookings
+        .where(
+          (b) =>
+              b.turfName == turfName &&
+              b.date.year == _selectedDate.year &&
+              b.date.month == _selectedDate.month &&
+              b.date.day == _selectedDate.day &&
+              b.status != BookingStatus.cancelled,
+        )
+        .toList();
 
     if (saved.isNotEmpty) {
       setState(() {
@@ -78,10 +82,10 @@ class _PremiumSlotManagementScreenState
           final slotMap = Map<String, dynamic>.from(s);
           // Re-check booking status
           Booking? booking;
-          final matchingBookings = bookings.where(
-            (b) => '${b.startTime} - ${b.endTime}' == slotMap['time']
-          ).toList();
-          
+          final matchingBookings = bookings
+              .where((b) => '${b.startTime} - ${b.endTime}' == slotMap['time'])
+              .toList();
+
           if (matchingBookings.isNotEmpty) {
             booking = matchingBookings.first;
             slotMap['status'] = 'booked';
@@ -99,47 +103,54 @@ class _PremiumSlotManagementScreenState
       });
       return;
     }
-    
+
     final List<Map<String, dynamic>> newSlots = [];
     final defaultPrice = widget.turf?.price ?? 500;
-    
+
     // Generate slots from 6 AM to 1 AM next day
     for (int hour = 6; hour <= 23; hour++) {
       _addSlot(hour, newSlots, bookings, defaultPrice);
     }
-    
+
     // Midnight slot
     _addSlot(0, newSlots, bookings, defaultPrice);
 
     setState(() {
       slots = newSlots;
     });
-    
+
     // Save generated defaults
     TurfDataService().saveSlots(turfName, _selectedDate, slots);
   }
 
-  void _addSlot(int hour, List<Map<String, dynamic>> slotList, List<dynamic> bookings, int defaultPrice) {
+  void _addSlot(
+    int hour,
+    List<Map<String, dynamic>> slotList,
+    List<dynamic> bookings,
+    int defaultPrice,
+  ) {
     bool isAM = hour < 12;
     String period = isAM ? 'AM' : 'PM';
     int displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-    
+
     int nextHour = hour + 1;
     if (nextHour == 24) nextHour = 0;
     bool nextIsAM = nextHour < 12;
     String nextPeriod = nextIsAM ? 'AM' : 'PM';
-    int nextDisplayHour = nextHour > 12 ? nextHour - 12 : (nextHour == 0 ? 12 : nextHour);
+    int nextDisplayHour = nextHour > 12
+        ? nextHour - 12
+        : (nextHour == 0 ? 12 : nextHour);
 
     String startTime = '$displayHour:00 $period';
     String endTime = '$nextDisplayHour:00 $nextPeriod';
     String timeKey = '$startTime - $endTime';
-    
+
     // Check if booked
     Booking? booking;
-    final matchingBookings = bookings.where(
-      (b) => '${b.startTime} - ${b.endTime}' == timeKey
-    ).toList();
-    
+    final matchingBookings = bookings
+        .where((b) => '${b.startTime} - ${b.endTime}' == timeKey)
+        .toList();
+
     if (matchingBookings.isNotEmpty) {
       booking = matchingBookings.first as Booking;
     }
@@ -182,7 +193,7 @@ class _PremiumSlotManagementScreenState
       'bookingId': isBooked ? (booking?.bookingId ?? '') : null,
       'disabled': isEmergencyForDate,
       'originalPrice': defaultPrice,
-      'date': _selectedDate,
+      'date': _selectedDate.toIso8601String(),
     });
   }
 
@@ -338,6 +349,10 @@ class _PremiumSlotManagementScreenState
     setState(() {
       slots[index]['price'] = originalPrice;
     });
+
+    // Save the updated slots before reloading
+    final turfName = widget.turf?.name ?? '';
+    TurfDataService().saveSlots(turfName, _selectedDate, slots);
 
     await OfferSlotService.removeOfferSlot(slot['time']);
 
@@ -500,6 +515,10 @@ class _PremiumSlotManagementScreenState
                   setState(() {
                     slots[index]['price'] = offerPrice;
                   });
+                  // Save the updated slots before reloading
+                  final turfName = widget.turf?.name ?? '';
+                  TurfDataService().saveSlots(turfName, _selectedDate, slots);
+
                   await OfferSlotService.addOfferSlot(
                     slot['time'],
                     offerPrice,
@@ -516,8 +535,17 @@ class _PremiumSlotManagementScreenState
                     );
                   }
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: _offerColor),
-                child: const Text('Set Offer'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _offerColor,
+                  foregroundColor: Colors.white, // ← THIS fixes text color
+                ),
+                child: const Text(
+                  'Set Offer',
+                  style: TextStyle(
+                    color: Colors.white, // ← ensures white text
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           );
@@ -625,7 +653,7 @@ class _PremiumSlotManagementScreenState
               ElevatedButton(
                 onPressed: () {
                   // Apply emergency mode logic here
-                    setState(() {
+                  setState(() {
                     _emergencyMode = true;
                     _emergencyStartDate = tempStartDate;
                     _emergencyEndDate = tempEndDate;
@@ -635,7 +663,7 @@ class _PremiumSlotManagementScreenState
                   });
                   Navigator.pop(context);
                   this.setState(() {
-                     _generateSlots(); // Regenerate slots to reflect disabled status
+                    _generateSlots(); // Regenerate slots to reflect disabled status
                   });
 
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1292,7 +1320,7 @@ class _PremiumSlotManagementScreenState
                               ),
                             ),
                             child: Text(
-                              'RESET',
+                              'CLEAR',
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
@@ -1939,13 +1967,14 @@ class _PremiumSlotManagementScreenState
                                       onPressed: () {
                                         setState(() {
                                           slots.add({
-                                            'time': selectedTime.format(
-                                              context,
-                                            ),
+                                            'time':
+                                                '${selectedTime.format(context)} - ${_calculateEndTime(selectedTime).format(context)}',
                                             'endTime': _calculateEndTime(
                                               selectedTime,
                                             ).format(context),
-                                            'date': selectedDate,
+                                            'date': selectedDate
+                                                .toIso8601String(),
+
                                             'status': 'available',
                                             'price': int.parse(price),
                                             'customer': null,
@@ -1963,8 +1992,13 @@ class _PremiumSlotManagementScreenState
                                             return hourA.compareTo(hourB);
                                           });
                                           // Save the updated slots list
-                                          final turfName = widget.turf?.name ?? '';
-                                          TurfDataService().saveSlots(turfName, _selectedDate, slots);
+                                          final turfName =
+                                              widget.turf?.name ?? '';
+                                          TurfDataService().saveSlots(
+                                            turfName,
+                                            _selectedDate,
+                                            slots,
+                                          );
                                         });
                                         Navigator.pop(context);
                                       },
@@ -2322,14 +2356,7 @@ class _PremiumSlotManagementScreenState
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          '${_selectedDate.day} ${_getMonthName(_selectedDate.month)}, ${_selectedDate.year}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: _textPrimary,
-                          ),
-                        ),
+                        // Date display removed (keeps UI compact) - date shown per-slot instead
                       ],
                     ),
                   ),
@@ -2546,13 +2573,27 @@ class _PremiumSlotManagementScreenState
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Time Slots',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: _textPrimary,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Time Slots',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: _textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_selectedDate.day} ${_getMonthName(_selectedDate.month)}, ${_selectedDate.year}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -2614,8 +2655,12 @@ class _PremiumSlotManagementScreenState
     IconData icon,
     Color color,
   ) {
+    final double screenW = MediaQuery.of(context).size.width;
+    final double calcW = (screenW - 56) / 2;
+    final double cardW = calcW < 140 ? 140 : calcW;
+
     return Container(
-      width: (MediaQuery.of(context).size.width - 56) / 2,
+      width: cardW,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: _card,
@@ -2696,7 +2741,10 @@ class _PremiumSlotManagementScreenState
                         children: [
                           Expanded(
                             child: Text(
-                              '${slot['time']} - ${slot['endTime']}',
+                              slot['time'] ??
+                                  '${slot['startTime']} - ${slot['endTime']}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700,
@@ -2707,72 +2755,11 @@ class _PremiumSlotManagementScreenState
                               ),
                             ),
                           ),
-                          // Date badge inline with time
-                          if (slot.containsKey('date') && slot['date'] != null)
-                            Builder(
-                              builder: (context) {
-                                DateTime? slotDate;
-                                if (slot['date'] is DateTime) {
-                                  slotDate = slot['date'] as DateTime;
-                                } else if (slot['date'] is String) {
-                                  try {
-                                    slotDate = DateTime.parse(slot['date']);
-                                  } catch (_) {
-                                    slotDate = null;
-                                  }
-                                }
-                                if (slotDate == null) return const SizedBox();
-                                final bool isToday = _isSameDate(
-                                  slotDate,
-                                  DateTime.now(),
-                                );
-                                final bool isTomorrow = _isSameDate(
-                                  slotDate,
-                                  DateTime.now().add(const Duration(days: 1)),
-                                );
-
-                                String dateLabel;
-                                Color badgeColor;
-
-                                if (isToday) {
-                                  dateLabel = 'Today';
-                                  badgeColor = _primary;
-                                } else if (isTomorrow) {
-                                  dateLabel = 'Tomorrow';
-                                  badgeColor = Colors.orange;
-                                } else {
-                                  dateLabel = _formatDate(slotDate);
-                                  badgeColor = Colors.blue;
-                                }
-
-                                return Container(
-                                  margin: const EdgeInsets.only(left: 8),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: badgeColor.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: badgeColor.withOpacity(0.3),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    dateLabel,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: badgeColor,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                          // Date badge moved below time (rendered after the time)
                         ],
                       ),
                       const SizedBox(height: 8),
+
                       Row(
                         children: [
                           Text(
@@ -2803,36 +2790,42 @@ class _PremiumSlotManagementScreenState
                   ),
                 ),
 
-                // Status Badge
-                Container(
-                  constraints: const BoxConstraints(maxWidth: 150),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: statusColor.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(_getStatusIcon(slot), size: 14, color: statusColor),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          _getStatusLabel(slot),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: statusColor,
+                // Status Badge (centered vertically)
+                Center(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 150),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusColor.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _getStatusIcon(slot),
+                          size: 14,
+                          color: statusColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            _getStatusLabel(slot),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: statusColor,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],

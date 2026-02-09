@@ -55,11 +55,28 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.sports_soccer,
-                  size: 80,
-                  color: Color(0xFF1DB954),
+                Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
+
                 const SizedBox(height: 24),
                 Text(
                   _isLogin ? "Welcome Back!" : "Welcome to TurfZone",
@@ -71,11 +88,13 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _isLogin ? "Login to continue" : "Create your account to start booking",
+                  _isLogin
+                      ? "Login to continue"
+                      : "Create your account to start booking",
                   style: const TextStyle(fontSize: 16, color: Colors.grey),
                 ),
                 const SizedBox(height: 40),
-                
+
                 // Name Field (only for registration)
                 if (!_isLogin)
                   Column(
@@ -83,7 +102,9 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                       TextField(
                         controller: _nameController,
                         inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'[a-zA-Z\s]'),
+                          ),
                           LengthLimitingTextInputFormatter(18),
                         ],
                         decoration: InputDecoration(
@@ -95,14 +116,17 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: Color(0xFF1DB954), width: 2),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF1DB954),
+                              width: 2,
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(height: 16),
                     ],
                   ),
-                
+
                 // Phone Field
                 TextField(
                   controller: _phoneController,
@@ -119,7 +143,10 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFF1DB954), width: 2),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF1DB954),
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -134,7 +161,9 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
                       onPressed: () {
                         setState(() {
@@ -147,7 +176,10 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFF1DB954), width: 2),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF1DB954),
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -193,7 +225,8 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                                   decoration: TextDecoration.underline,
                                 ),
                                 recognizer: TapGestureRecognizer()
-                                  ..onTap = () => _showTermsDialog("Terms and Conditions"),
+                                  ..onTap = () =>
+                                      _showTermsDialog("Terms and Conditions"),
                               ),
                               const TextSpan(text: " and "),
                               TextSpan(
@@ -204,7 +237,8 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                                   decoration: TextDecoration.underline,
                                 ),
                                 recognizer: TapGestureRecognizer()
-                                  ..onTap = () => _showTermsDialog("Privacy Policy"),
+                                  ..onTap = () =>
+                                      _showTermsDialog("Privacy Policy"),
                               ),
                             ],
                           ),
@@ -212,7 +246,7 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                       ),
                     ],
                   ),
-                
+
                 const SizedBox(height: 30),
 
                 ElevatedButton(
@@ -234,7 +268,10 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                   },
                   child: Text(
                     _isLogin ? "Login" : "Register",
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
 
@@ -252,7 +289,9 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                     });
                   },
                   child: Text(
-                    _isLogin ? "Don't have an account? Register" : "Already have an account? Login",
+                    _isLogin
+                        ? "Don't have an account? Register"
+                        : "Already have an account? Login",
                     style: const TextStyle(
                       color: Color(0xFF1DB954),
                       fontWeight: FontWeight.w600,
@@ -274,21 +313,25 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
     if (phone.isEmpty || password.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please enter your phone number and password")),
+          const SnackBar(
+            content: Text("Please enter your phone number and password"),
+          ),
         );
       }
       return;
     }
 
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Check if user exists with this phone number
     final savedPassword = prefs.getString('password_$phone');
-    
+
     if (savedPassword == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Account not found. Please register first.")),
+          const SnackBar(
+            content: Text("Account not found. Please register first."),
+          ),
         );
       }
       return;
@@ -296,33 +339,41 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
 
     if (savedPassword != password) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Incorrect password")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Incorrect password")));
       }
       return;
     }
 
     // Load user data for session
     final name = prefs.getString('name_$phone') ?? "User";
-    
+
     // Set active session data
     await prefs.setString('userName', name);
     await prefs.setString('userPhone', phone);
     await prefs.setBool('isLoggedIn', true); // Mark as logged in
-    
 
     // Check if partner
     String normName = name.trim().toLowerCase();
     String normPhone = phone.trim();
     String partnerKey = "${normName}_$normPhone";
     List<String> partnerKeys = prefs.getStringList('all_partners') ?? [];
-    
+
     if (partnerKeys.contains(partnerKey)) {
       await prefs.setBool('isPartner', true);
-      await prefs.setString('registeredTurfName', prefs.getString('turf_${partnerKey}_name') ?? "My Turf");
-      await prefs.setString('registeredLocation', prefs.getString('turf_${partnerKey}_location') ?? "Registered Location");
-      await prefs.setInt('registeredPrice', prefs.getInt('turf_${partnerKey}_price') ?? 500);
+      await prefs.setString(
+        'registeredTurfName',
+        prefs.getString('turf_${partnerKey}_name') ?? "My Turf",
+      );
+      await prefs.setString(
+        'registeredLocation',
+        prefs.getString('turf_${partnerKey}_location') ?? "Registered Location",
+      );
+      await prefs.setInt(
+        'registeredPrice',
+        prefs.getInt('turf_${partnerKey}_price') ?? 500,
+      );
     } else {
       await prefs.setBool('isPartner', false);
     }
@@ -359,7 +410,7 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
       _showError(context, "Password must be at least 6 characters");
       return;
     }
-    
+
     if (!_agreedToTerms) {
       _showError(context, "Please agree to the Terms & Privacy Policy");
       return;
@@ -367,11 +418,14 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
 
     // Save user details
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Check if phone already registered
     final existingPassword = prefs.getString('password_$phone');
     if (existingPassword != null) {
-      _showError(context, "This phone number is already registered. Please login.");
+      _showError(
+        context,
+        "This phone number is already registered. Please login.",
+      );
       return;
     }
 
@@ -381,11 +435,14 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
     await prefs.setString('userName', name);
     await prefs.setString('userPhone', phone);
     await prefs.setBool('hasShownWelcome', true);
-    
+
     // Save registration date
     final registrationDate = DateTime.now();
-    await prefs.setString('registrationDate_$phone', registrationDate.toIso8601String());
-    
+    await prefs.setString(
+      'registrationDate_$phone',
+      registrationDate.toIso8601String(),
+    );
+
     // Initialize as non-partner
     await prefs.setBool('isPartner', false);
 

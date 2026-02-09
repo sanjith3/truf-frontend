@@ -26,23 +26,25 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
   List<String> _offerSlots = []; // Will be loaded from service
 
   double get _offerPrice => widget.turf.price * 0.8;
-  
+
   // Check if any selected slot has an offer
   bool get _hasAnyOfferSlot {
     return widget.selectedTimeSlots.any((slot) => _offerSlots.contains(slot));
   }
-  
+
   // Get price for a specific slot
   double _getSlotPrice(String slot) {
-    return _offerSlots.contains(slot) ? _offerPrice : widget.turf.price.toDouble();
+    return _offerSlots.contains(slot)
+        ? _offerPrice
+        : widget.turf.price.toDouble();
   }
-  
+
   @override
   void initState() {
     super.initState();
     _loadOfferSlots();
   }
-  
+
   Future<void> _loadOfferSlots() async {
     final offerSlots = await OfferSlotService.getOfferSlots();
     setState(() {
@@ -149,9 +151,9 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
                     ),
                     _buildDetailRow(
                       "Rate per hour",
-                      hasAnyOffer 
-                        ? "₹${widget.turf.price} (₹${_offerPrice.toInt()} for offer slots)" 
-                        : "₹${widget.turf.price}",
+                      hasAnyOffer
+                          ? "₹${widget.turf.price} (₹${_offerPrice.toInt()} for offer slots)"
+                          : "₹${widget.turf.price}",
                       valueColor: hasAnyOffer ? const Color(0xFF1DB954) : null,
                     ),
                     const SizedBox(height: 15),
@@ -166,12 +168,19 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
                             Row(
                               children: [
                                 Icon(
-                                  isOfferSlot ? Icons.local_offer : Icons.circle,
+                                  isOfferSlot
+                                      ? Icons.local_offer
+                                      : Icons.circle,
                                   size: isOfferSlot ? 12 : 8,
-                                  color: isOfferSlot ? Colors.red : Colors.green,
+                                  color: isOfferSlot
+                                      ? Colors.red
+                                      : Colors.green,
                                 ),
                                 const SizedBox(width: 10),
-                                Text(slot, style: const TextStyle(fontSize: 14)),
+                                Text(
+                                  slot,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
                               ],
                             ),
                             Text(
@@ -179,7 +188,9 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: isOfferSlot ? const Color(0xFF1DB954) : Colors.black,
+                                color: isOfferSlot
+                                    ? const Color(0xFF1DB954)
+                                    : Colors.black,
                               ),
                             ),
                           ],
@@ -269,8 +280,6 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
 
               const SizedBox(height: 15),
 
-
-
               // Proceed to Payment Button
               SizedBox(
                 width: double.infinity,
@@ -329,7 +338,7 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
           Text(
             value,
             style: TextStyle(
-              fontSize: 14, 
+              fontSize: 14,
               fontWeight: FontWeight.w600,
               color: valueColor ?? Colors.black,
             ),
