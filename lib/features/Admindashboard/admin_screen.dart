@@ -610,6 +610,37 @@ class _AdminScreenState extends State<AdminScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Home Icon Button
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const UserHomeScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.home,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   // Add Icon Button
                   Container(
                     width: 44,
@@ -666,9 +697,7 @@ class _AdminScreenState extends State<AdminScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 24),
-
           // Quick Stats
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -797,9 +826,7 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 16),
-
                 // Turf Cards
                 ..._filteredAdminTurfs.map((turf) {
                   return Container(
@@ -807,7 +834,6 @@ class _AdminScreenState extends State<AdminScreen> {
                     child: _buildTurfCard(turf),
                   );
                 }).toList(),
-
                 const SizedBox(height: 20),
               ],
             ),
@@ -870,7 +896,6 @@ class _AdminScreenState extends State<AdminScreen> {
                   },
                 ),
               ),
-
               // Status Badge
               Positioned(
                 top: 12,
@@ -902,7 +927,6 @@ class _AdminScreenState extends State<AdminScreen> {
                   ),
                 ),
               ),
-
               // View Details Button - Smaller size
               Positioned(
                 bottom: 12,
@@ -933,7 +957,6 @@ class _AdminScreenState extends State<AdminScreen> {
               ),
             ],
           ),
-
           // Info Section
           Padding(
             padding: const EdgeInsets.all(20),
@@ -1002,9 +1025,7 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 16),
-
                 // Stats Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -1029,9 +1050,7 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 16),
-
                 // Action Buttons
                 Container(
                   decoration: BoxDecoration(
@@ -1274,7 +1293,6 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
                   Text(
                     turf.name,
                     style: const TextStyle(
@@ -1283,9 +1301,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       color: Colors.black87,
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
                   Row(
                     children: [
                       Icon(
@@ -1300,9 +1316,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 20),
-
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
@@ -1327,9 +1341,7 @@ class _AdminScreenState extends State<AdminScreen> {
                               height: 1.5,
                             ),
                           ),
-
                           const SizedBox(height: 20),
-
                           // Amenities
                           Text(
                             'Amenities',
@@ -1355,13 +1367,11 @@ class _AdminScreenState extends State<AdminScreen> {
                                 )
                                 .toList(),
                           ),
-
                           const SizedBox(height: 30),
                         ],
                       ),
                     ),
                   ),
-
                   // Close Button
                   SizedBox(
                     width: double.infinity,

@@ -18,6 +18,8 @@ class Booking {
   final List<String> amenities;
   final String mapLink;
   final String address;
+  bool? cancelledByAdmin;
+
 
   Booking({
     required this.id,
@@ -37,5 +39,6 @@ class Booking {
     required this.amenities,
     required this.mapLink,
     required this.address,
+     this.cancelledByAdmin = false,
   });
 }

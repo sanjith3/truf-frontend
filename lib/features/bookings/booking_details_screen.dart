@@ -6,11 +6,13 @@ import '../../models/booking.dart';
 class BookingDetailsScreen extends StatelessWidget {
   final Booking booking;
   final String imageUrl;
+  final bool isAdmin;
 
   const BookingDetailsScreen({
     super.key,
     required this.booking,
     required this.imageUrl,
+    this.isAdmin = false,
   });
 
   Future<void> _openMapLocation(BuildContext context, String mapLink) async {

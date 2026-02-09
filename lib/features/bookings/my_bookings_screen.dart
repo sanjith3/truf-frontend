@@ -6,7 +6,8 @@ import '../../services/turf_data_service.dart';
 import '../../models/booking.dart';
 
 class MyBookingsScreen extends StatefulWidget {
-  const MyBookingsScreen({super.key});
+  final bool isAdmin; // Add this parameter to identify if user is admin
+  const MyBookingsScreen({super.key, this.isAdmin = false});
 
   @override
   State<MyBookingsScreen> createState() => _MyBookingsScreenState();
@@ -120,33 +121,137 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         .toList();
   }
 
+  // Check if booking can be cancelled (within 1 hour of booking time for users, anytime for admin)
+  bool _canCancelBooking(Booking booking) {
+    // ✅ Admin can cancel anytime (only if not already cancelled/completed)
+    if (widget.isAdmin) {
+      return booking.status == BookingStatus.upcoming ||
+          booking.status == BookingStatus.pending ||
+          booking.status == BookingStatus.confirmed;
+    }
+
+    // ✅ User rule → allow cancel ONLY within 60 minutes BEFORE start time
+    final now = DateTime.now();
+
+    final bookingDateTime = DateTime(
+      booking.date.year,
+      booking.date.month,
+      booking.date.day,
+      int.parse(
+        booking.startTime.split(':')[0].replaceAll(RegExp(r'[^0-9]'), ''),
+      ),
+      int.parse(
+        booking.startTime.split(':')[1].replaceAll(RegExp(r'[^0-9]'), ''),
+      ),
+    );
+
+    final differenceInMinutes = bookingDateTime.difference(now).inMinutes;
+
+    return differenceInMinutes <= 60 && differenceInMinutes >= 0;
+  }
+
   void _cancelBooking(Booking booking) {
+    final canCancel = _canCancelBooking(booking);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Cancel Booking"),
-        content: const Text("Are you sure you want to cancel this booking?"),
+        title: Text(
+          widget.isAdmin
+              ? "Cancel Booking (Admin)"
+              : (canCancel ? "Cancel Booking" : "Cancellation Not Allowed"),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.isAdmin
+                  ? "Are you sure you want to cancel this booking as admin?"
+                  : (canCancel
+                        ? "Are you sure you want to cancel this booking?"
+                        : "This booking cannot be cancelled because:"),
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: widget.isAdmin
+                    ? Colors.blue[50]
+                    : (canCancel ? Colors.orange[50] : Colors.red[50]),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: widget.isAdmin
+                      ? Colors.blue[200]!
+                      : (canCancel ? Colors.orange[200]! : Colors.red[200]!),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "• Refund will be processed within 7 business days",
+                    style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+                  ),
+                  if (!widget.isAdmin) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      "• Cancellation allowed only within 1 hour after booking start",
+
+                      style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+                    ),
+                  ],
+                  if (!canCancel && !widget.isAdmin) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      "• You can cancel only within 1 hour after the booking start time",
+
+                      style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("No"),
+            child: const Text("Close"),
           ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                booking.status = BookingStatus.cancelled;
-                booking.paymentStatus = 'Refund Initiated';
-              });
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Booking cancelled successfully"),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            child: const Text("Yes", style: TextStyle(color: Colors.red)),
-          ),
+
+          // ✅ Show confirm button ONLY if cancellation allowed
+          if (widget.isAdmin || canCancel)
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  booking.status = BookingStatus.cancelled;
+                  booking.paymentStatus = 'Refund Initiated';
+                  if (widget.isAdmin) booking.cancelledByAdmin = true;
+                });
+
+                Navigator.pop(context);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      widget.isAdmin
+                          ? "Booking cancelled by admin. Refund in 7 days."
+                          : "Booking cancelled. Refund in 7 days.",
+                    ),
+                    backgroundColor: widget.isAdmin
+                        ? Colors.blue
+                        : Colors.green,
+                  ),
+                );
+              },
+              child: Text(
+                widget.isAdmin ? "Cancel as Admin" : "Confirm Cancel",
+              ),
+            ),
         ],
       ),
     );
@@ -361,6 +466,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           imageUrl:
               _turfImages[booking.turfName] ??
               "https://images.unsplash.com/photo-1531315630201-bb15abeb1653?w=800",
+          isAdmin: widget.isAdmin,
         ),
       ),
     );
@@ -376,8 +482,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("My Bookings"),
-        backgroundColor: const Color(0xFF00C853),
+        title: Text(widget.isAdmin ? "Admin: Bookings" : "My Bookings"),
+        backgroundColor: widget.isAdmin
+            ? const Color(0xFF1DB954)
+            : const Color(0xFF00C853),
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -395,7 +503,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
             fontWeight: FontWeight.w500,
           ),
           tabs: const [
-            Tab(text: "Upcoming"),
+            Tab(text: "Scheduled"),
             Tab(text: "Completed"),
             Tab(text: "Cancelled"),
           ],
@@ -453,7 +561,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              "Book your first turf to get started",
+              widget.isAdmin
+                  ? "No bookings found for this status"
+                  : "Book your first turf to get started",
               style: TextStyle(fontSize: 13, color: Colors.grey[500]),
             ),
           ],
@@ -465,12 +575,15 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       padding: const EdgeInsets.all(12),
       itemCount: bookings.length,
       itemBuilder: (context, index) {
+        final canCancel = _canCancelBooking(bookings[index]);
         return BookingTurfCard(
           booking: bookings[index],
           imageUrl:
               _turfImages[bookings[index].turfName] ??
               "https://images.unsplash.com/photo-1531315630201-bb15abeb1653?w=800",
           showCancelButton: showCancelButton,
+          canCancel: canCancel,
+          isAdmin: widget.isAdmin,
           onCancel: () => _cancelBooking(bookings[index]),
           onOpenMap: (mapLink) => _openMapLocation(mapLink),
           onRate: (turfName) => _showRatingDialog(context, turfName),
@@ -485,6 +598,8 @@ class BookingTurfCard extends StatelessWidget {
   final Booking booking;
   final String imageUrl;
   final bool showCancelButton;
+  final bool canCancel;
+  final bool isAdmin;
   final VoidCallback onCancel;
   final Function(String) onOpenMap;
   final Function(String) onRate;
@@ -495,6 +610,8 @@ class BookingTurfCard extends StatelessWidget {
     required this.booking,
     required this.imageUrl,
     required this.showCancelButton,
+    required this.canCancel,
+    required this.isAdmin,
     required this.onCancel,
     required this.onOpenMap,
     required this.onRate,
@@ -526,7 +643,9 @@ class BookingTurfCard extends StatelessWidget {
       case BookingStatus.pending:
       case BookingStatus.confirmed:
       case BookingStatus.upcoming:
-        statusColor = const Color(0xFF00C853);
+        statusColor = isAdmin
+            ? const Color(0xFF1DB954)
+            : const Color(0xFF00C853);
         statusText = "Upcoming";
         statusIcon = Icons.access_time;
         break;
@@ -613,8 +732,8 @@ class BookingTurfCard extends StatelessWidget {
                 ),
               ),
 
-              // Paid Status Badge
-              if (booking.paymentStatus == 'Paid')
+              // Admin Badge
+              if (isAdmin && showCancelButton && canCancel)
                 Positioned(
                   top: 10,
                   right: 10,
@@ -624,7 +743,79 @@ class BookingTurfCard extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00C853),
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.admin_panel_settings,
+                          size: 10,
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          "Admin: Can Cancel",
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // User: Cancellation Info Badge (if within 1 hour window)
+              if (!isAdmin && showCancelButton && canCancel)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.timer, size: 10, color: Colors.white),
+                        SizedBox(width: 4),
+                        Text(
+                          "Can Cancel",
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Paid Status Badge
+              if (booking.paymentStatus == 'Paid')
+                Positioned(
+                  top:
+                      (isAdmin && showCancelButton && canCancel) ||
+                          (!isAdmin && showCancelButton && canCancel)
+                      ? 40
+                      : 10,
+                  right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isAdmin
+                          ? const Color(0xFF1DB954)
+                          : const Color(0xFF00C853),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text(
@@ -641,7 +832,11 @@ class BookingTurfCard extends StatelessWidget {
               // Refund Status Badge
               if (booking.paymentStatus.contains('Refund'))
                 Positioned(
-                  top: 10,
+                  top:
+                      (isAdmin && showCancelButton && canCancel) ||
+                          (!isAdmin && showCancelButton && canCancel)
+                      ? 40
+                      : 10,
                   right: 10,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -659,6 +854,41 @@ class BookingTurfCard extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),
+                    ),
+                  ),
+                ),
+
+              // Cancelled by Admin Badge
+              if (booking.cancelledByAdmin == true)
+                Positioned(
+                  bottom: 10,
+                  left: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.admin_panel_settings,
+                          size: 10,
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          "Cancelled by Admin",
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -689,10 +919,12 @@ class BookingTurfCard extends StatelessWidget {
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.location_on,
                                 size: 14,
-                                color: Colors.redAccent,
+                                color: isAdmin
+                                    ? const Color(0xFF1DB954)
+                                    : Colors.redAccent,
                               ),
                               const SizedBox(width: 4),
                               Expanded(
@@ -716,12 +948,18 @@ class BookingTurfCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF00C853).withOpacity(0.1),
+                          color:
+                              (isAdmin
+                                      ? const Color(0xFF1DB954)
+                                      : const Color(0xFF00C853))
+                                  .withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.directions,
-                          color: Color(0xFF00C853),
+                          color: isAdmin
+                              ? const Color(0xFF1DB954)
+                              : const Color(0xFF00C853),
                           size: 20,
                         ),
                       ),
@@ -743,6 +981,48 @@ class BookingTurfCard extends StatelessWidget {
                   ],
                 ),
 
+                // Cancellation Policy Info
+                if (showCancelButton)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 14,
+                          color: canCancel
+                              ? (isAdmin ? Colors.blue : Colors.green)
+                              : Colors.orange,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            isAdmin
+                                ? (canCancel
+                                      ? "Admin: Can cancel this booking anytime"
+                                      : "Booking cannot be cancelled")
+                                : (canCancel
+                                      ? "Cancellation available (within 1 hour window)"
+                                      : "Cancellation window expired"),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: canCancel
+                                  ? (isAdmin ? Colors.blue : Colors.green)
+                                  : Colors.orange,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 const SizedBox(height: 16),
 
                 // Action Buttons
@@ -754,15 +1034,21 @@ class BookingTurfCard extends StatelessWidget {
                         child: OutlinedButton(
                           onPressed: onViewDetails,
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF00C853)),
+                            side: BorderSide(
+                              color: isAdmin
+                                  ? const Color(0xFF1DB954)
+                                  : const Color(0xFF00C853),
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          child: const Text(
+                          child: Text(
                             "View Details",
                             style: TextStyle(
-                              color: Color(0xFF00C853),
+                              color: isAdmin
+                                  ? const Color(0xFF1DB954)
+                                  : const Color(0xFF00C853),
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                             ),
@@ -771,24 +1057,29 @@ class BookingTurfCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    if (showCancelButton &&
-                        booking.status == BookingStatus.upcoming)
+                    if (showCancelButton)
                       Expanded(
                         child: SizedBox(
                           height: 40,
                           child: ElevatedButton(
                             onPressed: onCancel,
+
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.redAccent,
+                              backgroundColor: isAdmin
+                                  ? Colors.blue
+                                  : Colors.redAccent,
+
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: const Text(
-                              "Cancel",
+                            child: Text(
+                              isAdmin ? "Cancel as Admin" : "Cancel",
                               style: TextStyle(
-                                color: Colors.white,
+                                color: (isAdmin || canCancel)
+                                    ? Colors.white
+                                    : Colors.grey[100],
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                               ),
@@ -803,7 +1094,9 @@ class BookingTurfCard extends StatelessWidget {
                           child: ElevatedButton(
                             onPressed: () => onRate(booking.turfName),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00C853),
+                              backgroundColor: isAdmin
+                                  ? const Color(0xFF1DB954)
+                                  : const Color(0xFF00C853),
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
