@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../home/user_home_screen.dart';
+import 'forgot_password_screen.dart';
 
 class OtpLoginScreen extends StatefulWidget {
   const OtpLoginScreen({super.key});
@@ -183,7 +184,29 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 8),
+                if (_isLogin)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ForgotPasswordScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Forgot Password?",
+                        style: TextStyle(
+                          color: Color(0xFF1DB954),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 12),
 
                 // Terms and Conditions Checkbox (only for registration)
                 if (!_isLogin)
