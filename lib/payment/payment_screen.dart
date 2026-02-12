@@ -50,7 +50,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
         _userPhone = prefs.getString('userPhone') ?? '0000000000';
         _isLoadingUserInfo = false;
 
-        // Validate user info
         if (_userName.isEmpty || _userName == 'Guest User') {
           _userInfoError = 'Please set up your profile before booking';
         } else if (_userPhone.isEmpty || _userPhone == '0000000000') {
@@ -109,7 +108,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
   ];
 
   void _processPayment() {
-    // Validate user info before processing
     if (_userInfoError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -136,7 +134,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
       _isProcessing = true;
     });
 
-    // Simulate payment processing
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         setState(() {
@@ -147,8 +144,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
     });
   }
 
+  // ------------------------------------------------
+  // UPDATED: Payment success bottom sheet – now scrollable
+  // ------------------------------------------------
   void _showPaymentSuccess() {
-    // Save booking to service
     final newBooking = Booking(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       turfName: widget.turf.name,
@@ -173,7 +172,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
+      isScrollControlled: true, // Allows bottom sheet to take full height
       isDismissible: false,
       enableDrag: false,
       shape: const RoundedRectangleBorder(
@@ -187,6 +186,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Success icon & message (fixed)
                 Container(
                   width: 80,
                   height: 80,
@@ -212,36 +212,48 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 25),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildConfirmationRow("Turf", widget.turf.name),
-                      _buildConfirmationRow(
-                        "Date",
-                        "${widget.selectedDate.day}/${widget.selectedDate.month}/${widget.selectedDate.year}",
+
+                // 🆕 SCROLLABLE CONFIRMATION DETAILS
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(15),
                       ),
-                      _buildConfirmationRow(
-                        "Duration",
-                        "${widget.selectedTimeSlots.length} hour(s)",
+                      child: Column(
+                        children: [
+                          _buildConfirmationRow("Turf", widget.turf.name),
+                          _buildConfirmationRow(
+                            "Date",
+                            "${widget.selectedDate.day}/${widget.selectedDate.month}/${widget.selectedDate.year}",
+                          ),
+                          _buildConfirmationRow(
+                            "Duration",
+                            "${widget.selectedTimeSlots.length} hour(s)",
+                          ),
+                          // List of all selected time slots
+                          ...widget.selectedTimeSlots
+                              .map(
+                                (slot) => _buildConfirmationRow("Slot", slot),
+                              )
+                              .toList(),
+                          const Divider(height: 20),
+                          _buildConfirmationRow(
+                            "Amount Paid",
+                            "₹${widget.totalAmount.toStringAsFixed(0)}",
+                            isBold: true,
+                          ),
+                        ],
                       ),
-                      ...widget.selectedTimeSlots
-                          .map((slot) => _buildConfirmationRow("Slot", slot))
-                          .toList(),
-                      const Divider(height: 20),
-                      _buildConfirmationRow(
-                        "Amount Paid",
-                        "₹${widget.totalAmount.toStringAsFixed(0)}",
-                        isBold: true,
-                      ),
-                    ],
+                    ),
                   ),
                 ),
+
                 const SizedBox(height: 30),
+
+                // Fixed button at bottom
                 SizedBox(
                   width: double.infinity,
                   height: 56,

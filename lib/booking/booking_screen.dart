@@ -20,11 +20,8 @@ class _BookingScreenState extends State<BookingScreen> {
   List<String> _selectedTimeSlots = [];
   List<TimeSlot> _availableTimeSlots = [];
 
-  // Offer slots defined by admin (These would come from your backend/API)
-  List<String> _offerSlots = []; // Will be loaded from service
-
-  // No longer needed: real bookings come from TurfDataService
-  final List<String> _bookedSlots = [];
+  // Offer slots defined by admin
+  List<String> _offerSlots = [];
 
   // Helper to check if current turf has an offer
   bool get _hasTurfOffer {
@@ -33,14 +30,13 @@ class _BookingScreenState extends State<BookingScreen> {
       'Elite Football Ground',
       'Shuttle Masters Academy',
       'Royal Turf Ground',
-      'City Sports Turf', // Added for demo
+      'City Sports Turf',
     ];
     return offerTurfNames.contains(widget.turf.name);
   }
 
   // Calculate price for a single slot based on whether it has an offer
   double _getSlotPrice(String slotTime) {
-    // Check for custom price in saved slots
     final turfName = widget.turf.name;
     final saved = TurfDataService().getSavedSlots(turfName, _selectedDate);
     double basePrice = widget.turf.price.toDouble();
@@ -55,9 +51,6 @@ class _BookingScreenState extends State<BookingScreen> {
       }
     }
 
-    // Apply discount ONLY if:
-    // 1. This specific slot has an offer tag AND
-    // 2. The turf is in the offer turfs list
     if (_hasTurfOffer && _offerSlots.contains(slotTime)) {
       return basePrice * 0.8; // 20% discount
     }
@@ -67,7 +60,6 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   void initState() {
     super.initState();
-
     _loadOfferSlots();
   }
 
@@ -79,11 +71,14 @@ class _BookingScreenState extends State<BookingScreen> {
     _generateTimeSlots();
   }
 
+  // ------------------------------------------------------------
+  // Generate all time slots for the selected date
+  // ------------------------------------------------------------
   void _generateTimeSlots() {
     List<TimeSlot> slots = [];
     final turfName = widget.turf.name;
 
-    // Filter real bookings from service for THIS turf on THIS date
+    // Real bookings from the service for THIS turf and date
     final existingBookings = TurfDataService().bookings
         .where(
           (b) =>
@@ -99,13 +94,13 @@ class _BookingScreenState extends State<BookingScreen> {
         .map((b) => "${b.startTime} - ${b.endTime}")
         .toList();
 
-    // Check if we have saved slots from Slot Management
+    // Check if admin has saved custom slots for this turf/date
     final saved = TurfDataService().getSavedSlots(turfName, _selectedDate);
 
     if (saved != null && saved.isNotEmpty) {
+      // Use admin-defined slots
       for (var s in saved) {
         String slotTime = s['time'];
-        // Re-check booking status against real-time bookings
         bool isBooked =
             bookedSlotTimes.contains(slotTime) || s['status'] == 'booked';
         bool isDisabled = s['disabled'] == true;
@@ -114,25 +109,14 @@ class _BookingScreenState extends State<BookingScreen> {
         slots.add(
           TimeSlot(
             time: slotTime,
-            // Slot is available if it's NOT booked AND NOT disabled
             isAvailable: !isBooked && !isDisabled,
             hasOffer: hasOffer,
           ),
         );
       }
     } else {
-      // Fallback: Generate default time slots from 6 AM to 1 AM
-      // Define demo offer slots for visual demonstration
-      final demoOfferSlots = _hasTurfOffer
-          ? [
-              '6:00 AM - 7:00 AM',
-              '8:00 AM - 9:00 AM',
-              '10:00 AM - 11:00 AM',
-              '12:00 PM - 1:00 PM',
-              '2:00 PM - 3:00 PM',
-            ]
-          : [];
-
+      // ----- FALLBACK: Generate default slots -----
+      // Day slots: 6:00 AM – 11:00 PM
       for (int hour = 6; hour <= 23; hour++) {
         bool isAM = hour < 12;
         String period = isAM ? 'AM' : 'PM';
@@ -150,10 +134,7 @@ class _BookingScreenState extends State<BookingScreen> {
         String endTime = '$nextDisplayHour:00 $nextPeriod';
         String slot = '$startTime - $endTime';
 
-        // Check if slot has offer from service OR from demo list
-        bool hasOffer =
-            (_hasTurfOffer && _offerSlots.contains(slot)) ||
-            demoOfferSlots.contains(slot);
+        bool hasOffer = _hasTurfOffer && _offerSlots.contains(slot);
         bool isBooked = bookedSlotTimes.contains(slot);
 
         slots.add(
@@ -161,20 +142,49 @@ class _BookingScreenState extends State<BookingScreen> {
         );
       }
 
-      // Add midnight slot
-      String midnightSlot = '12:00 AM - 01:00 AM';
-      slots.add(
-        TimeSlot(
-          time: midnightSlot,
-          isAvailable: !bookedSlotTimes.contains(midnightSlot),
-          hasOffer: _hasTurfOffer && _offerSlots.contains(midnightSlot),
-        ),
-      );
+      // ----- Midnight slots: 12:00 AM – 5:00 AM -----
+      for (int hour = 0; hour <= 5; hour++) {
+        bool isAM = hour < 12;
+        String period = isAM ? 'AM' : 'PM';
+        int displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+        int nextHour = (hour + 1) % 24;
+        bool nextIsAM = nextHour < 12;
+        String nextPeriod = nextIsAM ? 'AM' : 'PM';
+        int nextDisplayHour = nextHour == 0
+            ? 12
+            : (nextHour > 12 ? nextHour - 12 : nextHour);
+
+        String startTime = '$displayHour:00 $period';
+        String endTime = '$nextDisplayHour:00 $nextPeriod';
+        String slot = '$startTime - $endTime';
+
+        bool hasOffer = _hasTurfOffer && _offerSlots.contains(slot);
+        bool isBooked = bookedSlotTimes.contains(slot);
+
+        slots.add(
+          TimeSlot(time: slot, isAvailable: !isBooked, hasOffer: hasOffer),
+        );
+      }
     }
 
     setState(() {
       _availableTimeSlots = slots;
     });
+  }
+
+  // ------------------------------------------------------------
+  // Parse the start hour from a TimeSlot (e.g., "6:00 AM" -> 6)
+  // ------------------------------------------------------------
+  int _getHourFromSlot(TimeSlot slot) {
+    final start = slot.time.split(' - ')[0].trim();
+    final parts = start.split(' ');
+    if (parts.length < 2) return 0;
+    final hourMin = parts[0];
+    final period = parts[1];
+    final hour = int.parse(hourMin.split(':')[0]);
+    if (period == 'PM' && hour != 12) return hour + 12;
+    if (period == 'AM' && hour == 12) return 0;
+    return hour;
   }
 
   double _calculateTotal() {
@@ -188,7 +198,6 @@ class _BookingScreenState extends State<BookingScreen> {
   List<DateTime> _getNext30Days() {
     List<DateTime> days = [];
     DateTime currentDate = DateTime.now();
-
     for (int i = 0; i < 30; i++) {
       days.add(
         DateTime(currentDate.year, currentDate.month, currentDate.day + i),
@@ -246,6 +255,9 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // BUILD
+  // ------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final next30Days = _getNext30Days();
@@ -259,65 +271,48 @@ class _BookingScreenState extends State<BookingScreen> {
       ),
       body: Column(
         children: [
-          // Turf Info Card
+          // Turf Info Card (tappable → details screen)
           TurfInfoCard(turf: widget.turf),
 
           const SizedBox(height: 16),
 
-          // Date Selection (Next 30 Days)
+          // Date selector – NO header text
           _buildDateSelector(next30Days),
 
           const SizedBox(height: 16),
 
-          // CLARITY BOX FOR CUSTOMERS - ADDED HERE
+          // Color legend / clarity box
           _buildClarityBox(),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
-          // Time Slot Selection Header
+          // Time slot header (without the green hint)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    const Text(
-                      "Select Time Slots",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.orange.shade200),
-                      ),
-                      child: Text(
-                        "${_selectedTimeSlots.length} selected",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade800,
-                        ),
-                      ),
-                    ),
-                  ],
+                const Text(
+                  "Select Time Slots",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  "Tap multiple slots to book consecutive hours",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.green.shade700,
-                    fontStyle: FontStyle.italic,
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Text(
+                    "${_selectedTimeSlots.length} selected",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange.shade800,
+                    ),
                   ),
                 ),
               ],
@@ -326,41 +321,69 @@ class _BookingScreenState extends State<BookingScreen> {
 
           const SizedBox(height: 12),
 
-          // Time Slots Grid - Expanded to take remaining space
+          // Time slots – fully scrollable
           Expanded(
             child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    // Morning Section (6 AM - 12 PM)
-                    _buildTimeSection("Morning", 0, 6),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  // Morning (6 AM – 11:59 AM)
+                  _buildTimeSectionForCategory(
+                    title: 'Morning',
+                    subtitle: '6 AM – 12 PM',
+                    filter: (slot) {
+                      final hour = _getHourFromSlot(slot);
+                      return hour >= 6 && hour < 12;
+                    },
+                  ),
 
-                    // Afternoon Section (1 PM - 5 PM)
-                    _buildTimeSection("Afternoon", 6, 11),
+                  // Afternoon (12 PM – 5 PM)
+                  _buildTimeSectionForCategory(
+                    title: 'Afternoon',
+                    subtitle: '12 PM – 5 PM',
+                    filter: (slot) {
+                      final hour = _getHourFromSlot(slot);
+                      return hour >= 12 && hour < 17;
+                    },
+                  ),
 
-                    // Evening Section (6 PM - 1 AM)
-                    _buildTimeSection(
-                      "Evening",
-                      11,
-                      _availableTimeSlots.length,
-                    ),
+                  // Evening (6 PM – 11 PM)
+                  _buildTimeSectionForCategory(
+                    title: 'Evening',
+                    subtitle: '6 PM – 11 PM',
+                    filter: (slot) {
+                      final hour = _getHourFromSlot(slot);
+                      return hour >= 18 && hour <= 23;
+                    },
+                  ),
 
-                    const SizedBox(height: 40), // Extra space for bottom button
-                  ],
-                ),
+                  // Midnight (12 AM – 5 AM)
+                  _buildTimeSectionForCategory(
+                    title: 'Midnight',
+                    subtitle: '12 AM – 6 AM',
+                    filter: (slot) {
+                      final hour = _getHourFromSlot(slot);
+                      return hour >= 0 && hour < 6;
+                    },
+                  ),
+
+                  // Extra bottom padding to avoid content being hidden behind the sticky bar
+                  const SizedBox(height: 80),
+                ],
               ),
             ),
           ),
         ],
       ),
 
-      // Floating Book Button at Bottom
+      // Sticky bottom booking bar
       bottomNavigationBar: _buildBottomBar(totalAmount),
     );
   }
 
-  // NEW METHOD: Clarity Box for customers
+  // ------------------------------------------------------------
+  // UI Components
+  // ------------------------------------------------------------
   Widget _buildClarityBox() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -375,82 +398,23 @@ class _BookingScreenState extends State<BookingScreen> {
         spacing: 12,
         runSpacing: 8,
         children: [
-          // Available indicator
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(3),
-                  border: Border.all(color: Colors.green.shade800),
-                ),
-              ),
-              const SizedBox(width: 6),
-              const Text(
-                "Available",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.green,
-                ),
-              ),
-            ],
+          _legendItem(
+            color: Colors.green,
+            label: 'Available',
+            borderColor: Colors.green.shade800,
           ),
-
-          // Booked indicator
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(3),
-                  border: Border.all(color: Colors.grey.shade500),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                "Booked",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-            ],
+          _legendItem(
+            color: Colors.grey.shade200,
+            label: 'Booked',
+            borderColor: Colors.grey.shade500,
+            textColor: Colors.grey.shade600,
           ),
-
-          // Selected indicator
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  borderRadius: BorderRadius.circular(3),
-                  border: Border.all(color: Colors.blue.shade800),
-                ),
-              ),
-              const SizedBox(width: 6),
-              const Text(
-                "Selected",
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.blue,
-                ),
-              ),
-            ],
+          _legendItem(
+            color: Colors.blue,
+            label: 'Selected',
+            borderColor: Colors.blue.shade800,
+            textColor: Colors.blue,
           ),
-
-          // Offer slot indicator
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -468,7 +432,7 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
               const SizedBox(width: 6),
               const Text(
-                "Offer",
+                'Offer',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -482,15 +446,43 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
+  Widget _legendItem({
+    required Color color,
+    required String label,
+    Color? borderColor,
+    Color textColor = Colors.black87,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+            border: borderColor != null ? Border.all(color: borderColor) : null,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: textColor,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDateSelector(List<DateTime> days) {
-    // Find today's date for comparison
     final DateTime today = DateTime(
       DateTime.now().year,
       DateTime.now().month,
       DateTime.now().day,
     );
-
-    // Check if selected date is today (for comparison)
     final DateTime normalizedSelectedDate = DateTime(
       _selectedDate.year,
       _selectedDate.month,
@@ -499,126 +491,101 @@ class _BookingScreenState extends State<BookingScreen> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Select Date (Next 30 Days)",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 80,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: days.length,
-              itemBuilder: (context, index) {
-                final day = days[index];
-                final isToday = day.isAtSameMomentAs(today);
-                final isSelected = normalizedSelectedDate.isAtSameMomentAs(day);
+      child: SizedBox(
+        height: 80,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: days.length,
+          itemBuilder: (context, index) {
+            final day = days[index];
+            final isToday = day.isAtSameMomentAs(today);
+            final isSelected = normalizedSelectedDate.isAtSameMomentAs(day);
 
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedDate = day;
-                      _selectedTimeSlots.clear();
-                    });
-                  },
-                  child: Container(
-                    width: 60,
-                    margin: EdgeInsets.only(
-                      right: index == days.length - 1 ? 0 : 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFF1DB954)
-                          : isToday
-                          ? Colors.blue.shade50
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isToday && !isSelected
-                            ? Colors.blue.shade200
-                            : Colors.grey.shade200,
-                      ),
-                      boxShadow: [
-                        if (isSelected)
-                          BoxShadow(
-                            color: const Color(0xFF1DB954).withOpacity(0.3),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _getDayName(day.weekday),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected
-                                ? Colors.white
-                                : Colors.grey.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          day.day.toString(),
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected
-                                ? Colors.white
-                                : isToday
-                                ? Colors.blue.shade800
-                                : Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _getMonthName(day.month),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: isSelected
-                                ? Colors.white70
-                                : Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedDate = day;
+                  _selectedTimeSlots.clear();
+                });
               },
-            ),
-          ),
-        ],
+              child: Container(
+                width: 60,
+                margin: EdgeInsets.only(
+                  right: index == days.length - 1 ? 0 : 10,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFF1DB954)
+                      : isToday
+                      ? Colors.blue.shade50
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isToday && !isSelected
+                        ? Colors.blue.shade200
+                        : Colors.grey.shade200,
+                  ),
+                  boxShadow: [
+                    if (isSelected)
+                      BoxShadow(
+                        color: const Color(0xFF1DB954).withOpacity(0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _getDayName(day.weekday),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? Colors.white : Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      day.day.toString(),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected
+                            ? Colors.white
+                            : isToday
+                            ? Colors.blue.shade800
+                            : Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _getMonthName(day.month),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isSelected
+                            ? Colors.white70
+                            : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildTimeSection(String title, int startIndex, int endIndex) {
-    if (_availableTimeSlots.isEmpty ||
-        startIndex >= _availableTimeSlots.length) {
-      return const SizedBox();
-    }
-
-    final safeEnd = endIndex.clamp(0, _availableTimeSlots.length);
-
-    final sectionSlots = _availableTimeSlots.sublist(startIndex, safeEnd);
-
-    if (sectionSlots.isEmpty) return const SizedBox();
-
-    // Determine time range for subtitle
-    String subtitle = "";
-    if (title == "Morning") {
-      subtitle = "6 AM - 12 PM";
-    } else if (title == "Afternoon") {
-      subtitle = "1 PM - 5 PM";
-    } else {
-      subtitle = "6 PM - 1 AM";
-    }
+  /// Builds a time section based on a filter predicate.
+  Widget _buildTimeSectionForCategory({
+    required String title,
+    required String subtitle,
+    required bool Function(TimeSlot) filter,
+  }) {
+    final filtered = _availableTimeSlots.where(filter).toList();
+    if (filtered.isEmpty) return const SizedBox();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -649,11 +616,11 @@ class _BookingScreenState extends State<BookingScreen> {
             crossAxisCount: 3,
             crossAxisSpacing: 8,
             mainAxisSpacing: 8,
-            childAspectRatio: 2.2, // Adjusted for better fit
+            childAspectRatio: 2.2,
           ),
-          itemCount: sectionSlots.length,
+          itemCount: filtered.length,
           itemBuilder: (context, index) {
-            final slot = sectionSlots[index];
+            final slot = filtered[index];
             final isSelected = _selectedTimeSlots.contains(slot.time);
             return TimeSlotCard(
               slot: slot,
@@ -692,7 +659,6 @@ class _BookingScreenState extends State<BookingScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Show strikethrough only if at least one selected slot has an offer
               if (_selectedTimeSlots.isNotEmpty &&
                   _selectedTimeSlots.any((slot) => _offerSlots.contains(slot)))
                 Padding(
@@ -725,7 +691,6 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   String _getDayName(int weekday) {
-    // Dart's weekday: 1=Monday, 2=Tuesday, ..., 7=Sunday
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return days[weekday - 1];
   }
@@ -749,9 +714,11 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 }
 
+// -----------------------------------------------------------------
+// TurfInfoCard – Displays turf summary, tappable to details
+// -----------------------------------------------------------------
 class TurfInfoCard extends StatelessWidget {
   final Turf turf;
-
   const TurfInfoCard({super.key, required this.turf});
 
   @override
@@ -790,7 +757,6 @@ class TurfInfoCard extends StatelessWidget {
                       : const NetworkImage(
                           "https://via.placeholder.com/150?text=No+Image",
                         ),
-
                   fit: BoxFit.cover,
                 ),
               ),
@@ -900,6 +866,9 @@ class TurfInfoCard extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------
+// TimeSlot model and card widget
+// -----------------------------------------------------------------
 class TimeSlot {
   final String time;
   final bool isAvailable;
@@ -978,8 +947,6 @@ class TimeSlotCard extends StatelessWidget {
               ),
             ),
           ),
-
-          // Offer Badge - Only show if slot has offer and is available
           if (slot.hasOffer && slot.isAvailable)
             Positioned(
               top: -4,
@@ -1019,8 +986,6 @@ class TimeSlotCard extends StatelessWidget {
                 ),
               ),
             ),
-
-          // Additional visual indicator for offer slots (small corner marker)
           if (slot.hasOffer && slot.isAvailable && !isSelected)
             Positioned(
               top: 2,
