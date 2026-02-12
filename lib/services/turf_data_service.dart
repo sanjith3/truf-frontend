@@ -7,49 +7,89 @@ import 'dart:convert';
 class TurfDataService extends ChangeNotifier {
   static final TurfDataService _instance = TurfDataService._internal();
   factory TurfDataService() => _instance;
+
   TurfDataService._internal() {
     _loadSavedTurfs();
     _loadCustomSlots();
+    initDemoBookings();
   }
 
+  // ============================================================
+  // SLOT STORAGE
   // Key: "turfName_YYYY-MM-DD" -> List of slot maps
+  // ============================================================
   final Map<String, List<Map<String, dynamic>>> _customSlots = {};
 
-  Future<void> saveSlots(String turfName, DateTime date, List<Map<String, dynamic>> slots) async {
-    final key = "${turfName}_${date.year}-${date.month}-${date.day}";
-    _customSlots[key] = slots;
+  String _slotKey(String turfName, DateTime date) =>
+      "${turfName}_${date.year}-${date.month}-${date.day}";
+
+  /// SAVE single slot (USED BY SlotManagementScreen)
+  Future<void> saveSlotData(
+    String turfName,
+    DateTime date,
+    String slotTime,
+    Map<String, dynamic> data,
+  ) async {
+    final key = _slotKey(turfName, date);
+
+    if (!_customSlots.containsKey(key)) {
+      _customSlots[key] = [];
+    }
+
+    final index = _customSlots[key]!.indexWhere((s) => s['time'] == slotTime);
+
+    if (index != -1) {
+      _customSlots[key]![index] = data;
+    } else {
+      _customSlots[key]!.add(data);
+    }
+
     await _persistCustomSlots();
     notifyListeners();
   }
 
+  /// SAVE full day slots (existing method kept)
+  Future<void> saveSlots(
+    String turfName,
+    DateTime date,
+    List<Map<String, dynamic>> slots,
+  ) async {
+    _customSlots[_slotKey(turfName, date)] = slots;
+    await _persistCustomSlots();
+    notifyListeners();
+  }
+
+  /// GET saved slots
   List<Map<String, dynamic>>? getSavedSlots(String turfName, DateTime date) {
-    final key = "${turfName}_${date.year}-${date.month}-${date.day}";
-    return _customSlots[key];
+    return _customSlots[_slotKey(turfName, date)];
   }
 
   Future<void> _persistCustomSlots() async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setString('custom_slots_data', jsonEncode(_customSlots));
+    await prefs.setString('custom_slots_data', jsonEncode(_customSlots));
   }
 
   Future<void> _loadCustomSlots() async {
     final prefs = await SharedPreferences.getInstance();
-    final String? data = prefs.getString('custom_slots_data');
+    final data = prefs.getString('custom_slots_data');
+
     if (data != null) {
       try {
         final decoded = jsonDecode(data) as Map<String, dynamic>;
         decoded.forEach((key, value) {
           _customSlots[key] = List<Map<String, dynamic>>.from(
-            (value as List).map((i) => Map<String, dynamic>.from(i))
+            (value as List).map((i) => Map<String, dynamic>.from(i)),
           );
         });
-        notifyListeners();
       } catch (e) {
         debugPrint("Error loading custom slots: $e");
       }
     }
   }
 
+  // ============================================================
+  // TURF DATA
+  // ============================================================
   final List<Turf> _turfs = [
     Turf(
       id: '1',
@@ -104,10 +144,12 @@ class TurfDataService extends ChangeNotifier {
     ),
   ];
 
-  final List<Booking> _bookings = [];
+  /// REQUIRED by SlotManagementScreen
+  Future<List<Turf>> getAllTurfs() async {
+    return List.unmodifiable(_turfs);
+  }
 
   List<Turf> get turfs => List.unmodifiable(_turfs);
-  List<Booking> get bookings => List.unmodifiable(_bookings);
 
   void addTurf(Turf turf) {
     _turfs.insert(0, turf);
@@ -117,26 +159,26 @@ class TurfDataService extends ChangeNotifier {
 
   Future<void> _saveTurfs() async {
     final prefs = await SharedPreferences.getInstance();
-    // Only save the dynamic turfs (those not in the static list, or just save all if you prefer)
-    // For simplicity, let's save all turfs adding a flag or just save the dynamic ones.
-    // Actually, it's safer to save all and filter or just save dynamic.
-    // Let's save dynamic turfs in a separate key.
-    List<Turf> dynamicTurfs = _turfs
-        .where((t) => int.tryParse(t.id) == null || int.parse(t.id) > 10)
+
+    final dynamicTurfs = _turfs
+        .where((t) => int.tryParse(t.id) == null)
         .toList();
-    List<String> turfJsonList = dynamicTurfs
+
+    final turfJsonList = dynamicTurfs
         .map((t) => jsonEncode(t.toJson()))
         .toList();
+
     await prefs.setStringList('dynamic_turfs', turfJsonList);
   }
 
   Future<void> _loadSavedTurfs() async {
     final prefs = await SharedPreferences.getInstance();
-    List<String>? turfJsonList = prefs.getStringList('dynamic_turfs');
+    final turfJsonList = prefs.getStringList('dynamic_turfs');
+
     if (turfJsonList != null) {
-      for (String turfJson in turfJsonList) {
+      for (final turfJson in turfJsonList) {
         try {
-          Turf turf = Turf.fromJson(jsonDecode(turfJson));
+          final turf = Turf.fromJson(jsonDecode(turfJson));
           if (!_turfs.any((t) => t.id == turf.id)) {
             _turfs.add(turf);
           }
@@ -144,24 +186,28 @@ class TurfDataService extends ChangeNotifier {
           debugPrint("Error loading turf: $e");
         }
       }
-      notifyListeners();
     }
   }
+
+  // ============================================================
+  // BOOKINGS
+  // ============================================================
+  final List<Booking> _bookings = [];
+
+  List<Booking> get bookings => List.unmodifiable(_bookings);
 
   void addBooking(Booking booking) {
     _bookings.insert(0, booking);
     notifyListeners();
   }
 
-  // Initial bookings for demo
+  /// Demo data
   void initDemoBookings() {
     if (_bookings.isNotEmpty) return;
 
     final now = DateTime.now();
 
-    // Add multiple demo bookings for better analytics visualization
-    _bookings.addAll([
-      // Bookings for Green Field Arena
+    _bookings.add(
       Booking(
         id: '1',
         turfName: 'Green Field Arena',
@@ -181,104 +227,6 @@ class TurfDataService extends ChangeNotifier {
         mapLink: "https://maps.app.goo.gl/xyz123",
         address: "123 Sports Complex, PN Pudur, Coimbatore",
       ),
-      Booking(
-        id: '2',
-        turfName: 'Green Field Arena',
-        userName: 'Sanjay Ram',
-        userPhone: '9876543211',
-        location: 'PN Pudur',
-        distance: 2.5,
-        rating: 4.8,
-        date: DateTime(now.year, now.month, now.day - 1),
-        startTime: '10:00',
-        endTime: '11:00',
-        amount: 500,
-        status: BookingStatus.completed,
-        paymentStatus: 'Paid',
-        bookingId: 'TURF-2024-002',
-        amenities: ["Lights", "Parking", "Water"],
-        mapLink: "https://maps.app.goo.gl/xyz123",
-        address: "123 Sports Complex, PN Pudur, Coimbatore",
-      ),
-      Booking(
-        id: '3',
-        turfName: 'Green Field Arena',
-        userName: 'Vijay Singh',
-        userPhone: '9876543212',
-        location: 'PN Pudur',
-        distance: 2.5,
-        rating: 4.8,
-        date: DateTime(now.year, now.month, now.day - 2),
-        startTime: '21:00',
-        endTime: '22:00',
-        amount: 500,
-        status: BookingStatus.completed,
-        paymentStatus: 'Paid',
-        bookingId: 'TURF-2024-003',
-        amenities: ["Lights", "Parking", "Water"],
-        mapLink: "https://maps.app.goo.gl/xyz123",
-        address: "123 Sports Complex, PN Pudur, Coimbatore",
-      ),
-      // Bookings for City Sports Turf
-      Booking(
-        id: '4',
-        turfName: 'City Sports Turf',
-        userName: 'Rahul Dravid',
-        userPhone: '9876543213',
-        location: 'Gandhipuram',
-        distance: 4.2,
-        rating: 4.5,
-        date: DateTime(now.year, now.month, now.day),
-        startTime: '19:00',
-        endTime: '20:00',
-        amount: 650,
-        status: BookingStatus.upcoming,
-        paymentStatus: 'Paid',
-        bookingId: 'TURF-2024-004',
-        amenities: ["Cafeteria", "Parking"],
-        mapLink: "https://maps.app.goo.gl/abc456",
-        address: "45 Main Road, Gandhipuram, Coimbatore",
-      ),
-      Booking(
-        id: '5',
-        turfName: 'City Sports Turf',
-        userName: 'Kunal Guna',
-        userPhone: '9876543214',
-        location: 'Gandhipuram',
-        distance: 4.2,
-        rating: 4.5,
-        date: DateTime(now.year, now.month, now.day - 3),
-        startTime: '16:00',
-        endTime: '17:00',
-        amount: 650,
-        status: BookingStatus.completed,
-        paymentStatus: 'Paid',
-        bookingId: 'TURF-2024-005',
-        amenities: ["Cafeteria", "Parking"],
-        mapLink: "https://maps.app.goo.gl/abc456",
-        address: "45 Main Road, Gandhipuram, Coimbatore",
-      ),
-      // Bookings for Elite Football Ground
-      Booking(
-        id: '6',
-        turfName: 'Elite Football Ground',
-        userName: 'Suresh Raina',
-        userPhone: '9876543215',
-        location: 'Race Course',
-        distance: 3.1,
-        rating: 4.9,
-        date: DateTime(now.year, now.month, now.day - 4),
-        startTime: '18:00',
-        endTime: '19:00',
-        amount: 800,
-        status: BookingStatus.completed,
-        paymentStatus: 'Paid',
-        bookingId: 'TURF-2024-006',
-        amenities: ["Locker Room", "WiFi"],
-        mapLink: "https://maps.app.goo.gl/def789",
-        address: "Race Course Road, Coimbatore",
-      ),
-    ]);
-    notifyListeners();
+    );
   }
 }

@@ -3,7 +3,6 @@ import 'package:turfzone/features/home/user_home_screen.dart';
 import 'package:turfzone/features/editslottime/edit_turf_screen.dart';
 import 'my_bookings_screen.dart';
 import 'package:turfzone/models/booking.dart';
-
 import 'package:turfzone/features/turfslot/slot_management_screen.dart';
 import 'package:turfzone/features/partner/join_partner_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -142,7 +141,6 @@ class _AdminScreenState extends State<AdminScreen> {
             .toList();
 
         if (matches.isNotEmpty) {
-          // Add from static list but WITH real stats
           for (var mat in matches) {
             _filteredAdminTurfs.add(
               AdminTurf(
@@ -529,6 +527,159 @@ class _AdminScreenState extends State<AdminScreen> {
     });
   }
 
+  // ------------------------------------------------------------
+  // NEW: Disable Turf with Date Range & Reason
+  // ------------------------------------------------------------
+  Future<void> _showDisableTurfDialog(AdminTurf turf) async {
+    DateTime? fromDate;
+    DateTime? toDate;
+    final reasonController = TextEditingController();
+
+    return showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            title: Text('Disable ${turf.name}'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Select date range and provide a reason for disabling this turf.',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  // From Date
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: fromDate ?? DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null) {
+                        setDialogState(() => fromDate = picked);
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'From Date',
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            fromDate == null
+                                ? 'Select'
+                                : _formatDate(fromDate!),
+                          ),
+                          const Icon(Icons.calendar_today, size: 16),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // To Date
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: toDate ?? DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null) {
+                        setDialogState(() => toDate = picked);
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'To Date',
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            toDate == null ? 'Select' : _formatDate(toDate!),
+                          ),
+                          const Icon(Icons.calendar_today, size: 16),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Reason
+                  TextField(
+                    controller: reasonController,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason for disabling',
+                      border: OutlineInputBorder(),
+                      hintText: 'e.g., Maintenance, Event, etc.',
+                    ),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: (fromDate == null || toDate == null)
+                    ? null
+                    : () {
+                        Navigator.pop(ctx);
+                        _submitDisableRequest(
+                          turf,
+                          fromDate!,
+                          toDate!,
+                          reasonController.text.trim(),
+                        );
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Disable'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _submitDisableRequest(
+    AdminTurf turf,
+    DateTime from,
+    DateTime to,
+    String reason,
+  ) {
+    // TODO: Implement actual backend request to notify "turfzone members"
+    // For now, simulate a success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Disable request sent for ${turf.name} from ${_formatDate(from)} to ${_formatDate(to)}.\nReason: ${reason.isEmpty ? 'Not provided' : reason}',
+        ),
+        backgroundColor: Colors.orange.shade800,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+
+    // Optional: You can also mark the turf as temporarily inactive in the UI
+    // setState(() { ... });
+  }
+
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
+  // ------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     if (_navScreens.isEmpty) {
@@ -576,7 +727,6 @@ class _AdminScreenState extends State<AdminScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Welcome Section - FIXED ALIGNMENT
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -606,11 +756,9 @@ class _AdminScreenState extends State<AdminScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              // Icons Row - Fixed alignment
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Home Icon Button
                   Container(
                     width: 44,
                     height: 44,
@@ -641,7 +789,6 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  // Add Icon Button
                   Container(
                     width: 44,
                     height: 44,
@@ -671,7 +818,6 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  // Profile Icon Button
                   Container(
                     width: 44,
                     height: 44,
@@ -698,7 +844,6 @@ class _AdminScreenState extends State<AdminScreen> {
             ],
           ),
           const SizedBox(height: 24),
-          // Quick Stats
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -782,11 +927,9 @@ class _AdminScreenState extends State<AdminScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Turf Management Section
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Turf Management title with active counter - FIRST
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -819,7 +962,6 @@ class _AdminScreenState extends State<AdminScreen> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // Grey text below - SECOND
                     Text(
                       'Manage your turf, slots and bookings',
                       style: TextStyle(fontSize: 14, color: Colors.grey[600]),
@@ -827,7 +969,6 @@ class _AdminScreenState extends State<AdminScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                // Turf Cards
                 ..._filteredAdminTurfs.map((turf) {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 16),
@@ -927,32 +1068,62 @@ class _AdminScreenState extends State<AdminScreen> {
                   ),
                 ),
               ),
-              // View Details Button - Smaller size
+              // Action Buttons Row (View Details + Disable)
               Positioned(
                 bottom: 12,
                 left: 12,
-                child: GestureDetector(
-                  onTap: () => _showTurfDetails(turf),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                child: Row(
+                  children: [
+                    // View Details Button
+                    GestureDetector(
+                      onTap: () => _showTurfDetails(turf),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                      ],
+                        child: Icon(
+                          Icons.visibility_outlined,
+                          size: 16,
+                          color: Colors.blue[700],
+                        ),
+                      ),
                     ),
-                    child: Icon(
-                      Icons.visibility_outlined,
-                      size: 16,
-                      color: Colors.blue[700],
+                    const SizedBox(width: 8),
+                    // NEW: Disable Turf Button
+                    GestureDetector(
+                      onTap: () => _showDisableTurfDialog(turf),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.block,
+                          size: 16,
+                          color: Colors.red[700],
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -1051,7 +1222,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                // Action Buttons
+                // Action Buttons Row (Slots, Edit, Bookings)
                 Container(
                   decoration: BoxDecoration(
                     color: backgroundColor,
@@ -1068,8 +1239,7 @@ class _AdminScreenState extends State<AdminScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    PremiumSlotManagementScreen(turf: turf),
+                                builder: (_) => const SlotManagementScreen(),
                               ),
                             );
                           },
@@ -1281,7 +1451,6 @@ class _AdminScreenState extends State<AdminScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
                   Center(
                     child: Container(
                       width: 60,
@@ -1323,7 +1492,6 @@ class _AdminScreenState extends State<AdminScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Description
                           Text(
                             'Description',
                             style: const TextStyle(
@@ -1342,7 +1510,6 @@ class _AdminScreenState extends State<AdminScreen> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          // Amenities
                           Text(
                             'Amenities',
                             style: const TextStyle(
@@ -1372,7 +1539,6 @@ class _AdminScreenState extends State<AdminScreen> {
                       ),
                     ),
                   ),
-                  // Close Button
                   SizedBox(
                     width: double.infinity,
                     height: 56,
