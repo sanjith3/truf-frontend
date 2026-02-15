@@ -9,7 +9,6 @@ import '../../services/turf_data_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/tournament/tournament_screen.dart';
-import 'package:turfzone/features/Admin_pinset/admin_pin_screen.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -1351,69 +1350,98 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                   Row(
                     children: [
                       // Location
-                      InkWell(
-                        onTap: _showLocationPicker,
-                        borderRadius: BorderRadius.circular(10),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4.0),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  shape: BoxShape.circle,
+                      Expanded(
+                        child: InkWell(
+                          onTap: _showLocationPicker,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.location_on_outlined,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                 ),
-                                child: const Icon(
-                                  Icons.location_on_outlined,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Text(
-                                            _selectedLocation,
-                                            style: const TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
+                                          Flexible(
+                                            child: Text(
+                                              _selectedLocation,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
-                                          Text(
-                                            _selectedState,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.white.withOpacity(
-                                                0.9,
-                                              ),
-                                            ),
+                                          const Icon(
+                                            Icons.keyboard_arrow_down,
+                                            color: Colors.white,
+                                            size: 14,
                                           ),
                                         ],
                                       ),
-                                      const Icon(
-                                        Icons.keyboard_arrow_down,
-                                        color: Colors.white,
-                                        size: 16,
+                                      Text(
+                                        _selectedState,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white.withOpacity(0.9),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
 
-                      const Spacer(),
+                      const SizedBox(width: 8),
+
+                      // Favorites Icon
+                      Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        child: IconButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const FavoritesScreen(),
+                              ),
+                            );
+                          },
+                          icon: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withOpacity(0.2),
+                            ),
+                            child: const Icon(
+                              Icons.favorite_outline,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
 
                       // Tournament Icon
                       Container(
@@ -2197,6 +2225,7 @@ class TurfCard extends StatefulWidget {
 
 class _TurfCardState extends State<TurfCard> {
   int _currentImageIndex = 0;
+  bool _isFavorite = false;
 
   Future<void> _openMapLocation() async {
     final Uri uri = Uri.parse(widget.turf.mapLink);
@@ -2437,6 +2466,49 @@ class _TurfCardState extends State<TurfCard> {
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Favorite Button - TOP RIGHT (slightly below distance)
+                    Positioned(
+                      top: 55,
+                      right: 12,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isFavorite = !_isFavorite;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                _isFavorite
+                                    ? "${widget.turf.name} added to favorites"
+                                    : "${widget.turf.name} removed from favorites",
+                              ),
+                              duration: const Duration(seconds: 1),
+                              backgroundColor: Colors.green,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            _isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: _isFavorite ? Colors.red : Colors.grey,
+                            size: 18,
                           ),
                         ),
                       ),
