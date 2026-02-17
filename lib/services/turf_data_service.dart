@@ -1,21 +1,139 @@
 import '../models/turf.dart';
 import '../models/booking.dart';
+import '../services/api_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
+/// Turf data service — fetches from Django backend API.
+/// No hardcoded turfs. No demo data. Backend is the source of truth.
 class TurfDataService extends ChangeNotifier {
   static final TurfDataService _instance = TurfDataService._internal();
   factory TurfDataService() => _instance;
 
   TurfDataService._internal() {
-    _loadSavedTurfs();
-    _loadCustomSlots();
-    initDemoBookings();
+    print("🚀🚀🚀 TurfDataService CREATED — calling API now");
+    _loadTurfsFromApi();
+  }
+
+  final ApiService _api = ApiService();
+
+  // ============================================================
+  // USER LOCATION — stored for API calls
+  // ============================================================
+  double? _userLat;
+  double? _userLon;
+
+  double? get userLat => _userLat;
+  double? get userLon => _userLon;
+  bool get hasLocation => _userLat != null && _userLon != null;
+
+  // ============================================================
+  // TURF DATA — from API
+  // ============================================================
+  List<Turf> _turfs = [];
+  bool _isLoading = false;
+  String? _error;
+
+  List<Turf> get turfs => List.unmodifiable(_turfs);
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  /// Load turfs WITH user location → backend returns real distance
+  Future<void> loadTurfsWithLocation(double lat, double lon) async {
+    _userLat = lat;
+    _userLon = lon;
+    print("📍 Location set: lat=$lat, lon=$lon");
+    await _loadTurfsFromApi();
+  }
+
+  /// Load turfs WITHOUT location → distance will be 0.0 (show as --)
+  Future<void> loadTurfsWithoutLocation() async {
+    _userLat = null;
+    _userLon = null;
+    await _loadTurfsFromApi();
+  }
+
+  /// Fetch turfs from backend API
+  Future<void> _loadTurfsFromApi() async {
+    print("🔥🔥🔥 _loadTurfsFromApi CALLED");
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      // Build query params — include location if available
+      Map<String, String>? queryParams;
+      if (_userLat != null && _userLon != null) {
+        queryParams = {
+          'latitude': _userLat.toString(),
+          'longitude': _userLon.toString(),
+          'radius': '50', // 50 km default radius
+        };
+        print("📍 Sending location to API: lat=$_userLat, lon=$_userLon");
+      }
+
+      final response = await _api.get(
+        '/api/turfs/turfs/',
+        queryParams: queryParams,
+      );
+      print('🔥🔥🔥 TURF API RESPONSE TYPE: ${response.runtimeType}');
+
+      List<dynamic> turfList;
+
+      // Handle paginated response {results: [...]} or direct list [...]
+      if (response is Map && response.containsKey('results')) {
+        turfList = response['results'] as List;
+      } else if (response is List) {
+        turfList = response;
+      } else {
+        turfList = [];
+      }
+
+      print('🔥🔥🔥 TURF LIST LENGTH: ${turfList.length}');
+
+      _turfs = turfList.map((json) {
+        try {
+          return Turf.fromJson(json as Map<String, dynamic>);
+        } catch (e) {
+          print('🚨🚨🚨 ERROR PARSING TURF JSON: $e\nJSON: $json');
+          rethrow;
+        }
+      }).toList();
+
+      print('🔥🔥🔥 LOADED ${_turfs.length} TURFS FROM API');
+      _error = null;
+    } catch (e) {
+      print('🚨🚨🚨 ERROR LOADING TURFS: $e');
+      _error = e.toString();
+      _turfs = [];
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Refresh turfs from API (pull-to-refresh)
+  Future<void> refreshTurfs() async {
+    await _loadTurfsFromApi();
+  }
+
+  /// Required by SlotManagementScreen
+  Future<List<Turf>> getAllTurfs() async {
+    if (_turfs.isEmpty) {
+      await _loadTurfsFromApi();
+    }
+    return List.unmodifiable(_turfs);
+  }
+
+  /// Add turf locally (for partner flow — still saved to prefs until API wired)
+  void addTurf(Turf turf) {
+    _turfs.insert(0, turf);
+    notifyListeners();
   }
 
   // ============================================================
-  // SLOT STORAGE
+  // SLOT STORAGE (local — will move to API later)
   // Key: "turfName_YYYY-MM-DD" -> List of slot maps
   // ============================================================
   final Map<String, List<Map<String, dynamic>>> _customSlots = {};
@@ -48,7 +166,7 @@ class TurfDataService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// SAVE full day slots (existing method kept)
+  /// SAVE full day slots
   Future<void> saveSlots(
     String turfName,
     DateTime date,
@@ -88,109 +206,7 @@ class TurfDataService extends ChangeNotifier {
   }
 
   // ============================================================
-  // TURF DATA
-  // ============================================================
-  final List<Turf> _turfs = [
-    Turf(
-      id: '1',
-      name: "Green Field Arena",
-      location: "PN Pudur",
-      city: "Coimbatore",
-      distance: 2.5,
-      price: 500,
-      rating: 4.8,
-      images: [
-        "https://images.unsplash.com/photo-1531315630201-bb15abeb1653?w=800&q=80",
-      ],
-      amenities: ["Flood Lights", "Parking", "Water", "Showers", "Cafeteria"],
-      sports: ["Cricket", "Football", "Basketball"],
-      mapLink: "https://maps.app.goo.gl/xyz123",
-      address: "123 Sports Complex, PN Pudur, Coimbatore",
-      description: "Premium turf with professional-grade facilities",
-    ),
-    Turf(
-      id: '2',
-      name: "City Sports Turf",
-      location: "Gandhipuram",
-      city: "Coimbatore",
-      distance: 4.2,
-      price: 650,
-      rating: 4.5,
-      images: [
-        "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800&q=80",
-      ],
-      amenities: ["Cafeteria", "Parking", "Flood Lights", "Changing Rooms"],
-      sports: ["Football", "Volleyball"],
-      mapLink: "https://maps.app.goo.gl/abc456",
-      address: "45 Main Road, Gandhipuram, Coimbatore",
-      description: "City center turf with excellent amenities",
-    ),
-    Turf(
-      id: '3',
-      name: "Elite Football Ground",
-      location: "Race Course",
-      city: "Coimbatore",
-      distance: 3.1,
-      price: 800,
-      rating: 4.9,
-      images: [
-        "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&q=80",
-      ],
-      amenities: ["Flood Lights", "Gym", "Parking", "WiFi", "Showers"],
-      sports: ["Football", "Cricket"],
-      mapLink: "https://maps.app.goo.gl/def789",
-      address: "Race Course Road, Coimbatore",
-      description: "Professional football ground with international standards",
-    ),
-  ];
-
-  /// REQUIRED by SlotManagementScreen
-  Future<List<Turf>> getAllTurfs() async {
-    return List.unmodifiable(_turfs);
-  }
-
-  List<Turf> get turfs => List.unmodifiable(_turfs);
-
-  void addTurf(Turf turf) {
-    _turfs.insert(0, turf);
-    _saveTurfs();
-    notifyListeners();
-  }
-
-  Future<void> _saveTurfs() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final dynamicTurfs = _turfs
-        .where((t) => int.tryParse(t.id) == null)
-        .toList();
-
-    final turfJsonList = dynamicTurfs
-        .map((t) => jsonEncode(t.toJson()))
-        .toList();
-
-    await prefs.setStringList('dynamic_turfs', turfJsonList);
-  }
-
-  Future<void> _loadSavedTurfs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final turfJsonList = prefs.getStringList('dynamic_turfs');
-
-    if (turfJsonList != null) {
-      for (final turfJson in turfJsonList) {
-        try {
-          final turf = Turf.fromJson(jsonDecode(turfJson));
-          if (!_turfs.any((t) => t.id == turf.id)) {
-            _turfs.add(turf);
-          }
-        } catch (e) {
-          debugPrint("Error loading turf: $e");
-        }
-      }
-    }
-  }
-
-  // ============================================================
-  // BOOKINGS
+  // BOOKINGS (local — will move to API later)
   // ============================================================
   final List<Booking> _bookings = [];
 
@@ -199,34 +215,5 @@ class TurfDataService extends ChangeNotifier {
   void addBooking(Booking booking) {
     _bookings.insert(0, booking);
     notifyListeners();
-  }
-
-  /// Demo data
-  void initDemoBookings() {
-    if (_bookings.isNotEmpty) return;
-
-    final now = DateTime.now();
-
-    _bookings.add(
-      Booking(
-        id: '1',
-        turfName: 'Green Field Arena',
-        userName: 'Arjun Kumar',
-        userPhone: '9876543210',
-        location: 'PN Pudur',
-        distance: 2.5,
-        rating: 4.8,
-        date: DateTime(now.year, now.month, now.day),
-        startTime: '18:00',
-        endTime: '19:00',
-        amount: 500,
-        status: BookingStatus.upcoming,
-        paymentStatus: 'Paid',
-        bookingId: 'TURF-2024-001',
-        amenities: ["Lights", "Parking", "Water"],
-        mapLink: "https://maps.app.goo.gl/xyz123",
-        address: "123 Sports Complex, PN Pudur, Coimbatore",
-      ),
-    );
   }
 }

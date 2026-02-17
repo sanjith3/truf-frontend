@@ -40,7 +40,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _turfService.initDemoBookings();
     _startStatusCheckTimer();
   }
 

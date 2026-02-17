@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import '../../models/turf.dart';
 import '../../services/turf_data_service.dart';
-import '../../services/offer_slot_service.dart';
 import '../../models/booking.dart';
 
 // ------------------------------------------------------------
@@ -24,7 +23,8 @@ class AdminTimeSlot {
   });
 
   bool get isAvailable => !isBooked && !isDisabled;
-  double get effectivePrice => hasOffer ? basePrice * 0.8 : basePrice;
+  // effectivePrice always returns basePrice — discount calculation is backend-only.
+  double get effectivePrice => basePrice;
 
   AdminTimeSlot copyWith({bool? isDisabled, bool? hasOffer}) {
     return AdminTimeSlot(
@@ -49,7 +49,6 @@ class SlotManagementScreen extends StatefulWidget {
 
 class _SlotManagementScreenState extends State<SlotManagementScreen> {
   final TurfDataService _turfService = TurfDataService();
-  final OfferSlotService _offerService = OfferSlotService();
 
   List<Turf> _allTurfs = [];
   Turf? _selectedTurf;
@@ -67,14 +66,6 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
   void initState() {
     super.initState();
     _loadTurfs();
-    _loadGlobalOffers();
-  }
-
-  // ------------------------------------------------------------
-  // Load global offers from OfferSlotService
-  // ------------------------------------------------------------
-  Future<void> _loadGlobalOffers() async {
-    _globalOfferSlots = await OfferSlotService.getOfferSlots();
   }
 
   // ------------------------------------------------------------
@@ -441,20 +432,10 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
   }
 
   // ------------------------------------------------------------
-  // Global offer management (kept for future use)
-  // ------------------------------------------------------------
+  // Global offer management — disabled (offers now managed via API)
+  // Kept placeholder for future admin panel integration
   Future<void> _toggleGlobalOffer(String slotTime) async {
-    final isGlobal = _globalOfferSlots.contains(slotTime);
-    if (isGlobal) {
-      await OfferSlotService.removeOfferSlot(slotTime);
-    } else {
-      await OfferSlotService.addOfferSlot(slotTime, 0, 0);
-    }
-    await _loadGlobalOffers();
-    setState(() {});
-    _showSnackBar(
-      isGlobal ? 'Removed from global offers' : 'Added to global offers',
-    );
+    _showSnackBar('Offer management moved to admin panel');
   }
 
   // ------------------------------------------------------------

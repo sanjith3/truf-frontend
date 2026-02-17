@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../services/api_service.dart';
 import '../home/user_home_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -20,20 +21,34 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
   bool _agreedToTerms = false;
   bool _isLogin = false;
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  final ApiService _api = ApiService();
 
   @override
   void initState() {
     super.initState();
-    _checkExistingUser();
+    _checkExistingSession();
   }
 
-  Future<void> _checkExistingUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final name = prefs.getString('userName');
-    if (name != null && name.isNotEmpty) {
-      setState(() {
-        _isLogin = true;
-      });
+  /// Check if user already has a valid JWT token
+  Future<void> _checkExistingSession() async {
+    final hasToken = await ApiService.hasToken();
+    if (hasToken) {
+      // User has a stored token — try to validate it
+      try {
+        await _api.getAuth('/api/users/user-profile/me/');
+        // Token is valid — go to home
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const UserHomeScreen()),
+          );
+        }
+      } catch (_) {
+        // Token expired or invalid — clear and show login
+        await ApiService.clearTokens();
+      }
     }
   }
 
@@ -282,20 +297,33 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                     ),
                     elevation: 0,
                   ),
-                  onPressed: () async {
-                    if (_isLogin) {
-                      await _handleLogin();
-                    } else {
-                      await _handleRegistration();
-                    }
-                  },
-                  child: Text(
-                    _isLogin ? "Login" : "Register",
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  onPressed: _isLoading
+                      ? null
+                      : () async {
+                          if (_isLogin) {
+                            await _handleLogin();
+                          } else {
+                            await _handleRegistration();
+                          }
+                        },
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : Text(
+                          _isLogin ? "Login" : "Register",
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
 
                 const SizedBox(height: 16),
@@ -329,86 +357,68 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
     );
   }
 
+  // ─── BACKEND LOGIN ───
   Future<void> _handleLogin() async {
     final phone = _phoneController.text.trim();
     final password = _passwordController.text.trim();
 
     if (phone.isEmpty || password.isEmpty) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Please enter your phone number and password"),
-          ),
+      _showError(context, "Please enter your phone number and password");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await _api.post(
+        '/api/users/user-login/login/',
+        body: {
+          'username': phone, // Backend accepts phone/username/email
+          'password': password,
+        },
+      );
+
+      if (response['success'] == true) {
+        // Store JWT tokens
+        await ApiService.saveTokens(
+          response['tokens']['access'],
+          response['tokens']['refresh'],
         );
-      }
-      return;
-    }
 
-    final prefs = await SharedPreferences.getInstance();
-
-    // Check if user exists with this phone number
-    final savedPassword = prefs.getString('password_$phone');
-
-    if (savedPassword == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Account not found. Please register first."),
-          ),
+        // Store user info for display
+        final prefs = await SharedPreferences.getInstance();
+        final user = response['user'];
+        await prefs.setString(
+          'userName',
+          user['first_name'] ?? user['username'] ?? 'User',
         );
+        await prefs.setString('userPhone', user['phone_number'] ?? phone);
+        await prefs.setBool('isLoggedIn', true);
+        await prefs.setString('userRole', user['role'] ?? 'user');
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const UserHomeScreen()),
+          );
+        }
+      } else {
+        _showError(context, response['error'] ?? 'Login failed');
       }
-      return;
-    }
-
-    if (savedPassword != password) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Incorrect password")));
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) {
+        _showError(context, "Invalid phone number or password");
+      } else {
+        _showError(context, "Server error. Please try again.");
       }
-      return;
-    }
-
-    // Load user data for session
-    final name = prefs.getString('name_$phone') ?? "User";
-
-    // Set active session data
-    await prefs.setString('userName', name);
-    await prefs.setString('userPhone', phone);
-    await prefs.setBool('isLoggedIn', true); // Mark as logged in
-
-    // Check if partner
-    String normName = name.trim().toLowerCase();
-    String normPhone = phone.trim();
-    String partnerKey = "${normName}_$normPhone";
-    List<String> partnerKeys = prefs.getStringList('all_partners') ?? [];
-
-    if (partnerKeys.contains(partnerKey)) {
-      await prefs.setBool('isPartner', true);
-      await prefs.setString(
-        'registeredTurfName',
-        prefs.getString('turf_${partnerKey}_name') ?? "My Turf",
-      );
-      await prefs.setString(
-        'registeredLocation',
-        prefs.getString('turf_${partnerKey}_location') ?? "Registered Location",
-      );
-      await prefs.setInt(
-        'registeredPrice',
-        prefs.getInt('turf_${partnerKey}_price') ?? 500,
-      );
-    } else {
-      await prefs.setBool('isPartner', false);
-    }
-
-    if (context.mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const UserHomeScreen()),
-      );
+    } catch (e) {
+      _showError(context, "Cannot connect to server. Check your connection.");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  // ─── BACKEND REGISTRATION ───
   Future<void> _handleRegistration() async {
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
@@ -418,70 +428,85 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
       _showError(context, "Please enter your name");
       return;
     }
-
     if (name.length > 25) {
       _showError(context, "Name must be less than 25 characters");
       return;
     }
-
     if (phone.length != 10) {
       _showError(context, "Please enter a valid 10-digit phone number");
       return;
     }
-
     if (password.isEmpty || password.length < 6) {
       _showError(context, "Password must be at least 6 characters");
       return;
     }
-
     if (!_agreedToTerms) {
       _showError(context, "Please agree to the Terms & Privacy Policy");
       return;
     }
 
-    // Save user details
-    final prefs = await SharedPreferences.getInstance();
+    setState(() => _isLoading = true);
 
-    // Check if phone already registered
-    final existingPassword = prefs.getString('password_$phone');
-    if (existingPassword != null) {
-      _showError(
-        context,
-        "This phone number is already registered. Please login.",
+    try {
+      final response = await _api.post(
+        '/api/users/user-registration/normal_user_register/',
+        body: {
+          'username': phone, // Use phone as username
+          'phone_number': phone,
+          'first_name': name,
+          'last_name': '',
+          'email': '$phone@turfzone.app', // Placeholder email
+          'password': password,
+          'password_confirm': password,
+        },
       );
-      return;
-    }
 
-    // Save registration data
-    await prefs.setString('name_$phone', name);
-    await prefs.setString('password_$phone', password);
-    await prefs.setString('userName', name);
-    await prefs.setString('userPhone', phone);
-    await prefs.setBool('hasShownWelcome', true);
+      if (response['success'] == true) {
+        // Store JWT tokens
+        await ApiService.saveTokens(
+          response['tokens']['access'],
+          response['tokens']['refresh'],
+        );
 
-    // Save registration date
-    final registrationDate = DateTime.now();
-    await prefs.setString(
-      'registrationDate_$phone',
-      registrationDate.toIso8601String(),
-    );
+        // Store user info
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userName', name);
+        await prefs.setString('userPhone', phone);
+        await prefs.setBool('isLoggedIn', true);
+        await prefs.setString('userRole', 'user');
 
-    // Initialize as non-partner
-    await prefs.setBool('isPartner', false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Registration successful! Welcome to TurfZone"),
-        backgroundColor: Color(0xFF1DB954),
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    if (context.mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const UserHomeScreen()),
-      );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Registration successful! Welcome to TurfZone"),
+              backgroundColor: Color(0xFF1DB954),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const UserHomeScreen()),
+          );
+        }
+      } else {
+        final errors = response['errors'];
+        if (errors != null && errors is Map) {
+          final firstError = errors.values.first;
+          if (firstError is List && firstError.isNotEmpty) {
+            _showError(context, firstError.first.toString());
+          } else {
+            _showError(context, firstError.toString());
+          }
+        } else {
+          _showError(context, response['error'] ?? 'Registration failed');
+        }
+      }
+    } on ApiException catch (e) {
+      _showError(context, "Registration failed: ${e.statusCode}");
+    } catch (e) {
+      _showError(context, "Cannot connect to server. Check your connection.");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -508,6 +533,7 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
   }
 
   void _showError(BuildContext context, String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),

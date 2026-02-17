@@ -4,8 +4,11 @@ import 'package:turfzone/booking/booking_screen.dart';
 import 'package:turfzone/models/turf.dart';
 import 'package:turfzone/features/profile/profile_screen.dart';
 import 'package:turfzone/features/Admindashboard/admin_screen.dart';
+import 'package:turfzone/features/Admin_pinset/admin_pin_screen.dart';
+import 'package:turfzone/features/home/favorites_screen.dart';
 import '../../turffdetail/turfdetails_screen.dart';
 import '../../services/turf_data_service.dart';
+// api_service import removed — no longer used directly in this screen
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/tournament/tournament_screen.dart';
@@ -21,6 +24,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Turf> _filteredTurfs = [];
   final TurfDataService _turfService = TurfDataService();
+  // _apiService removed — no longer needed after removing debug test
   String _selectedLocation = "Coimbatore";
   String _selectedState = "Tamil Nadu";
   bool _isLocationLoading = false;
@@ -841,7 +845,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   Future<void> _handleAdminAccess() async {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const AdminPinScreen()),
+      MaterialPageRoute(builder: (_) => AdminPinScreen()),
     );
   }
 
@@ -857,19 +861,33 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Location permission denied')),
-          );
+          // Fallback: load turfs without location
+          await _turfService.loadTurfsWithoutLocation();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Location permission denied. Distance will show --',
+                ),
+              ),
+            );
+          }
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Location permissions are permanently denied.'),
-          ),
-        );
+        // Fallback: load turfs without location
+        await _turfService.loadTurfsWithoutLocation();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Location permissions permanently denied. Distance will show --',
+              ),
+            ),
+          );
+        }
         return;
       }
 
@@ -878,8 +896,12 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      // In a real app, you would reverse geocode to get city and state
-      // For now, we'll simulate with a default
+      // Send location to backend — get turfs with real distance
+      await _turfService.loadTurfsWithLocation(
+        position.latitude,
+        position.longitude,
+      );
+
       if (mounted) {
         setState(() {
           _selectedState = "Tamil Nadu";
@@ -888,15 +910,23 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         });
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Location set to $_selectedLocation, $_selectedState'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Location set to $_selectedLocation, $_selectedState',
+            ),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error getting location: $e')));
+      // Fallback: load turfs without location
+      await _turfService.loadTurfsWithoutLocation();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error getting location: $e')));
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -1152,6 +1182,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   @override
   void initState() {
     super.initState();
+    print("🚀🚀🚀 HOME INIT STARTED");
 
     // Initialize filtered turfs first
     _filteredTurfs = _turfs;
@@ -1172,6 +1203,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       _applyFilters();
       _loadUserData();
     });
+
+    // Get user location on startup
+    _getCurrentLocation();
   }
 
   void _onDataChanged() {
@@ -1241,28 +1275,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         )
         .toList();
 
-    // Apply time filters if any selected
-    final selectedTimes = _timeFilters.entries
-        .where((e) => e.value)
-        .map((e) => e.key)
-        .toList();
-    if (selectedTimes.isNotEmpty) {
-      filtered = filtered.where((turf) {
-        if (selectedTimes.contains('Morning')) {
-          return true;
-        }
-        if (selectedTimes.contains('Afternoon')) {
-          return turf.price >= 400;
-        }
-        if (selectedTimes.contains('Evening')) {
-          return turf.price >= 600;
-        }
-        if (selectedTimes.contains('Night')) {
-          return turf.price >= 700 && turf.amenities.contains('Flood Lights');
-        }
-        return true;
-      }).toList();
-    }
+    // Time filters removed — time-of-day filtering is per-slot, not per-turf.
+    // Slot grouping (Morning/Afternoon/Evening/Midnight) is handled in BookingScreen.
 
     // Apply sport filters if any selected
     final selectedSports = _sportFilters.entries
@@ -1276,19 +1290,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       }).toList();
     }
 
-    // Apply offer filter
+    // Apply offer filter — now from API
     if (_offerFilter) {
-      // List of turf names that have offers (in real app, this would come from API)
-      final offerTurfNames = [
-        'Green Field Arena',
-        'Elite Football Ground',
-        'Shuttle Masters Academy',
-        'City Sports Complex',
-        'Royal Turf Ground',
-      ];
-      filtered = filtered
-          .where((turf) => offerTurfNames.contains(turf.name))
-          .toList();
+      filtered = filtered.where((turf) => turf.hasActiveOffer).toList();
     }
 
     if (mounted) {
@@ -1325,6 +1329,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print(
+      "🏠🏠🏠 HOME SCREEN BUILDING — turfs count: ${_filteredTurfs.length}",
+    );
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -1373,7 +1380,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Row(
@@ -1424,7 +1432,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const FavoritesScreen(),
+                                builder: (_) => FavoritesScreen(),
                               ),
                             );
                           },
@@ -2263,22 +2271,19 @@ class _TurfCardState extends State<TurfCard> {
     );
   }
 
-  // Check if turf has an offer (for demo purposes)
-  bool get _hasOffer {
-    // For demo, let's show offer for specific turfs
-    final offerTurfNames = [
-      'Green Field Arena',
-      'Elite Football Ground',
-      'Shuttle Masters Academy',
-      'Royal Turf Ground',
-    ];
-    return offerTurfNames.contains(widget.turf.name);
+  // Check if turf has an offer — from API, no hardcoded list
+  bool get _hasOffer => widget.turf.hasActiveOffer;
+
+  // Calculate offer display text
+  String get _offerText {
+    if (widget.turf.maxOfferType == 'percentage') {
+      return 'UP TO ${widget.turf.maxOfferValue?.toInt() ?? 0}% OFF';
+    } else {
+      return 'UP TO ₹${widget.turf.maxOfferValue?.toInt() ?? 0} OFF';
+    }
   }
 
-  // Calculate offer price (for demo)
-  double get _offerPrice {
-    return widget.turf.price * 0.8; // 20% discount
-  }
+  // Offer display data — from backend only, no client-side calculation
 
   @override
   Widget build(BuildContext context) {
@@ -2407,18 +2412,18 @@ class _TurfCardState extends State<TurfCard> {
                               ),
                             ],
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.local_offer,
                                 color: Colors.white,
                                 size: 14,
                               ),
-                              SizedBox(width: 4),
+                              const SizedBox(width: 4),
                               Text(
-                                "20% OFF",
-                                style: TextStyle(
+                                _offerText,
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
@@ -2459,7 +2464,7 @@ class _TurfCardState extends State<TurfCard> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                "${widget.turf.distance} km",
+                                "${widget.turf.distance > 0 ? widget.turf.distance.toStringAsFixed(1) : '--'} km",
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
@@ -2506,7 +2511,9 @@ class _TurfCardState extends State<TurfCard> {
                             ],
                           ),
                           child: Icon(
-                            _isFavorite ? Icons.favorite : Icons.favorite_border,
+                            _isFavorite
+                                ? Icons.favorite
+                                : Icons.favorite_border,
                             color: _isFavorite ? Colors.red : Colors.grey,
                             size: 18,
                           ),
@@ -2567,87 +2574,57 @@ class _TurfCardState extends State<TurfCard> {
                         ],
                       ),
                     ),
-                    // Price with offer
+                    // Price with offer — backend data only
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
-                      children: _hasOffer
-                          ? [
-                              // Original price with strikethrough
-                              Text(
-                                "₹${widget.turf.price}",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[500],
-                                  decoration: TextDecoration.lineThrough,
-                                  decorationColor: Colors.red,
-                                  decorationThickness: 2,
-                                ),
+                      children: [
+                        Text(
+                          "₹${widget.turf.price}",
+                          style: TextStyle(
+                            fontSize: _hasOffer ? 14 : 22,
+                            fontWeight: _hasOffer
+                                ? FontWeight.w500
+                                : FontWeight.w800,
+                            color: _hasOffer ? Colors.grey[500] : Colors.green,
+                            decoration: _hasOffer
+                                ? TextDecoration.lineThrough
+                                : null,
+                            decorationColor: _hasOffer ? Colors.red : null,
+                            decorationThickness: _hasOffer ? 2 : null,
+                          ),
+                        ),
+                        if (_hasOffer)
+                          Container(
+                            margin: const EdgeInsets.only(top: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red[50],
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: Colors.red[100]!,
+                                width: 1,
                               ),
-                              const SizedBox(height: 2),
-                              // Offer price
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    "₹${_offerPrice.toInt()}",
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.green,
-                                    ),
-                                  ),
-                                  Container(
-                                    margin: const EdgeInsets.only(left: 4),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red[50],
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: Colors.red[100]!,
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      "SAVE ${(widget.turf.price - _offerPrice).toInt()}",
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.red[700],
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                            ),
+                            child: Text(
+                              _offerText,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.red[700],
+                                fontWeight: FontWeight.bold,
                               ),
-                              Text(
-                                "/hour",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[500],
-                                ),
-                              ),
-                            ]
-                          : [
-                              // Normal price without offer
-                              Text(
-                                "₹${widget.turf.price}",
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.green,
-                                ),
-                              ),
-                              Text(
-                                "/hour",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[500],
-                                ),
-                              ),
-                            ],
+                            ),
+                          ),
+                        Text(
+                          "/hour",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

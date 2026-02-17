@@ -1,20 +1,32 @@
 import 'package:flutter/material.dart';
 import '../models/turf.dart';
-import '../payment/payment_screen.dart';
-import '../services/offer_slot_service.dart';
+import '../booking/booking_screen.dart';
+import '../services/api_service.dart';
+import 'payment_screen.dart';
 
+/// Payment Summary Screen
+///
+/// Receives: turfId, bookingDate, slotIds from BookingScreen
+/// Calls: POST /api/bookings/bookings/preview/
+/// Displays: All financial data from API response
+/// Stores: preview_token + total_payable for confirm step
+///
+/// RULES:
+/// - Zero client-side calculations
+/// - Money as String, NEVER double
+/// - All numbers come from backend preview response
 class PaymentSummaryScreen extends StatefulWidget {
   final Turf turf;
-  final DateTime selectedDate;
-  final List<String> selectedTimeSlots;
-  final double totalAmount;
+  final String bookingDate;
+  final List<int> slotIds;
+  final List<ApiSlot> selectedSlots; // For display only (time labels)
 
   const PaymentSummaryScreen({
     super.key,
     required this.turf,
-    required this.selectedDate,
-    required this.selectedTimeSlots,
-    required this.totalAmount,
+    required this.bookingDate,
+    required this.slotIds,
+    required this.selectedSlots,
   });
 
   @override
@@ -22,379 +34,475 @@ class PaymentSummaryScreen extends StatefulWidget {
 }
 
 class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
-  final double _fixedConvenienceFee = 10.0; // Fixed fee of ₹10
-  List<String> _offerSlots = []; // Will be loaded from service
+  final ApiService _api = ApiService();
 
-  double get _offerPrice => widget.turf.price * 0.8;
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  // Check if any selected slot has an offer
-  bool get _hasAnyOfferSlot {
-    return widget.selectedTimeSlots.any((slot) => _offerSlots.contains(slot));
-  }
-
-  // Get price for a specific slot
-  double _getSlotPrice(String slot) {
-    return _offerSlots.contains(slot)
-        ? _offerPrice
-        : widget.turf.price.toDouble();
-  }
+  // ─── All from preview API — String, never double ───
+  String _previewToken = '';
+  String _subtotal = '0';
+  String _discountTotal = '0';
+  String _gstAmount = '0';
+  String _platformFee = '0';
+  String _gstOnPlatformFee = '0';
+  String _totalPayable = '0';
+  String _turfName = '';
+  String _expiresAt = '';
 
   @override
   void initState() {
     super.initState();
-    _loadOfferSlots();
+    _callPreviewApi();
   }
 
-  Future<void> _loadOfferSlots() async {
-    final offerSlots = await OfferSlotService.getOfferSlots();
+  // ─── PREVIEW API ───
+  Future<void> _callPreviewApi() async {
     setState(() {
-      _offerSlots = offerSlots;
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    try {
+      final response = await _api.postAuth(
+        '/api/bookings/bookings/preview/',
+        body: {
+          'turf_id': widget.turf.id,
+          'booking_date': widget.bookingDate,
+          'slot_ids': widget.slotIds,
+        },
+      );
+
+      if (response['success'] == true) {
+        setState(() {
+          _previewToken = response['preview_token'] ?? '';
+          _subtotal = response['subtotal']?.toString() ?? '0';
+          _discountTotal = response['discount_total']?.toString() ?? '0';
+          _gstAmount = response['gst_amount']?.toString() ?? '0';
+          _platformFee = response['platform_fee']?.toString() ?? '0';
+          _gstOnPlatformFee =
+              response['gst_on_platform_fee']?.toString() ?? '0';
+          _totalPayable = response['total_payable']?.toString() ?? '0';
+          _turfName = response['turf_name']?.toString() ?? widget.turf.name;
+          _expiresAt = response['expires_at']?.toString() ?? '';
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = response['error'] ?? 'Preview failed';
+          _isLoading = false;
+        });
+      }
+    } on AuthExpiredException {
+      setState(() {
+        _errorMessage = 'Session expired. Please login again.';
+        _isLoading = false;
+      });
+    } on ApiException catch (e) {
+      String msg;
+      if (e.statusCode == 409) {
+        msg =
+            'One or more slots are no longer available. Please go back and re-select.';
+      } else if (e.statusCode == 401) {
+        msg = 'Session expired. Please login again.';
+      } else {
+        msg = 'Could not generate preview. Please try again.';
+      }
+      setState(() {
+        _errorMessage = msg;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Connection error. Check your network.';
+        _isLoading = false;
+      });
+      print('🚨 Preview error: $e');
+    }
+  }
+
+  void _proceedToPayment() {
+    if (_previewToken.isEmpty) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentScreen(
+          previewToken: _previewToken,
+          totalPayable: _totalPayable,
+          turfName: _turfName,
+          bookingDate: widget.bookingDate,
+          slotCount: widget.slotIds.length,
+          turf: widget.turf,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final convenienceFee = _fixedConvenienceFee;
-    final finalAmount = widget.totalAmount + convenienceFee;
-    final hasAnyOffer = _hasAnyOfferSlot;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Payment Summary"),
         backgroundColor: const Color(0xFF1DB954),
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Turf Info
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.shade300,
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
+      body: _isLoading
+          ? const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Color(0xFF1DB954),
                     ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        image: DecorationImage(
-                          image: NetworkImage(widget.turf.images[0]),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.turf.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            widget.turf.location,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    "Generating preview...",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
               ),
+            )
+          : _errorMessage != null
+          ? _buildErrorView()
+          : _buildSummaryView(),
+    );
+  }
 
-              const SizedBox(height: 25),
-
-              // Booking Details
-              const Text(
-                "Booking Details",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.grey.shade200),
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1DB954),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 14,
                 ),
-                child: Column(
-                  children: [
-                    _buildDetailRow(
-                      "Date",
-                      "${widget.selectedDate.day}/${widget.selectedDate.month}/${widget.selectedDate.year}",
-                    ),
-                    _buildDetailRow(
-                      "Total Hours",
-                      "${widget.selectedTimeSlots.length} hour(s)",
-                    ),
-                    _buildDetailRow(
-                      "Rate per hour",
-                      hasAnyOffer
-                          ? "₹${widget.turf.price} (₹${_offerPrice.toInt()} for offer slots)"
-                          : "₹${widget.turf.price}",
-                      valueColor: hasAnyOffer ? const Color(0xFF1DB954) : null,
-                    ),
-                    const SizedBox(height: 15),
-                    ...widget.selectedTimeSlots.map((slot) {
-                      final isOfferSlot = _offerSlots.contains(slot);
-                      final slotPrice = _getSlotPrice(slot);
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  isOfferSlot
-                                      ? Icons.local_offer
-                                      : Icons.circle,
-                                  size: isOfferSlot ? 12 : 8,
-                                  color: isOfferSlot
-                                      ? Colors.red
-                                      : Colors.green,
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  slot,
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              "₹${slotPrice.toInt()}",
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: isOfferSlot
-                                    ? const Color(0xFF1DB954)
-                                    : Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 25),
-
-              // Payment Breakdown
-              const Text(
-                "Payment Breakdown",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  children: [
-                    if (hasAnyOffer)
-                      _buildPaymentRow(
-                        "Original Price",
-                        "₹${(widget.turf.price * widget.selectedTimeSlots.length).toStringAsFixed(0)}",
-                        description: "Standard rate without offer",
-                      ),
-                    _buildPaymentRow(
-                      hasAnyOffer ? "Discounted Base Amount" : "Base Amount",
-                      "₹${widget.totalAmount.toStringAsFixed(0)}",
-                      color: hasAnyOffer ? const Color(0xFF1DB954) : null,
-                      isBold: hasAnyOffer,
-                    ),
-                    _buildPaymentRow(
-                      "Platform Fee",
-                      "₹${convenienceFee.toStringAsFixed(0)}",
-                      description: "Fixed service charge per booking",
-                    ),
-                    const Divider(height: 25),
-                    _buildPaymentRow(
-                      "Total Payable",
-                      "₹${finalAmount.toStringAsFixed(0)}",
-                      isBold: true,
-                      color: const Color(0xFF1DB954),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 25),
-
-              // Convenience Fee Explanation
-              Container(
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade100),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: Colors.blue.shade700,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        "A fixed platform fee of ₹10 is charged per booking for maintenance and support services.",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue.shade800,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
-
-              const SizedBox(height: 15),
-
-              // Proceed to Payment Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PaymentScreen(
-                          turf: widget.turf,
-                          selectedDate: widget.selectedDate,
-                          selectedTimeSlots: widget.selectedTimeSlots,
-                          baseAmount: widget.totalAmount,
-                          platformFee: convenienceFee,
-                          totalAmount: finalAmount,
-                        ),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1DB954),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    elevation: 3,
-                  ),
-                  child: Text(
-                    "PROCEED TO PAY ₹${finalAmount.toStringAsFixed(0)}",
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+              child: const Text(
+                "Go Back",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+  Widget _buildSummaryView() {
+    final hasDiscount = _discountTotal != '0' && _discountTotal != '0.00';
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Turf info
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.shade200,
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          image: DecorationImage(
+                            image: widget.turf.images.isNotEmpty
+                                ? NetworkImage(widget.turf.images.first)
+                                : const NetworkImage(
+                                    "https://via.placeholder.com/150",
+                                  ),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _turfName,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.bookingDate,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            Text(
+                              "${widget.slotIds.length} slot${widget.slotIds.length > 1 ? 's' : ''} selected",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Selected slots
+                const Text(
+                  "Selected Slots",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                ...widget.selectedSlots.map((slot) => _slotRow(slot)),
+
+                const SizedBox(height: 20),
+
+                // Price breakdown — ALL from API
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.shade200,
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Price Breakdown",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Divider(height: 20),
+                      _priceRow("Subtotal", "₹$_subtotal"),
+                      if (hasDiscount)
+                        _priceRow(
+                          "Discount",
+                          "- ₹$_discountTotal",
+                          isGreen: true,
+                        ),
+                      _priceRow("GST (18%)", "₹$_gstAmount"),
+                      _priceRow("Platform Fee", "₹$_platformFee"),
+                      _priceRow("GST on Platform Fee", "₹$_gstOnPlatformFee"),
+                      const Divider(height: 20),
+                      _priceRow(
+                        "Total Payable",
+                        "₹$_totalPayable",
+                        isBold: true,
+                        fontSize: 18,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Expiry notice
+                if (_expiresAt.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.timer,
+                          size: 18,
+                          color: Colors.orange.shade700,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "This preview expires in 5 minutes. Complete payment before it expires.",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.orange.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+
+        // Bottom: Pay button
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Colors.grey.shade200)),
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            height: 55,
+            child: ElevatedButton(
+              onPressed: _proceedToPayment,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1DB954),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+              child: Text(
+                "PROCEED TO PAY  •  ₹$_totalPayable",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _slotRow(ApiSlot slot) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+          Row(
+            children: [
+              Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+              const SizedBox(width: 8),
+              Text(
+                slot.displayTime,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: valueColor ?? Colors.black,
-            ),
+          Row(
+            children: [
+              if (slot.hasOffer)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text(
+                    "₹${slot.originalPrice}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                ),
+              Text(
+                "₹${slot.finalPrice}",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: slot.hasOffer ? Colors.red.shade600 : Colors.black87,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPaymentRow(
+  Widget _priceRow(
     String label,
     String value, {
-    String? description,
     bool isBold = false,
-    Color? color,
+    bool isGreen = false,
+    double fontSize = 14,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade700,
-                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: isBold ? 18 : 14,
-                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                  color: color ?? Colors.black,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (description != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              description,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-                fontStyle: FontStyle.italic,
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              color: Colors.grey.shade700,
             ),
           ),
-      ],
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+              color: isGreen
+                  ? Colors.green.shade700
+                  : (isBold ? Colors.black : Colors.grey.shade800),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
