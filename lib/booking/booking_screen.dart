@@ -289,6 +289,14 @@ class _BookingScreenState extends State<BookingScreen> {
                     child: Column(
                       children: [
                         _buildTimeSectionForCategory(
+                          title: 'Midnight',
+                          subtitle: '12 AM – 6 AM',
+                          filter: (slot) {
+                            final hour = _getHourFromSlot(slot);
+                            return hour >= 0 && hour < 6;
+                          },
+                        ),
+                        _buildTimeSectionForCategory(
                           title: 'Morning',
                           subtitle: '6 AM – 12 PM',
                           filter: (slot) {
@@ -298,26 +306,18 @@ class _BookingScreenState extends State<BookingScreen> {
                         ),
                         _buildTimeSectionForCategory(
                           title: 'Afternoon',
-                          subtitle: '12 PM – 5 PM',
+                          subtitle: '12 PM – 6 PM',
                           filter: (slot) {
                             final hour = _getHourFromSlot(slot);
-                            return hour >= 12 && hour < 17;
+                            return hour >= 12 && hour < 18;
                           },
                         ),
                         _buildTimeSectionForCategory(
                           title: 'Evening',
-                          subtitle: '5 PM – 11 PM',
+                          subtitle: '6 PM – 12 AM',
                           filter: (slot) {
                             final hour = _getHourFromSlot(slot);
-                            return hour >= 17 && hour <= 23;
-                          },
-                        ),
-                        _buildTimeSectionForCategory(
-                          title: 'Midnight',
-                          subtitle: '12 AM – 6 AM',
-                          filter: (slot) {
-                            final hour = _getHourFromSlot(slot);
-                            return hour >= 0 && hour < 6;
+                            return hour >= 18 && hour <= 23;
                           },
                         ),
                         const SizedBox(height: 80),
