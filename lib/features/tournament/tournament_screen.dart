@@ -7,6 +7,8 @@ class TournamentScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      extendBody: false,
+      extendBodyBehindAppBar: false,
       appBar: AppBar(
         backgroundColor: Colors.green,
         title: const Text("Tournaments"),
@@ -45,25 +47,29 @@ class TournamentScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white70, fontSize: 14),
               ),
-
-              const SizedBox(height: 30),
-
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  "Back",
-                  style: TextStyle(fontSize: 16, color: Colors.white),
-                ),
-              )
             ],
+          ),
+        ),
+      ),
+      // Button moved to bottomNavigationBar — always above system nav
+      bottomNavigationBar: SafeArea(
+        top: false,
+        bottom: true,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              "Back",
+              style: TextStyle(fontSize: 16, color: Colors.white),
+            ),
           ),
         ),
       ),

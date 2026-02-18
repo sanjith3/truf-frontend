@@ -19,6 +19,14 @@ class TurfZoneApp extends StatelessWidget {
         primaryColor: const Color(0xFF1DB954),
         scaffoldBackgroundColor: Colors.white,
       ),
+      // Global SafeArea — protects bottom buttons from system navigation
+      builder: (context, child) {
+        return SafeArea(
+          top: false, // don't affect AppBar
+          bottom: true, // protect bottom CTAs from nav bar
+          child: child!,
+        );
+      },
       home: const SplashScreen(),
     );
   }
