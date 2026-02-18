@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'booking_details_screen.dart';
-import '../../services/turf_data_service.dart';
+import '../../services/api_service.dart';
 import '../../models/booking.dart';
 
 class MyBookingsScreen extends StatefulWidget {
@@ -16,9 +16,13 @@ class MyBookingsScreen extends StatefulWidget {
 class _MyBookingsScreenState extends State<MyBookingsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final TurfDataService _turfService = TurfDataService();
 
-  List<Booking> get _allBookings => _turfService.bookings;
+  // ── API-sourced booking lists ──
+  List<Booking> _scheduledBookings = [];
+  List<Booking> _completedBookings = [];
+  List<Booking> _cancelledBookings = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   // Define turf images for each booking
   final Map<String, String> _turfImages = {
@@ -40,84 +44,56 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _startStatusCheckTimer();
+    _loadMyBookings();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Refresh bookings when returning to this screen
-    setState(() {});
+    _loadMyBookings();
   }
 
-  void _startStatusCheckTimer() {
-    // Check every minute for bookings that should be moved to completed
-    Future.delayed(const Duration(minutes: 1), () {
+  Future<void> _loadMyBookings() async {
+    print('📡 Calling MY_BOOKINGS API');
+    try {
+      final response = await ApiService().getAuth(
+        '/api/bookings/bookings/my_bookings/',
+      );
+      print('📥 RAW MY_BOOKINGS: $response');
+
+      final scheduled = (response['scheduled'] as List? ?? [])
+          .map((e) => Booking.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final completed = (response['completed'] as List? ?? [])
+          .map((e) => Booking.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final cancelled = (response['cancelled'] as List? ?? [])
+          .map((e) => Booking.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      print('✅ Scheduled: ${scheduled.length}');
+      print('✅ Completed: ${completed.length}');
+      print('✅ Cancelled: ${cancelled.length}');
+
       if (mounted) {
-        _updateBookingStatuses();
-        _startStatusCheckTimer();
+        setState(() {
+          _scheduledBookings = scheduled;
+          _completedBookings = completed;
+          _cancelledBookings = cancelled;
+          _isLoading = false;
+          _errorMessage = null;
+        });
       }
-    });
-  }
-
-  void _updateBookingStatuses() {
-    final now = DateTime.now();
-    bool updated = false;
-
-    for (var booking in _allBookings) {
-      if (booking.status == BookingStatus.upcoming ||
-          booking.status == BookingStatus.pending ||
-          booking.status == BookingStatus.confirmed) {
-        // Check if booking time has passed
-        final bookingDateTime = DateTime(
-          booking.date.year,
-          booking.date.month,
-          booking.date.day,
-          int.parse(
-            booking.startTime.split(':')[0].replaceAll(RegExp(r'[^0-9]'), ''),
-          ),
-          int.parse(
-            booking.startTime.split(':')[1].replaceAll(RegExp(r'[^0-9]'), ''),
-          ),
-        );
-
-        // If current time is after booking end time + 1 hour buffer, mark as completed
-        final endTime = bookingDateTime.add(
-          const Duration(hours: 2),
-        ); // 1 hour slot + 1 hour buffer
-        if (now.isAfter(endTime)) {
-          booking.status = BookingStatus.completed;
-          updated = true;
-        }
+    } catch (e) {
+      print('🚨 MY_BOOKINGS ERROR: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString();
+        });
       }
     }
-
-    if (updated) {
-      setState(() {});
-    }
-  }
-
-  List<Booking> get _upcomingBookings {
-    return _allBookings
-        .where(
-          (b) =>
-              b.status == BookingStatus.upcoming ||
-              b.status == BookingStatus.pending ||
-              b.status == BookingStatus.confirmed,
-        )
-        .toList();
-  }
-
-  List<Booking> get _completedBookings {
-    return _allBookings
-        .where((b) => b.status == BookingStatus.completed)
-        .toList();
-  }
-
-  List<Booking> get _cancelledBookings {
-    return _allBookings
-        .where((b) => b.status == BookingStatus.cancelled)
-        .toList();
   }
 
   // Check if booking can be cancelled (within 1 hour of booking time for users, anytime for admin)
@@ -468,7 +444,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           isAdmin: widget.isAdmin,
         ),
       ),
-    );
+    ).then((_) => _loadMyBookings()); // refresh on return
   }
 
   @override
@@ -479,6 +455,21 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(widget.isAdmin ? "Admin: Bookings" : "My Bookings"),
+          backgroundColor: widget.isAdmin
+              ? const Color(0xFF1DB954)
+              : const Color(0xFF00C853),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.isAdmin ? "Admin: Bookings" : "My Bookings"),
@@ -511,23 +502,32 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Upcoming Tab
-          _buildBookingList(
-            bookings: _upcomingBookings,
-            emptyMessage: "No upcoming bookings",
-            showCancelButton: true,
+          // Scheduled Tab
+          RefreshIndicator(
+            onRefresh: _loadMyBookings,
+            child: _buildBookingList(
+              bookings: _scheduledBookings,
+              emptyMessage: "No upcoming bookings",
+              showCancelButton: true,
+            ),
           ),
           // Completed Tab
-          _buildBookingList(
-            bookings: _completedBookings,
-            emptyMessage: "No completed bookings",
-            showCancelButton: false,
+          RefreshIndicator(
+            onRefresh: _loadMyBookings,
+            child: _buildBookingList(
+              bookings: _completedBookings,
+              emptyMessage: "No completed bookings",
+              showCancelButton: false,
+            ),
           ),
           // Cancelled Tab
-          _buildBookingList(
-            bookings: _cancelledBookings,
-            emptyMessage: "No cancelled bookings",
-            showCancelButton: false,
+          RefreshIndicator(
+            onRefresh: _loadMyBookings,
+            child: _buildBookingList(
+              bookings: _cancelledBookings,
+              emptyMessage: "No cancelled bookings",
+              showCancelButton: false,
+            ),
           ),
         ],
       ),

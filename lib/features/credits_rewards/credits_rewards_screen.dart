@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 
 class CreditsRewardsScreen extends StatefulWidget {
   const CreditsRewardsScreen({super.key});
@@ -8,147 +9,49 @@ class CreditsRewardsScreen extends StatefulWidget {
 }
 
 class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
-  int _selectedCategory = 0; // 0: Earned, 1: Used
-  int _currentTarget =
-      100; // Current credit target for free booking (100 credits = 1 free booking)
-  int _creditsEarned = 85; // Credits earned towards current target
-  bool _showRedeemDialog = false;
-  String? _selectedTurf;
-  String? _selectedSlot;
+  int _currentTarget = 100; // Display constant — backend enforces actual rule
+  int _creditsEarned =
+      0; // available_credits % 100 (progress towards next free booking)
+  bool _isLoading = true;
+
+  // Live data from API
+  int _totalCredits = 0;
+  int _availableCredits = 0;
+  int _usedCredits = 0;
 
   // Professional color scheme
   final Color primaryColor = const Color(0xFF4CAF50); // Professional Green
   final Color backgroundColor = const Color(0xFFF8F9FA);
   final Color cardColor = Colors.white;
 
-  // Mock data - replace with actual data
-  final Map<String, int> userCredits = {
-    'totalCredits': 1250,
-    'availableCredits': 850,
-    'usedCredits': 400,
-  };
+  @override
+  void initState() {
+    super.initState();
+    _loadCreditsData();
+  }
 
-  // User's regularly booked turfs (sorted by booking frequency)
-  final List<Map<String, dynamic>> regularTurfs = [
-    {
-      'id': '1',
-      'name': 'Redhills Arena',
-      'location': 'Redhills, Chennai',
-      'image': 'https://images.unsplash.com/photo-1575361204480-aadea25e6e68',
-      'bookings': 45,
-      'rating': 4.8,
-      'isRegular': true,
-    },
-    {
-      'id': '2',
-      'name': 'Elite Football Ground',
-      'location': 'Race Course, Coimbatore',
-      'image': 'https://images.unsplash.com/photo-1511886929837-354d827aae26',
-      'bookings': 38,
-      'rating': 4.9,
-      'isRegular': true,
-    },
-    {
-      'id': '3',
-      'name': 'Sports Hub Arena',
-      'location': 'Peelamedu, Coimbatore',
-      'image': 'https://images.unsplash.com/photo-1531315630201-bb15abeb1653',
-      'bookings': 28,
-      'rating': 4.6,
-      'isRegular': true,
-    },
-    {
-      'id': '4',
-      'name': 'City Sports Complex',
-      'location': 'Gandhipuram, Coimbatore',
-      'image': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211',
-      'bookings': 22,
-      'rating': 4.7,
-      'isRegular': true,
-    },
-    {
-      'id': '5',
-      'name': 'Turf Masters',
-      'location': 'Saibaba Colony, Coimbatore',
-      'image': 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6',
-      'bookings': 18,
-      'rating': 4.5,
-      'isRegular': true,
-    },
-    {
-      'id': '6',
-      'name': 'Victory Turf',
-      'location': 'RS Puram, Coimbatore',
-      'image': 'https://images.unsplash.com/photo-1551958219-acbc608c6377',
-      'bookings': 15,
-      'rating': 4.4,
-      'isRegular': true,
-    },
-  ];
-
-  // Available time slots
-  final List<Map<String, dynamic>> timeSlots = [
-    {'time': '06:00 AM', 'available': true},
-    {'time': '08:00 AM', 'available': true},
-    {'time': '10:00 AM', 'available': false},
-    {'time': '12:00 PM', 'available': true},
-    {'time': '02:00 PM', 'available': true},
-    {'time': '04:00 PM', 'available': false},
-    {'time': '06:00 PM', 'available': true},
-    {'time': '08:00 PM', 'available': true},
-  ];
-
-  // Credit transactions
-  final List<Map<String, dynamic>> creditTransactions = [
-    {
-      'type': 'earned',
-      'title': 'Redhills Arena',
-      'description': 'Booking completed • Jan 15, 2024',
-      'credits': '+10',
-      'icon': Icons.check_circle_outline,
-      'color': Color(0xFF4CAF50),
-    },
-    {
-      'type': 'earned',
-      'title': 'Elite Football Ground',
-      'description': 'Booking completed • Jan 12, 2024',
-      'credits': '+10',
-      'icon': Icons.check_circle_outline,
-      'color': Color(0xFF4CAF50),
-    },
-    {
-      'type': 'earned',
-      'title': 'Weekend Bonus',
-      'description': 'Weekend booking • Jan 8, 2024',
-      'credits': '+20',
-      'icon': Icons.celebration_outlined,
-      'color': Color(0xFF2196F3),
-    },
-    {
-      'type': 'lost',
-      'title': 'Late Cancellation',
-      'description': 'Sports Hub Arena • Jan 10, 2024',
-      'credits': '-20',
-      'icon': Icons.cancel_outlined,
-      'color': Color(0xFFF44336),
-    },
-    {
-      'type': 'earned',
-      'title': 'Referral Bonus',
-      'description': 'Friend referral • Jan 5, 2024',
-      'credits': '+50',
-      'icon': Icons.people_outline,
-      'color': Color(0xFF9C27B0),
-    },
-    {
-      'type': 'used',
-      'title': 'Free Booking Redeemed',
-      'description': 'Redhills Arena • Dec 28, 2023',
-      'credits': '-100',
-      'icon': Icons.sports_soccer,
-      'color': Color(0xFFFF9800),
-    },
-  ];
+  Future<void> _loadCreditsData() async {
+    try {
+      final response = await ApiService().getAuth(
+        '/api/users/user-profile/me/',
+      );
+      if (response != null && response['success'] == true) {
+        final user = response['user'];
+        setState(() {
+          _totalCredits = user['total_credits'] ?? 0;
+          _availableCredits = user['available_credits'] ?? 0;
+          _usedCredits = user['used_credits'] ?? 0;
+          _creditsEarned = _availableCredits % _currentTarget;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Credits data error: $e');
+      setState(() => _isLoading = false);
+    }
+  }
 
   void _showHowItWorksDialog() {
     showDialog(
@@ -275,11 +178,11 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
   }
 
   void _showRedeemScreen() {
-    if (_creditsEarned < _currentTarget) {
+    if (_availableCredits < _currentTarget) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'You need ${_currentTarget - _creditsEarned} more credits to redeem a free booking',
+            'You need ${_currentTarget - (_availableCredits % _currentTarget)} more credits to redeem a free booking',
           ),
           backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
@@ -288,424 +191,55 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
       return;
     }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (BuildContext context, StateSetter setState) {
-          return Container(
-            padding: const EdgeInsets.all(20),
-            height:
-                MediaQuery.of(context).size.height *
-                0.9, // Reduced height to prevent overflow
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header with close button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Redeem Free Booking',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 24),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Free bookings available only for regularly booked turfs',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-                const SizedBox(height: 20),
-
-                // Turf Selection with fixed height container
-                const Text(
-                  'Select Regular Turf',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  height: 250, // Fixed height to prevent overflow
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    physics: AlwaysScrollableScrollPhysics(),
-                    itemCount: regularTurfs.length,
-                    itemBuilder: (context, index) {
-                      final turf = regularTurfs[index];
-                      final isSelected = _selectedTurf == turf['id'];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? primaryColor
-                                : Colors.grey.shade200,
-                            width: isSelected ? 2 : 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          leading: Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: primaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              image: DecorationImage(
-                                image: NetworkImage(turf['image'] as String),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            turf['name'] as String,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                turf['location'] as String,
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.star,
-                                    color: Colors.amber,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${turf['rating']}',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Icon(
-                                    Icons.event,
-                                    color: Colors.blue,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${turf['bookings']} bookings',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          trailing: isSelected
-                              ? Icon(Icons.check_circle, color: primaryColor)
-                              : null,
-                          onTap: () {
-                            setState(() {
-                              _selectedTurf = turf['id'] as String;
-                            });
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Time Slot Selection with fixed height
-                const Text(
-                  'Select Time Slot',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  height: 70, // Fixed height for time slots
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    shrinkWrap: true,
-                    physics: AlwaysScrollableScrollPhysics(),
-                    itemCount: timeSlots.length,
-                    itemBuilder: (context, index) {
-                      final slot = timeSlots[index];
-                      final isSelected = _selectedSlot == slot['time'];
-                      final isAvailable = slot['available'] as bool;
-
-                      return Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(
-                            slot['time'] as String,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isSelected
-                                  ? Colors.white
-                                  : isAvailable
-                                  ? Colors.black87
-                                  : Colors.grey,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          selected: isSelected,
-                          selectedColor: primaryColor,
-                          backgroundColor: isAvailable
-                              ? Colors.grey.shade100
-                              : Colors.grey.shade200,
-                          disabledColor: Colors.grey.shade200,
-                          onSelected: isAvailable
-                              ? (selected) {
-                                  setState(() {
-                                    _selectedSlot = selected
-                                        ? slot['time'] as String
-                                        : null;
-                                  });
-                                }
-                              : null,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(
-                              color: isSelected
-                                  ? primaryColor
-                                  : isAvailable
-                                  ? Colors.grey.shade300
-                                  : Colors.grey.shade200,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Redeem Summary
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: primaryColor.withOpacity(0.3)),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Credits Required:',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                          Text(
-                            '100 credits',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: primaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Your Credits:',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                          Text(
-                            '$_creditsEarned credits',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: primaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Status:',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: primaryColor,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              'ELIGIBLE',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Redeem Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (_selectedTurf == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please select a turf'),
-                            backgroundColor: Colors.orange,
-                          ),
-                        );
-                        return;
-                      }
-                      if (_selectedSlot == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Please select a time slot'),
-                            backgroundColor: Colors.orange,
-                          ),
-                        );
-                        return;
-                      }
-
-                      // Handle redemption
-                      Navigator.pop(context);
-                      _showConfirmationDialog();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      "Redeem Free Booking",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _showConfirmationDialog() {
+    // Show simple confirmation dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Icon(
-          Icons.check_circle,
-          color: Color(0xFF4CAF50),
-          size: 60,
+        title: const Text(
+          'Redeem Free Booking',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+          ),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Booking Redeemed!',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 15),
-            const Text(
-              'Your free booking has been confirmed.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 15),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Next Target: 100 credits',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-                color: primaryColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+        content: const Text(
+          'This will deduct 100 credits and create a free booking. You can select your preferred turf and time slot from the booking screen.\n\nProceed?',
+          style: TextStyle(fontSize: 15, color: Colors.grey),
         ),
         actions: [
           TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              // Update state after redemption
-              setState(() {
-                _creditsEarned = 0;
-                // Target remains 100 credits for next free booking
-              });
+              // Navigate to booking screen for slot selection
+              // The actual redeem API call happens there after selecting turf + slots
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Select a turf and time slot to redeem your free booking',
+                  ),
+                  backgroundColor: Color(0xFF4CAF50),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             child: const Text(
-              'Done',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              'Redeem',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -805,7 +339,7 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                       children: [
                         _buildStatItem(
                           title: "Total Credits",
-                          value: userCredits['totalCredits'].toString(),
+                          value: _totalCredits.toString(),
                           color: Colors.green[700]!,
                           icon: Icons.add_circle_outline,
                         ),
@@ -816,7 +350,7 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                         ),
                         _buildStatItem(
                           title: "Available Credits",
-                          value: userCredits['availableCredits'].toString(),
+                          value: _availableCredits.toString(),
                           color: Colors.blue[700]!,
                           icon: Icons.account_balance_wallet_outlined,
                         ),
@@ -827,7 +361,7 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
                         ),
                         _buildStatItem(
                           title: "Used Credits",
-                          value: userCredits['usedCredits'].toString(),
+                          value: _usedCredits.toString(),
                           color: Colors.orange[700]!,
                           icon: Icons.remove_circle_outline,
                         ),
@@ -1024,136 +558,6 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
 
               const SizedBox(height: 25),
 
-              // Credit Activity
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Credit Activity",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      "Track your credits earned and used",
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 15),
-
-                    // Category Tabs
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _selectedCategory = 0;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                  horizontal: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _selectedCategory == 0
-                                      ? primaryColor
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    "Earned",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: _selectedCategory == 0
-                                          ? Colors.white
-                                          : Colors.grey[700],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _selectedCategory = 1;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                  horizontal: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _selectedCategory == 1
-                                      ? primaryColor
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    "Used",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: _selectedCategory == 1
-                                          ? Colors.white
-                                          : Colors.grey[700],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Transactions List
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: creditTransactions
-                      .where(
-                        (transaction) => _selectedCategory == 0
-                            ? transaction['type'] == 'earned' ||
-                                  transaction['type'] == 'lost'
-                            : transaction['type'] == 'used',
-                      )
-                      .map(
-                        (transaction) => _buildTransactionItem(
-                          icon: transaction['icon'] as IconData,
-                          title: transaction['title'] as String,
-                          description: transaction['description'] as String,
-                          credits: transaction['credits'] as String,
-                          color: transaction['color'] as Color,
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
               // Redeem CTA
               Container(
                 margin: const EdgeInsets.symmetric(
@@ -1282,76 +686,6 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
             title,
             style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTransactionItem({
-    required IconData icon,
-    required String title,
-    required String description,
-    required String credits,
-    required Color color,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            credits,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: credits.startsWith('+')
-                  ? Colors.green[700]
-                  : credits.startsWith('-')
-                  ? Colors.red[700]
-                  : Colors.grey[700],
-            ),
           ),
         ],
       ),

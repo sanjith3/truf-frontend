@@ -10,6 +10,7 @@ import 'package:turfzone/features/auth/otp_login_screen.dart';
 import 'package:turfzone/features/profile/edit_profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/Admindashboard/admin_screen.dart';
+import '../../services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,6 +18,7 @@ class ProfileScreen extends StatefulWidget {
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
+
 class _ProfileScreenState extends State<ProfileScreen> {
   String _userName = "User Name";
   String _userEmail = "user@example.com";
@@ -24,6 +26,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   File? _userImage;
   bool _isPartner = false;
   String _memberSince = "Jan 2023";
+  int _totalBookings = 0;
+  int _credits = 0;
 
   @override
   void initState() {
@@ -35,27 +39,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _userName = prefs.getString('userName') ?? "User Name";
-      
+
       String? savedEmail = prefs.getString('userEmail');
       if (savedEmail != null && savedEmail.isNotEmpty) {
         _userEmail = savedEmail;
       } else {
         // Generate default email based on name (e.g., Ram -> ram@gmail.com)
-        String cleanName = _userName.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+        String cleanName = _userName.toLowerCase().replaceAll(
+          RegExp(r'\s+'),
+          '',
+        );
         _userEmail = "$cleanName@gmail.com";
       }
 
       String? phone = prefs.getString('userPhone');
       _userPhone = phone != null ? "+91 $phone" : "Phone number not set";
       _isPartner = prefs.getBool('isPartner') ?? false;
-      
+
       // Load registration date
       if (phone != null) {
         final regDateStr = prefs.getString('registrationDate_$phone');
         if (regDateStr != null) {
           try {
             final regDate = DateTime.parse(regDateStr);
-            final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            final months = [
+              'Jan',
+              'Feb',
+              'Mar',
+              'Apr',
+              'May',
+              'Jun',
+              'Jul',
+              'Aug',
+              'Sep',
+              'Oct',
+              'Nov',
+              'Dec',
+            ];
             _memberSince = '${months[regDate.month - 1]} ${regDate.year}';
           } catch (e) {
             // Use default if parsing fails
@@ -64,11 +84,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     });
+
+    // Fetch live stats from backend
+    _loadProfileStats();
   }
+
+  Future<void> _loadProfileStats() async {
+    try {
+      final response = await ApiService().getAuth(
+        '/api/users/user-profile/me/',
+      );
+      if (response != null && response['success'] == true) {
+        final user = response['user'];
+        setState(() {
+          _totalBookings = user['total_bookings'] ?? 0;
+          _credits = user['available_credits'] ?? 0;
+        });
+      }
+    } catch (e) {
+      // Silently fail — show 0 on error
+      debugPrint('Profile stats error: $e');
+    }
+  }
+
   Widget build(BuildContext context) {
     final userStats = {
-      'totalBookings': 24,
-      'credits': 1250,
+      'totalBookings': _totalBookings,
+      'credits': _credits,
       'memberSince': _memberSince,
     };
 
@@ -380,36 +422,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 // Become a Partner - Only show if NOT already a partner
                 if (!_isPartner)
-                _buildMenuCard(
-                  icon: Icons.business_center,
-                  title: "Become a Partner",
-                  subtitle: "List your turf and earn money",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const JoinPartnerScreen(),
-                      ),
-                    ).then((_) => _loadUserData()); // Refresh status when back
-                  },
-                ),
+                  _buildMenuCard(
+                    icon: Icons.business_center,
+                    title: "Become a Partner",
+                    subtitle: "List your turf and earn money",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const JoinPartnerScreen(),
+                        ),
+                      ).then(
+                        (_) => _loadUserData(),
+                      ); // Refresh status when back
+                    },
+                  ),
 
                 if (_isPartner)
-                _buildMenuCard(
-                  icon: Icons.workspace_premium,
-                  iconColor: const Color(0xFFFFD700),
-                  bgColor: const Color(0xFFFFD700).withOpacity(0.1),
-                  title: "Partner Dashboard",
-                  subtitle: "Manage your registered turf",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => AdminScreen(),
-                      ),
-                    );
-                  },
-                ),
+                  _buildMenuCard(
+                    icon: Icons.workspace_premium,
+                    iconColor: const Color(0xFFFFD700),
+                    bgColor: const Color(0xFFFFD700).withOpacity(0.1),
+                    title: "Partner Dashboard",
+                    subtitle: "Manage your registered turf",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => AdminScreen()),
+                      );
+                    },
+                  ),
 
                 const SizedBox(height: 10),
 
@@ -672,11 +714,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: bgColor ?? themeColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    icon,
-                    color: iconColor ?? themeColor,
-                    size: 24,
-                  ),
+                  child: Icon(icon, color: iconColor ?? themeColor, size: 24),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -858,35 +896,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Material(
                             color: Colors.transparent,
                             child: InkWell(
-                                onTap: () async {
-                                  debugPrint("Logout button pressed");
-                                  final prefs = await SharedPreferences.getInstance();
-                                  await prefs.remove('userName');
-                                  await prefs.remove('userEmail');
-                                  await prefs.remove('userPhone');
-                                  await prefs.remove('hasShownWelcome');
-                                  await prefs.remove('isPartner');
-                                  await prefs.remove('registeredTurfName');
-                                  await prefs.remove('registeredLocation');
-                                  await prefs.remove('registeredPrice');
-                                  
-                                  if (context.mounted) {
-                                    Navigator.pushAndRemoveUntil(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const OtpLoginScreen(),
-                                      ),
-                                      (route) => false,
-                                    );
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text("Logged out successfully"),
-                                        backgroundColor: Color(0xFF1DB954),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  }
-                                },
+                              onTap: () async {
+                                debugPrint("Logout button pressed");
+                                final prefs =
+                                    await SharedPreferences.getInstance();
+                                await prefs.remove('userName');
+                                await prefs.remove('userEmail');
+                                await prefs.remove('userPhone');
+                                await prefs.remove('hasShownWelcome');
+                                await prefs.remove('isPartner');
+                                await prefs.remove('registeredTurfName');
+                                await prefs.remove('registeredLocation');
+                                await prefs.remove('registeredPrice');
+
+                                if (context.mounted) {
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const OtpLoginScreen(),
+                                    ),
+                                    (route) => false,
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Logged out successfully"),
+                                      backgroundColor: Color(0xFF1DB954),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              },
                               borderRadius: const BorderRadius.only(
                                 bottomRight: Radius.circular(20),
                               ),
