@@ -373,6 +373,12 @@ class _BookingScreenState extends State<BookingScreen> {
             textColor: Colors.orange.shade700,
           ),
           _legendItem(
+            color: Colors.grey.shade100,
+            label: 'Disabled',
+            borderColor: Colors.grey.shade300,
+            textColor: Colors.grey.shade400,
+          ),
+          _legendItem(
             color: Colors.blue,
             label: 'Selected',
             borderColor: Colors.blue.shade800,
@@ -683,11 +689,15 @@ class ApiSlot {
   final String finalPrice;
   final bool hasOffer;
   final String discountAmount;
+  final String? offerType; // 'percentage' or 'flat'
+  final String? offerValue; // e.g. '20.00' for 20%
   final bool isAvailable;
+  final bool isDisabled; // Owner toggled off
   final bool isPast;
   final bool isBooked;
   final bool isBlocked;
-  final String status; // "available" | "past" | "booked" | "blocked"
+  final String
+  status; // "available" | "past" | "booked" | "blocked" | "disabled"
 
   ApiSlot({
     required this.slotId,
@@ -697,7 +707,10 @@ class ApiSlot {
     required this.finalPrice,
     required this.hasOffer,
     required this.discountAmount,
+    this.offerType,
+    this.offerValue,
     required this.isAvailable,
+    required this.isDisabled,
     required this.isPast,
     required this.isBooked,
     required this.isBlocked,
@@ -713,7 +726,10 @@ class ApiSlot {
       finalPrice: json['final_price']?.toString() ?? '0',
       hasOffer: json['has_offer'] == true,
       discountAmount: json['discount_amount']?.toString() ?? '0',
+      offerType: json['offer_type']?.toString(),
+      offerValue: json['offer_value']?.toString(),
       isAvailable: json['is_available'] == true,
+      isDisabled: json['is_disabled'] == true,
       isPast: json['is_past'] == true,
       isBooked: json['is_booked'] == true,
       isBlocked: json['is_blocked'] == true,
@@ -873,8 +889,13 @@ class ApiSlotCard extends StatelessWidget {
     String? statusLabel;
 
     if (!slot.isAvailable) {
-      // Distinct visual states for each unavailable reason
-      if (slot.isBooked) {
+      // Priority: disabled > booked > blocked > past
+      if (slot.isDisabled) {
+        bgColor = Colors.grey.shade100;
+        borderColor = Colors.grey.shade300;
+        textColor = Colors.grey.shade400;
+        statusLabel = 'Disabled';
+      } else if (slot.isBooked) {
         bgColor = Colors.red.shade50;
         borderColor = Colors.red.shade300;
         textColor = Colors.red.shade700;
@@ -921,7 +942,7 @@ class ApiSlotCard extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: textColor,
-                      decoration: slot.isPast
+                      decoration: (slot.isPast || slot.isDisabled)
                           ? TextDecoration.lineThrough
                           : null,
                     ),
@@ -932,11 +953,23 @@ class ApiSlotCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10,
                       color: textColor.withOpacity(0.9),
-                      decoration: slot.isPast
+                      decoration: (slot.isPast || slot.isDisabled)
                           ? TextDecoration.lineThrough
                           : null,
                     ),
                   ),
+                  // Show offer price breakdown for available slots with offers
+                  if (slot.hasOffer && slot.isAvailable && !isSelected) ...[
+                    const SizedBox(height: 1),
+                    Text(
+                      '₹${slot.finalPrice.split('.')[0]}',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
                   if (statusLabel != null) ...[
                     const SizedBox(height: 2),
                     Text(

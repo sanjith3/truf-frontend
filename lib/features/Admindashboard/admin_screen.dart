@@ -67,9 +67,25 @@ class _AdminScreenState extends State<AdminScreen> {
   void initState() {
     super.initState();
     _turfService.addListener(_onDataChanged);
-    // Load owner's turfs from API (authenticated)
-    _turfService.loadMyTurfs();
+    // Load local data first (immediate), then fetch from API
     _loadRegisteredTurf();
+    _initOwnerTurfs();
+  }
+
+  /// Fetch owner turfs from API, then rebuild dashboard
+  Future<void> _initOwnerTurfs() async {
+    try {
+      await _turfService.loadMyTurfs();
+      print(
+        '🏠 _initOwnerTurfs: loadMyTurfs completed, ${_turfService.myTurfs.length} turfs',
+      );
+    } catch (e) {
+      print('🚨 _initOwnerTurfs error: $e');
+    }
+    // Rebuild dashboard with API data
+    if (mounted) {
+      _loadRegisteredTurf();
+    }
   }
 
   @override

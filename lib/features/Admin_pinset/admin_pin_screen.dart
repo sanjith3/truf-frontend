@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/Admindashboard/admin_screen.dart';
+import '../../services/auth_state.dart';
 
 class AdminPinScreen extends StatefulWidget {
   const AdminPinScreen({super.key});
@@ -30,7 +31,7 @@ class _AdminPinScreenState extends State<AdminPinScreen> {
     final prefs = await SharedPreferences.getInstance();
 
     final phone = prefs.getString('userPhone'); // current logged user
-    final isPartner = prefs.getBool('isPartner') ?? false;
+    final isPartner = AuthState.instance.isOwner;
 
     if (phone == null) return;
 

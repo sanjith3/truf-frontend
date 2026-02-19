@@ -2,37 +2,83 @@
 import 'package:flutter/material.dart';
 import '../../models/turf.dart';
 import '../../services/turf_data_service.dart';
+import '../../services/api_service.dart';
 import '../../models/booking.dart';
 
 // ------------------------------------------------------------
-// AdminTimeSlot – extended model for management
+// Shared time utility — single source of truth
+// ------------------------------------------------------------
+bool isSlotPast(DateTime selectedDate, String slotTime) {
+  final startStr = slotTime.split(' - ')[0].trim();
+  final parts = startStr.split(' ');
+  if (parts.length < 2) return false;
+
+  final timeParts = parts[0].split(':');
+  final period = parts[1]; // AM or PM
+  int hour = int.tryParse(timeParts[0]) ?? 0;
+  final minute = int.tryParse(timeParts.length > 1 ? timeParts[1] : '0') ?? 0;
+
+  if (period == 'PM' && hour != 12) hour += 12;
+  if (period == 'AM' && hour == 12) hour = 0;
+
+  final now = DateTime.now();
+  final slotDateTime = DateTime(
+    selectedDate.year,
+    selectedDate.month,
+    selectedDate.day,
+    hour,
+    minute,
+  );
+
+  return slotDateTime.isBefore(now);
+}
+
+// ------------------------------------------------------------
+// AdminTimeSlot – simplified model
 // ------------------------------------------------------------
 class AdminTimeSlot {
   final String time;
+  final int? slotId;
   final bool isBooked;
   bool isDisabled;
   bool hasOffer;
   final double basePrice;
+  final bool isPast;
+
+  String? offerType;
+  double? offerValue;
 
   AdminTimeSlot({
     required this.time,
+    this.slotId,
     required this.isBooked,
     required this.isDisabled,
     required this.hasOffer,
     required this.basePrice,
+    this.isPast = false,
+    this.offerType,
+    this.offerValue,
   });
 
-  bool get isAvailable => !isBooked && !isDisabled;
-  // effectivePrice always returns basePrice — discount calculation is backend-only.
+  bool get isAvailable => !isBooked && !isDisabled && !isPast;
   double get effectivePrice => basePrice;
 
-  AdminTimeSlot copyWith({bool? isDisabled, bool? hasOffer}) {
+  AdminTimeSlot copyWith({
+    bool? isDisabled,
+    bool? hasOffer,
+    String? offerType,
+    double? offerValue,
+  }) {
     return AdminTimeSlot(
       time: time,
+      slotId: slotId,
       isBooked: isBooked,
       isDisabled: isDisabled ?? this.isDisabled,
       hasOffer: hasOffer ?? this.hasOffer,
       basePrice: basePrice,
+      isPast: isPast,
+      offerType: offerType ?? this.offerType,
+      offerValue: offerValue ?? this.offerValue,
     );
   }
 }
@@ -59,9 +105,6 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
   bool _isLoading = false;
   String _filterOption = 'all';
 
-  // Global offer slots (from OfferSlotService) – kept for future use
-  List<String> _globalOfferSlots = [];
-
   @override
   void initState() {
     super.initState();
@@ -85,6 +128,70 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
     if (_selectedTurf == null) return;
     setState(() => _isLoading = true);
 
+    final turf = _selectedTurf!;
+    final api = ApiService();
+    final dateStr =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+    try {
+      final res = await api.getAuth(
+        '/api/bookings/bookings/availability/?turf_id=${turf.id}&date=$dateStr',
+      );
+
+      if (res['success'] == true && res['slots'] != null) {
+        final List<AdminTimeSlot> slots = [];
+        for (final s in res['slots']) {
+          final startTime = _convertTo12Hour(s['start_time'] ?? '');
+          final endTime = _convertTo12Hour(s['end_time'] ?? '');
+          final slotTime = '$startTime - $endTime';
+
+          final status = s['status'] ?? 'available';
+          final slotId = s['slot_id'];
+
+          slots.add(
+            AdminTimeSlot(
+              time: slotTime,
+              slotId: slotId is int ? slotId : int.tryParse(slotId.toString()),
+              isBooked: status == 'booked',
+              isDisabled: status == 'disabled',
+              hasOffer: s['has_offer'] == true,
+              basePrice:
+                  double.tryParse(s['original_price']?.toString() ?? '0') ??
+                  turf.price.toDouble(),
+              isPast: status == 'past',
+              offerType: s['offer_type'],
+              offerValue: s['offer_value'] != null
+                  ? double.tryParse(s['offer_value'].toString())
+                  : null,
+            ),
+          );
+        }
+
+        setState(() {
+          _timeSlots = slots;
+          _isLoading = false;
+        });
+      } else {
+        _loadSlotsFromLocalData(date);
+      }
+    } catch (e) {
+      debugPrint('Error loading slots from API: $e');
+      _loadSlotsFromLocalData(date);
+    }
+  }
+
+  String _convertTo12Hour(String time24) {
+    final parts = time24.split(':');
+    if (parts.length < 2) return time24;
+    int hour = int.tryParse(parts[0]) ?? 0;
+    final min = parts[1];
+    final period = hour >= 12 ? 'PM' : 'AM';
+    if (hour == 0) hour = 12;
+    if (hour > 12) hour -= 12;
+    return '$hour:$min $period';
+  }
+
+  void _loadSlotsFromLocalData(DateTime date) {
     final turf = _selectedTurf!;
     final turfName = turf.name;
 
@@ -126,6 +233,7 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
           isDisabled: isDisabled,
           hasOffer: hasOffer,
           basePrice: basePrice,
+          isPast: isSlotPast(_selectedDate, slotTime),
         ),
       );
     }
@@ -156,34 +264,33 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
   }
 
   // ------------------------------------------------------------
-  // Slot Dialog with Price Display
+  // Slot Dialog — Disable toggle + Offer toggle
   // ------------------------------------------------------------
   Future<void> _showSlotDialog(AdminTimeSlot slot) async {
-    bool tempDisabled = slot.isDisabled;
-    bool tempEnableOffer = slot.hasOffer;
-    String selectedOfferPercent = '20';
-    final List<String> offerOptions = ['20', '30', '40', '50', 'custom'];
-    TextEditingController customPercentController = TextEditingController();
+    if (slot.isPast) {
+      _showSnackBar('Past slots cannot be modified', isError: true);
+      return;
+    }
 
-    // StatefulBuilder allows us to rebuild the dialog on changes
+    if (slot.isBooked) {
+      _showSnackBar('Booked slots cannot be modified', isError: true);
+      return;
+    }
+
+    if (_selectedTurf == null || slot.slotId == null) {
+      debugPrint('DEBUG: turfId=${_selectedTurf?.id}, slotId=${slot.slotId}');
+      _showSnackBar('Missing turf or slot info', isError: true);
+      return;
+    }
+
+    // State for the dialog
+    bool slotDisabled = slot.isDisabled;
+    bool offerEnabled = slot.hasOffer;
+
     return showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          // Calculate discounted price on the fly
-          double discountedPrice = slot.basePrice;
-          int? offerPercent;
-          if (tempEnableOffer) {
-            if (selectedOfferPercent == 'custom') {
-              offerPercent = int.tryParse(customPercentController.text);
-            } else {
-              offerPercent = int.tryParse(selectedOfferPercent);
-            }
-            if (offerPercent != null) {
-              discountedPrice = slot.basePrice * (1 - offerPercent / 100);
-            }
-          }
-
           return AlertDialog(
             title: Text('Manage Slot: ${slot.time}'),
             content: SingleChildScrollView(
@@ -191,7 +298,7 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Date and Price Info
+                  // Info card
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -205,9 +312,7 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
                           children: [
                             const Icon(Icons.today, size: 16),
                             const SizedBox(width: 8),
-                            Text(
-                              'Selected Date: ${_formatDate(_selectedDate)}',
-                            ),
+                            Text('Date: ${_formatDate(_selectedDate)}'),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -215,7 +320,7 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text(
-                              'Regular Price:',
+                              'Base Price:',
                               style: TextStyle(fontWeight: FontWeight.w500),
                             ),
                             Text(
@@ -227,134 +332,76 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
                             ),
                           ],
                         ),
-                        if (tempEnableOffer && offerPercent != null) ...[
-                          const Divider(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Discounted Price ($offerPercent% off):',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.red,
-                                ),
-                              ),
-                              Text(
-                                '₹${discountedPrice.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // Offer Section
-                  const Text(
-                    'Offer Settings',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
+                  // --- Disable Slot toggle ---
                   SwitchListTile(
-                    title: const Text('Enable Offer'),
-                    value: tempEnableOffer,
-                    onChanged: slot.isBooked
-                        ? null
-                        : (val) => setDialogState(() => tempEnableOffer = val),
-                    secondary: Icon(
-                      Icons.local_offer,
-                      color: tempEnableOffer ? Colors.red : Colors.grey,
-                    ),
-                  ),
-                  if (tempEnableOffer) ...[
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Discount Percentage:',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: selectedOfferPercent,
-                            items: offerOptions.map((opt) {
-                              return DropdownMenuItem<String>(
-                                value: opt,
-                                child: Text(
-                                  opt == 'custom' ? 'Custom' : '$opt%',
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (val) => setDialogState(
-                              () => selectedOfferPercent = val!,
-                            ),
-                            decoration: const InputDecoration(
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (selectedOfferPercent == 'custom') ...[
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: customPercentController,
-                              keyboardType: TextInputType.number,
-                              onChanged: (_) => setDialogState(
-                                () {},
-                              ), // rebuild to update discounted price
-                              decoration: const InputDecoration(
-                                labelText: 'Custom %',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-
-                  const SizedBox(height: 16),
-
-                  // Disable Section
-                  const Text(
-                    'Disable Settings',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  SwitchListTile(
-                    title: const Text('Disable Slot'),
-                    value: tempDisabled,
-                    onChanged: slot.isBooked
-                        ? null
-                        : (val) => setDialogState(() => tempDisabled = val),
-                    secondary: Icon(
-                      Icons.block,
-                      color: tempDisabled ? Colors.grey : Colors.grey,
-                    ),
-                  ),
-
-                  if (slot.isBooked)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Text(
-                        'This slot is already booked – cannot modify.',
-                        style: TextStyle(color: Colors.red, fontSize: 12),
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      slotDisabled ? 'Slot Disabled' : 'Disable Slot',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: slotDisabled ? Colors.red : Colors.black87,
                       ),
                     ),
+                    subtitle: Text(
+                      slotDisabled
+                          ? 'This slot is currently disabled'
+                          : 'Turn ON to prevent bookings',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    secondary: Icon(
+                      slotDisabled ? Icons.block : Icons.check_circle,
+                      color: slotDisabled ? Colors.red : Colors.green,
+                    ),
+                    value: slotDisabled,
+                    onChanged: (val) {
+                      setDialogState(() => slotDisabled = val);
+                    },
+                    activeColor: Colors.red,
+                  ),
+
+                  const Divider(),
+
+                  // --- Enable Offer toggle ---
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Enable Offer',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: offerEnabled
+                            ? Colors.deepOrange
+                            : Colors.black87,
+                      ),
+                    ),
+                    subtitle: Text(
+                      offerEnabled
+                          ? 'Offer is active on this slot'
+                          : 'Add a discount offer',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    secondary: Icon(
+                      Icons.local_offer,
+                      color: offerEnabled ? Colors.deepOrange : Colors.grey,
+                    ),
+                    value: offerEnabled,
+                    onChanged: slotDisabled
+                        ? null // Can't set offer on disabled slot
+                        : (val) {
+                            setDialogState(() => offerEnabled = val);
+                          },
+                    activeColor: Colors.deepOrange,
+                  ),
                 ],
               ),
             ),
@@ -364,28 +411,38 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: slot.isBooked
-                    ? null
-                    : () {
-                        Navigator.pop(ctx);
-                        int? offerPercent;
-                        if (tempEnableOffer) {
-                          if (selectedOfferPercent == 'custom') {
-                            offerPercent = int.tryParse(
-                              customPercentController.text,
-                            );
-                          } else {
-                            offerPercent = int.tryParse(selectedOfferPercent);
-                          }
-                        }
-                        _updateSlotSettings(
-                          slot,
-                          tempEnableOffer,
-                          tempDisabled,
-                          offerPercent,
-                        );
-                      },
-                child: const Text('Save'),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+
+                  final disableChanged = slotDisabled != slot.isDisabled;
+                  final offerChanged = offerEnabled != slot.hasOffer;
+
+                  // 1. Handle disable toggle
+                  if (disableChanged) {
+                    await _executeDisableAction(
+                      slot,
+                      slotDisabled ? 'disable' : 'enable',
+                    );
+                  }
+
+                  // 2. Handle offer toggle
+                  if (offerChanged && !slotDisabled) {
+                    if (offerEnabled) {
+                      // Offer turned ON → open offer dialog
+                      _showOfferBottomSheet(slot);
+                    } else {
+                      // Offer turned OFF → call delete_offer
+                      await _deleteOffer(slot);
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1DB954),
+                ),
+                child: const Text(
+                  'Save',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           );
@@ -395,51 +452,388 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
   }
 
   // ------------------------------------------------------------
-  // Update single date slot settings (with custom offer %)
+  // Offer Bottom Sheet — Swiggy-style
   // ------------------------------------------------------------
-  Future<void> _updateSlotSettings(
-    AdminTimeSlot slot,
-    bool enableOffer,
-    bool disable,
-    int? offerPercent,
-  ) async {
-    if (_selectedTurf == null) return;
+  void _showOfferBottomSheet(AdminTimeSlot slot) {
+    String selectedOfferType = 'percentage';
+    final valueController = TextEditingController();
+    DateTime? validUntil;
 
-    double newPrice = slot.basePrice;
-    if (enableOffer && offerPercent != null) {
-      newPrice = slot.basePrice * (1 - offerPercent / 100);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    const Icon(Icons.local_offer, color: Colors.deepOrange),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Create Offer',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${slot.time}  •  Base ₹${slot.basePrice.toStringAsFixed(0)}',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 20),
+
+                // --- Offer Type ---
+                const Text(
+                  'Offer Type',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _offerTypeChip(
+                        label: 'Percentage (%)',
+                        isSelected: selectedOfferType == 'percentage',
+                        onTap: () {
+                          setSheetState(() {
+                            selectedOfferType = 'percentage';
+                            valueController.clear();
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _offerTypeChip(
+                        label: 'Flat (₹)',
+                        isSelected: selectedOfferType == 'flat',
+                        onTap: () {
+                          setSheetState(() {
+                            selectedOfferType = 'flat';
+                            valueController.clear();
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // --- Value ---
+                TextField(
+                  controller: valueController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: selectedOfferType == 'percentage'
+                        ? 'Discount % (max 90)'
+                        : 'Discount ₹ (max ₹${(slot.basePrice - 1).toStringAsFixed(0)})',
+                    prefixIcon: Icon(
+                      selectedOfferType == 'percentage'
+                          ? Icons.percent
+                          : Icons.currency_rupee,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // --- Valid Until (optional) ---
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: ctx,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) {
+                      setSheetState(() => validUntil = picked);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          validUntil != null
+                              ? 'Valid Until: ${_formatDate(validUntil!)}'
+                              : 'Valid Until (optional)',
+                          style: TextStyle(
+                            color: validUntil != null
+                                ? Colors.black87
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // --- Save Button ---
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      // Validate value
+                      final value = double.tryParse(valueController.text);
+                      if (value == null || value <= 0) {
+                        _showSnackBar('Enter a valid value', isError: true);
+                        return;
+                      }
+
+                      if (selectedOfferType == 'percentage' && value > 90) {
+                        _showSnackBar('Max percentage is 90%', isError: true);
+                        return;
+                      }
+
+                      if (selectedOfferType == 'flat' &&
+                          value >= slot.basePrice) {
+                        _showSnackBar(
+                          'Flat discount must be less than ₹${slot.basePrice.toStringAsFixed(0)}',
+                          isError: true,
+                        );
+                        return;
+                      }
+
+                      Navigator.pop(ctx);
+                      await _createOffer(
+                        slot,
+                        selectedOfferType,
+                        value,
+                        validUntil,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepOrange,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Create Offer',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _offerTypeChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.deepOrange.shade50 : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? Colors.deepOrange : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.deepOrange : Colors.grey.shade700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // API: Disable / Enable slot
+  // ------------------------------------------------------------
+  Future<void> _executeDisableAction(AdminTimeSlot slot, String action) async {
+    if (_selectedTurf == null || slot.slotId == null) {
+      debugPrint('DEBUG: turfId=${_selectedTurf?.id}, slotId=${slot.slotId}');
+      _showSnackBar('Missing turf or slot info', isError: true);
+      return;
     }
 
-    setState(() {
-      final index = _timeSlots.indexWhere((s) => s.time == slot.time);
-      if (index != -1) {
-        _timeSlots[index] = slot.copyWith(
-          hasOffer: enableOffer,
-          isDisabled: disable,
-        );
-      }
-    });
+    final api = ApiService();
+    final turfId = _selectedTurf!.id;
 
-    await _turfService
-        .saveSlotData(_selectedTurf!.name, _selectedDate, slot.time, {
-          'time': slot.time,
-          'disabled': disable,
-          'offer': enableOffer,
-          'price': newPrice,
-          'offerPercent': offerPercent,
+    debugPrint('TURF ID: $turfId | SLOT ID: ${slot.slotId} | ACTION: $action');
+
+    try {
+      final endpoint = action == 'disable' ? 'disable_slot' : 'enable_slot';
+      final res = await api.postAuth(
+        '/api/turfs/turfs/$turfId/$endpoint/',
+        body: {'slot_id': slot.slotId},
+      );
+
+      if (res['success'] == true) {
+        setState(() {
+          final idx = _timeSlots.indexWhere((s) => s.time == slot.time);
+          if (idx != -1) {
+            _timeSlots[idx] = slot.copyWith(isDisabled: action == 'disable');
+          }
         });
-    _showSnackBar('Slot settings updated');
+        _showSnackBar(action == 'disable' ? 'Slot disabled' : 'Slot enabled');
+      } else {
+        _showSnackBar(res['error'] ?? 'Failed', isError: true);
+      }
+    } catch (e) {
+      _showSnackBar('Error: ${e.toString()}', isError: true);
+    }
   }
 
   // ------------------------------------------------------------
-  // Global offer management — disabled (offers now managed via API)
-  // Kept placeholder for future admin panel integration
-  Future<void> _toggleGlobalOffer(String slotTime) async {
-    _showSnackBar('Offer management moved to admin panel');
+  // API: Create offer
+  // ------------------------------------------------------------
+  Future<void> _createOffer(
+    AdminTimeSlot slot,
+    String offerType,
+    double value,
+    DateTime? validUntil,
+  ) async {
+    if (_selectedTurf == null || slot.slotId == null) {
+      _showSnackBar('Missing turf or slot info', isError: true);
+      return;
+    }
+
+    final api = ApiService();
+    final turfId = _selectedTurf!.id;
+    final now = DateTime.now();
+    final validFromStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    // Default valid_until: 30 days from today if not picked
+    final until = validUntil ?? now.add(const Duration(days: 30));
+    final validUntilStr =
+        '${until.year}-${until.month.toString().padLeft(2, '0')}-${until.day.toString().padLeft(2, '0')}';
+
+    debugPrint(
+      'CREATE OFFER: turfId=$turfId slotId=${slot.slotId} '
+      'type=$offerType value=$value from=$validFromStr until=$validUntilStr',
+    );
+
+    try {
+      final res = await api.postAuth(
+        '/api/turfs/turfs/$turfId/create_offer/',
+        body: {
+          'slot_id': slot.slotId,
+          'offer_type': offerType,
+          'value': value,
+          'valid_from': validFromStr,
+          'valid_until': validUntilStr,
+        },
+      );
+
+      if (res['success'] == true) {
+        setState(() {
+          final idx = _timeSlots.indexWhere((s) => s.time == slot.time);
+          if (idx != -1) {
+            _timeSlots[idx] = slot.copyWith(
+              hasOffer: true,
+              offerType: offerType,
+              offerValue: value,
+            );
+          }
+        });
+        _showSnackBar('Offer created!');
+      } else {
+        _showSnackBar(res['error'] ?? 'Failed to create offer', isError: true);
+      }
+    } catch (e) {
+      _showSnackBar('Error: ${e.toString()}', isError: true);
+    }
   }
 
   // ------------------------------------------------------------
-  // Stats computation
+  // API: Delete (deactivate) offer
+  // ------------------------------------------------------------
+  Future<void> _deleteOffer(AdminTimeSlot slot) async {
+    if (_selectedTurf == null || slot.slotId == null) {
+      _showSnackBar('Missing turf or slot info', isError: true);
+      return;
+    }
+
+    final api = ApiService();
+    final turfId = _selectedTurf!.id;
+
+    debugPrint('DELETE OFFER: turfId=$turfId slotId=${slot.slotId}');
+
+    try {
+      final res = await api.postAuth(
+        '/api/turfs/turfs/$turfId/delete_offer/',
+        body: {'slot_id': slot.slotId},
+      );
+
+      if (res['success'] == true) {
+        setState(() {
+          final idx = _timeSlots.indexWhere((s) => s.time == slot.time);
+          if (idx != -1) {
+            _timeSlots[idx] = slot.copyWith(
+              hasOffer: false,
+              offerType: null,
+              offerValue: null,
+            );
+          }
+        });
+        _showSnackBar('Offer removed');
+      } else {
+        _showSnackBar(res['error'] ?? 'Failed to remove offer', isError: true);
+      }
+    } catch (e) {
+      _showSnackBar('Error: ${e.toString()}', isError: true);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // Stats
   // ------------------------------------------------------------
   int get _bookedCount => _timeSlots.where((s) => s.isBooked).length;
   int get _availableCount => _timeSlots.where((s) => s.isAvailable).length;
@@ -554,7 +948,7 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
   }
 
   // ------------------------------------------------------------
-  // UI Components
+  // UI Components (unchanged design)
   // ------------------------------------------------------------
   Widget _buildTurfSelector() {
     return Container(
@@ -872,7 +1266,8 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
             final slot = slots[idx];
             return AdminTimeSlotCard(
               slot: slot,
-              onTap: () => _showSlotDialog(slot),
+              isPast: slot.isPast,
+              onTap: slot.isPast ? () {} : () => _showSlotDialog(slot),
             );
           },
         ),
@@ -882,13 +1277,19 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
 }
 
 // ------------------------------------------------------------
-// AdminTimeSlotCard – simple, tappable card
+// AdminTimeSlotCard – simple state-aware card
 // ------------------------------------------------------------
 class AdminTimeSlotCard extends StatelessWidget {
   final AdminTimeSlot slot;
   final VoidCallback onTap;
+  final bool isPast;
 
-  const AdminTimeSlotCard({super.key, required this.slot, required this.onTap});
+  const AdminTimeSlotCard({
+    super.key,
+    required this.slot,
+    required this.onTap,
+    this.isPast = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -896,27 +1297,43 @@ class AdminTimeSlotCard extends StatelessWidget {
     final isDisabled = slot.isDisabled;
     final hasOffer = slot.hasOffer;
 
-    Color bgColor, borderColor, textColor;
-    if (isBooked) {
+    Color bgColor, borderColor, textColor, badgeColor;
+    String? badge;
+
+    // Priority: past > booked > disabled > offer > available
+    if (isPast) {
       bgColor = Colors.grey.shade200;
       borderColor = Colors.grey.shade400;
-      textColor = Colors.grey.shade700;
+      textColor = Colors.grey.shade500;
+      badgeColor = Colors.grey.shade600;
+      badge = 'PAST';
+    } else if (isBooked) {
+      bgColor = Colors.blue.shade50;
+      borderColor = Colors.blue.shade300;
+      textColor = Colors.blue.shade800;
+      badgeColor = Colors.blue;
+      badge = 'BOOKED';
     } else if (isDisabled) {
-      bgColor = Colors.grey.shade100;
-      borderColor = Colors.grey.shade400;
-      textColor = Colors.grey.shade700;
-    } else if (hasOffer) {
       bgColor = Colors.red.shade50;
       borderColor = Colors.red.shade300;
-      textColor = Colors.red.shade800;
+      textColor = Colors.red.shade700;
+      badgeColor = Colors.red;
+      badge = 'DISABLED';
+    } else if (hasOffer) {
+      bgColor = Colors.green.shade50;
+      borderColor = Colors.green.shade400;
+      textColor = Colors.green.shade800;
+      badgeColor = Colors.deepOrange;
+      badge = 'OFFER';
     } else {
       bgColor = Colors.green.shade50;
       borderColor = Colors.green.shade300;
       textColor = Colors.green.shade800;
+      badgeColor = Colors.green;
     }
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: isPast ? null : onTap,
       child: Container(
         decoration: BoxDecoration(
           color: bgColor,
@@ -939,56 +1356,29 @@ class AdminTimeSlotCard extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: textColor,
+                decoration: isPast ? TextDecoration.lineThrough : null,
               ),
             ),
             Text(
               slot.time.split(' - ')[1],
-              style: TextStyle(fontSize: 11, color: textColor.withOpacity(0.8)),
+              style: TextStyle(
+                fontSize: 11,
+                color: textColor.withOpacity(0.8),
+                decoration: isPast ? TextDecoration.lineThrough : null,
+              ),
             ),
             const SizedBox(height: 4),
-            if (isBooked)
+            if (badge != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade600,
+                  color: badgeColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'BOOKED',
-                  style: TextStyle(
-                    fontSize: 8,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              )
-            else if (isDisabled)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade600,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'DISABLED',
-                  style: TextStyle(
-                    fontSize: 8,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              )
-            else if (hasOffer)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'OFFER',
-                  style: TextStyle(
-                    fontSize: 8,
+                child: Text(
+                  badge,
+                  style: const TextStyle(
+                    fontSize: 7,
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),

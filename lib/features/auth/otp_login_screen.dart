@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/api_service.dart';
+import '../../services/auth_state.dart';
 import '../home/user_home_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -35,10 +36,10 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
   Future<void> _checkExistingSession() async {
     final hasToken = await ApiService.hasToken();
     if (hasToken) {
-      // User has a stored token — try to validate it
+      // User has a stored token — validate and load profile
       try {
-        await _api.getAuth('/api/users/user-profile/me/');
-        // Token is valid — go to home
+        await AuthState.instance.loadProfile();
+        // Token is valid, role loaded — go to home
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -47,6 +48,7 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
         }
       } catch (_) {
         // Token expired or invalid — clear and show login
+        await AuthState.instance.clear();
         await ApiService.clearTokens();
       }
     }
@@ -396,6 +398,9 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
         await prefs.setBool('isLoggedIn', true);
         await prefs.setString('userRole', user['role'] ?? 'user');
 
+        // Load full profile (role, turf_owner, etc.) before navigating
+        await AuthState.instance.loadProfile();
+
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -474,6 +479,9 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
         await prefs.setString('userPhone', phone);
         await prefs.setBool('isLoggedIn', true);
         await prefs.setString('userRole', 'user');
+
+        // Load full profile before navigating
+        await AuthState.instance.loadProfile();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

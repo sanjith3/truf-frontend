@@ -1,3 +1,17 @@
+// Safe parsers for Django DecimalField → string values
+double? _safeDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString());
+}
+
+int? _safeInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString());
+}
+
 class Turf {
   final String id;
   final String name;
@@ -114,12 +128,9 @@ class Turf {
       name: json['name']?.toString() ?? '',
       location: json['address']?.toString() ?? json['city']?.toString() ?? '',
       city: json['city']?.toString() ?? '',
-      distance: (json['distance'] as num?)?.toDouble() ?? 0.0,
-      price:
-          (json['price_per_hour'] as num?)?.toInt() ??
-          (json['price'] as num?)?.toInt() ??
-          0,
-      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      distance: _safeDouble(json['distance']) ?? 0.0,
+      price: _safeInt(json['price_per_hour']) ?? _safeInt(json['price']) ?? 0,
+      rating: _safeDouble(json['rating']) ?? 0.0,
       images: imageUrls,
       amenities: amenityNames,
       sports: sportNames,
@@ -135,8 +146,8 @@ class Turf {
           json['max_offer_type']?.toString() ??
           json['maxOfferType']?.toString(),
       maxOfferValue:
-          (json['max_offer_value'] as num?)?.toDouble() ??
-          (json['maxOfferValue'] as num?)?.toDouble(),
+          _safeDouble(json['max_offer_value']) ??
+          _safeDouble(json['maxOfferValue']),
       turfStatus: json['status']?.toString() ?? 'approved',
     );
   }

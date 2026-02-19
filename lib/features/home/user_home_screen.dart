@@ -12,6 +12,7 @@ import '../../services/turf_data_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/tournament/tournament_screen.dart';
+import '../../services/auth_state.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -834,7 +835,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       if (mounted) {
         setState(() {
           _userName = prefs.getString('userName') ?? "";
-          _isPartner = prefs.getBool('isPartner') ?? false;
+          _isPartner = AuthState.instance.isOwner;
         });
       }
     } catch (e) {

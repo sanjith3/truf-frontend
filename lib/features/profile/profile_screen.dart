@@ -11,6 +11,7 @@ import 'package:turfzone/features/auth/otp_login_screen.dart';
 import 'package:turfzone/features/profile/edit_profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/Admindashboard/admin_screen.dart';
+import '../../services/auth_state.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -54,7 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       String? phone = prefs.getString('userPhone');
       _userPhone = phone != null ? "+91 $phone" : "Phone number not set";
-      _isPartner = prefs.getBool('isPartner') ?? false;
+      _isPartner = AuthState.instance.isOwner;
 
       // Load registration date
       if (phone != null) {
@@ -91,14 +92,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfileStats() async {
     try {
-      final response = await ApiService().getAuth(
-        '/api/users/user-profile/me/',
-      );
-      if (response != null && response['success'] == true) {
-        final user = response['user'];
+      // Refresh auth state from API (keeps role in sync)
+      await AuthState.instance.loadProfile();
+
+      final user = AuthState.instance.userProfile;
+      if (user != null && mounted) {
         setState(() {
           _totalBookings = user['total_bookings'] ?? 0;
           _credits = user['available_credits'] ?? 0;
+          _isPartner = AuthState.instance.isOwner;
         });
       }
     } catch (e) {
@@ -901,6 +903,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                                 // 1. Clear JWT tokens (CRITICAL — prevents auto-login)
                                 await ApiService.clearTokens();
+                                await AuthState.instance.clear();
 
                                 // 2. Clear all cached user data
                                 final prefs =
