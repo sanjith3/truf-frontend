@@ -39,6 +39,15 @@ class TurfDataService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  // ============================================================
+  // OWNER TURFS — separate from public listing
+  // ============================================================
+  List<Turf> _myTurfs = [];
+  bool _isLoadingMyTurfs = false;
+
+  List<Turf> get myTurfs => List.unmodifiable(_myTurfs);
+  bool get isLoadingMyTurfs => _isLoadingMyTurfs;
+
   /// Load turfs WITH user location → backend returns real distance
   Future<void> loadTurfsWithLocation(double lat, double lon) async {
     _userLat = lat;
@@ -54,7 +63,7 @@ class TurfDataService extends ChangeNotifier {
     await _loadTurfsFromApi();
   }
 
-  /// Fetch turfs from backend API
+  /// Fetch turfs from backend API — uses AUTH when token available
   Future<void> _loadTurfsFromApi() async {
     print("🔥🔥🔥 _loadTurfsFromApi CALLED");
     _isLoading = true;
@@ -73,33 +82,24 @@ class TurfDataService extends ChangeNotifier {
         print("📍 Sending location to API: lat=$_userLat, lon=$_userLon");
       }
 
-      final response = await _api.get(
-        '/api/turfs/turfs/',
-        queryParams: queryParams,
-      );
+      // Use authenticated client when logged in — backend includes owner turfs
+      dynamic response;
+      final hasAuth = await ApiService.hasToken();
+      if (hasAuth) {
+        print("🔐 Using AUTH client for turf listing");
+        response = await _api.getAuth(
+          '/api/turfs/turfs/',
+          queryParams: queryParams,
+        );
+      } else {
+        response = await _api.get(
+          '/api/turfs/turfs/',
+          queryParams: queryParams,
+        );
+      }
       print('🔥🔥🔥 TURF API RESPONSE TYPE: ${response.runtimeType}');
 
-      List<dynamic> turfList;
-
-      // Handle paginated response {results: [...]} or direct list [...]
-      if (response is Map && response.containsKey('results')) {
-        turfList = response['results'] as List;
-      } else if (response is List) {
-        turfList = response;
-      } else {
-        turfList = [];
-      }
-
-      print('🔥🔥🔥 TURF LIST LENGTH: ${turfList.length}');
-
-      _turfs = turfList.map((json) {
-        try {
-          return Turf.fromJson(json as Map<String, dynamic>);
-        } catch (e) {
-          print('🚨🚨🚨 ERROR PARSING TURF JSON: $e\nJSON: $json');
-          rethrow;
-        }
-      }).toList();
+      _turfs = _parseTurfList(response);
 
       print('🔥🔥🔥 LOADED ${_turfs.length} TURFS FROM API');
       _error = null;
@@ -113,13 +113,59 @@ class TurfDataService extends ChangeNotifier {
     }
   }
 
+  /// Load ONLY owner's turfs — all statuses, no radius filter
+  /// Uses: GET /api/turfs/turfs/?my_turfs=true with JWT auth
+  Future<void> loadMyTurfs() async {
+    print("🏠 loadMyTurfs CALLED");
+    _isLoadingMyTurfs = true;
+    notifyListeners();
+
+    try {
+      final response = await _api.getAuth(
+        '/api/turfs/turfs/',
+        queryParams: {'my_turfs': 'true'},
+      );
+      print("🏠 MY TURFS RESPONSE: ${response.runtimeType}");
+      _myTurfs = _parseTurfList(response);
+      print("🏠 LOADED ${_myTurfs.length} OWNER TURFS");
+    } catch (e) {
+      print("🚨 ERROR loading my turfs: $e");
+      _myTurfs = [];
+    } finally {
+      _isLoadingMyTurfs = false;
+      notifyListeners();
+    }
+  }
+
+  /// Parse turf list from API response (handles both paginated and list)
+  List<Turf> _parseTurfList(dynamic response) {
+    List<dynamic> turfList;
+    if (response is Map && response.containsKey('results')) {
+      turfList = response['results'] as List;
+    } else if (response is List) {
+      turfList = response;
+    } else {
+      turfList = [];
+    }
+    return turfList.map((json) {
+      try {
+        return Turf.fromJson(json as Map<String, dynamic>);
+      } catch (e) {
+        print('🚨🚨🚨 ERROR PARSING TURF JSON: $e\nJSON: $json');
+        rethrow;
+      }
+    }).toList();
+  }
+
   /// Refresh turfs from API (pull-to-refresh)
   Future<void> refreshTurfs() async {
     await _loadTurfsFromApi();
   }
 
-  /// Required by SlotManagementScreen
+  /// Required by SlotManagementScreen — returns owner turfs if loaded, else all
   Future<List<Turf>> getAllTurfs() async {
+    // Prefer owner turfs for management screens
+    if (_myTurfs.isNotEmpty) return List.unmodifiable(_myTurfs);
     if (_turfs.isEmpty) {
       await _loadTurfsFromApi();
     }

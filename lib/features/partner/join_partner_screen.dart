@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../services/turf_data_service.dart';
-import '../../models/turf.dart';
+import '../../services/api_service.dart';
 
 class JoinPartnerScreen extends StatefulWidget {
   const JoinPartnerScreen({super.key});
@@ -90,179 +90,794 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
 
   // Location Data
   final Map<String, List<String>> indianStatesCities = {
-    'Andaman and Nicobar Islands': ['Nicobar', 'North and Middle Andaman', 'South Andaman'],
+    'Andaman and Nicobar Islands': [
+      'Nicobar',
+      'North and Middle Andaman',
+      'South Andaman',
+    ],
     'Andhra Pradesh': [
-      'Anantapur', 'Chittoor', 'East Godavari', 'Guntur', 'Kadapa', 'Krishna',
-      'Kurnool', 'Nellore', 'Prakasam', 'Srikakulam', 'Visakhapatnam', 'Vizianagaram', 'West Godavari'
+      'Anantapur',
+      'Chittoor',
+      'East Godavari',
+      'Guntur',
+      'Kadapa',
+      'Krishna',
+      'Kurnool',
+      'Nellore',
+      'Prakasam',
+      'Srikakulam',
+      'Visakhapatnam',
+      'Vizianagaram',
+      'West Godavari',
     ],
     'Arunachal Pradesh': [
-      'Anjaw', 'Changlang', 'Dibang Valley', 'East Kameng', 'East Siang', 'Kamle',
-      'Kra Daadi', 'Kurung Kumey', 'Lepa Rada', 'Lohit', 'Longding', 'Lower Dibang Valley',
-      'Lower Siang', 'Lower Subansiri', 'Namsai', 'Pakke Kessang', 'Papum Pare', 'Shi Yomi',
-      'Siang', 'Tawang', 'Tirap', 'Upper Siang', 'Upper Subansiri', 'West Kameng', 'West Siang'
+      'Anjaw',
+      'Changlang',
+      'Dibang Valley',
+      'East Kameng',
+      'East Siang',
+      'Kamle',
+      'Kra Daadi',
+      'Kurung Kumey',
+      'Lepa Rada',
+      'Lohit',
+      'Longding',
+      'Lower Dibang Valley',
+      'Lower Siang',
+      'Lower Subansiri',
+      'Namsai',
+      'Pakke Kessang',
+      'Papum Pare',
+      'Shi Yomi',
+      'Siang',
+      'Tawang',
+      'Tirap',
+      'Upper Siang',
+      'Upper Subansiri',
+      'West Kameng',
+      'West Siang',
     ],
     'Assam': [
-      'Baksa', 'Barpeta', 'Biswanath', 'Bongaigaon', 'Cachar', 'Charaideo', 'Chirang',
-      'Darrang', 'Dhemaji', 'Dhubri', 'Dibrugarh', 'Dima Hasao', 'Goalpara', 'Golaghat',
-      'Hailakandi', 'Hojai', 'Jorhat', 'Kamrup', 'Kamrup Metropolitan', 'Karbi Anglong',
-      'Karimganj', 'Kokrajhar', 'Lakhimpur', 'Majuli', 'Morigaon', 'Nagaon', 'Nalbari',
-      'Sivasagar', 'Sonitpur', 'South Salmara-Mankachar', 'Tinsukia', 'Udalguri', 'West Karbi Anglong'
+      'Baksa',
+      'Barpeta',
+      'Biswanath',
+      'Bongaigaon',
+      'Cachar',
+      'Charaideo',
+      'Chirang',
+      'Darrang',
+      'Dhemaji',
+      'Dhubri',
+      'Dibrugarh',
+      'Dima Hasao',
+      'Goalpara',
+      'Golaghat',
+      'Hailakandi',
+      'Hojai',
+      'Jorhat',
+      'Kamrup',
+      'Kamrup Metropolitan',
+      'Karbi Anglong',
+      'Karimganj',
+      'Kokrajhar',
+      'Lakhimpur',
+      'Majuli',
+      'Morigaon',
+      'Nagaon',
+      'Nalbari',
+      'Sivasagar',
+      'Sonitpur',
+      'South Salmara-Mankachar',
+      'Tinsukia',
+      'Udalguri',
+      'West Karbi Anglong',
     ],
     'Bihar': [
-      'Araria', 'Arwal', 'Aurangabad', 'Banka', 'Begusarai', 'Bhagalpur', 'Bhojpur',
-      'Buxar', 'Darbhanga', 'East Champaran', 'Gaya', 'Gopalganj', 'Jamui', 'Jehanabad',
-      'Kaimur', 'Katihar', 'Khagaria', 'Kishanganj', 'Lakhisarai', 'Madhepura', 'Madhubani',
-      'Munger', 'Muzaffarpur', 'Nalanda', 'Nawada', 'Patna', 'Purnia', 'Rohtas', 'Saharsa',
-      'Samastipur', 'Saran', 'Sheikhpura', 'Sheohar', 'Sitamarhi', 'Siwan', 'Supaul', 'Vaishali', 'West Champaran'
+      'Araria',
+      'Arwal',
+      'Aurangabad',
+      'Banka',
+      'Begusarai',
+      'Bhagalpur',
+      'Bhojpur',
+      'Buxar',
+      'Darbhanga',
+      'East Champaran',
+      'Gaya',
+      'Gopalganj',
+      'Jamui',
+      'Jehanabad',
+      'Kaimur',
+      'Katihar',
+      'Khagaria',
+      'Kishanganj',
+      'Lakhisarai',
+      'Madhepura',
+      'Madhubani',
+      'Munger',
+      'Muzaffarpur',
+      'Nalanda',
+      'Nawada',
+      'Patna',
+      'Purnia',
+      'Rohtas',
+      'Saharsa',
+      'Samastipur',
+      'Saran',
+      'Sheikhpura',
+      'Sheohar',
+      'Sitamarhi',
+      'Siwan',
+      'Supaul',
+      'Vaishali',
+      'West Champaran',
     ],
     'Chandigarh': ['Chandigarh'],
     'Chhattisgarh': [
-      'Balod', 'Baloda Bazar', 'Balrampur', 'Bastar', 'Bemetara', 'Bijapur', 'Bilaspur',
-      'Dantewada', 'Dhamtari', 'Durg', 'Gariaband', 'Gaurela-Pendra-Marwahi', 'Janjgir-Champa',
-      'Jashpur', 'Kabirdham', 'Kanker', 'Kondagaon', 'Korba', 'Koriya', 'Mahasamund', 'Mungeli',
-      'Narayanpur', 'Raigarh', 'Raipur', 'Rajnandgaon', 'Sukma', 'Surajpur', 'Surguja'
+      'Balod',
+      'Baloda Bazar',
+      'Balrampur',
+      'Bastar',
+      'Bemetara',
+      'Bijapur',
+      'Bilaspur',
+      'Dantewada',
+      'Dhamtari',
+      'Durg',
+      'Gariaband',
+      'Gaurela-Pendra-Marwahi',
+      'Janjgir-Champa',
+      'Jashpur',
+      'Kabirdham',
+      'Kanker',
+      'Kondagaon',
+      'Korba',
+      'Koriya',
+      'Mahasamund',
+      'Mungeli',
+      'Narayanpur',
+      'Raigarh',
+      'Raipur',
+      'Rajnandgaon',
+      'Sukma',
+      'Surajpur',
+      'Surguja',
     ],
-    'Dadra and Nagar Haveli and Daman and Diu': ['Dadra and Nagar Haveli', 'Daman', 'Diu'],
-    'Delhi': ['Central Delhi', 'East Delhi', 'New Delhi', 'North Delhi', 'North East Delhi', 'North West Delhi', 'Shahdara', 'South Delhi', 'South East Delhi', 'South West Delhi', 'West Delhi'],
+    'Dadra and Nagar Haveli and Daman and Diu': [
+      'Dadra and Nagar Haveli',
+      'Daman',
+      'Diu',
+    ],
+    'Delhi': [
+      'Central Delhi',
+      'East Delhi',
+      'New Delhi',
+      'North Delhi',
+      'North East Delhi',
+      'North West Delhi',
+      'Shahdara',
+      'South Delhi',
+      'South East Delhi',
+      'South West Delhi',
+      'West Delhi',
+    ],
     'Goa': ['North Goa', 'South Goa'],
     'Gujarat': [
-      'Ahmedabad', 'Amreli', 'Anand', 'Aravalli', 'Banaskantha', 'Bharuch', 'Bhavnagar',
-      'Botad', 'Chhota Udepur', 'Dahod', 'Dang', 'Devbhoomi Dwarka', 'Gandhinagar', 'Gir Somnath',
-      'Jamnagar', 'Junagadh', 'Kheda', 'Kutch', 'Mahisagar', 'Mehsana', 'Morbi', 'Narmada',
-      'Navsari', 'Panchmahal', 'Patan', 'Porbrandar', 'Rajkot', 'Sabarkantha', 'Surat',
-      'Surendranagar', 'Tapi', 'Vadodara', 'Valsad'
+      'Ahmedabad',
+      'Amreli',
+      'Anand',
+      'Aravalli',
+      'Banaskantha',
+      'Bharuch',
+      'Bhavnagar',
+      'Botad',
+      'Chhota Udepur',
+      'Dahod',
+      'Dang',
+      'Devbhoomi Dwarka',
+      'Gandhinagar',
+      'Gir Somnath',
+      'Jamnagar',
+      'Junagadh',
+      'Kheda',
+      'Kutch',
+      'Mahisagar',
+      'Mehsana',
+      'Morbi',
+      'Narmada',
+      'Navsari',
+      'Panchmahal',
+      'Patan',
+      'Porbrandar',
+      'Rajkot',
+      'Sabarkantha',
+      'Surat',
+      'Surendranagar',
+      'Tapi',
+      'Vadodara',
+      'Valsad',
     ],
     'Haryana': [
-      'Ambala', 'Bhiwani', 'Charkhi Dadri', 'Faridabad', 'Fatehabad', 'Gurugram', 'Hisar',
-      'Jhajjar', 'Jind', 'Kaithal', 'Karnal', 'Kurukshetra', 'Mahendragarh', 'Nuh', 'Palwal',
-      'Panchkula', 'Panipat', 'Rewari', 'Rohtak', 'Sirsa', 'Sonipat', 'Yamunanagar'
+      'Ambala',
+      'Bhiwani',
+      'Charkhi Dadri',
+      'Faridabad',
+      'Fatehabad',
+      'Gurugram',
+      'Hisar',
+      'Jhajjar',
+      'Jind',
+      'Kaithal',
+      'Karnal',
+      'Kurukshetra',
+      'Mahendragarh',
+      'Nuh',
+      'Palwal',
+      'Panchkula',
+      'Panipat',
+      'Rewari',
+      'Rohtak',
+      'Sirsa',
+      'Sonipat',
+      'Yamunanagar',
     ],
     'Himachal Pradesh': [
-      'Bilaspur', 'Chamba', 'Hamirpur', 'Kangra', 'Kinnaur', 'Kullu', 'Lahaul and Spiti',
-      'Mandi', 'Shimla', 'Sirmaur', 'Solan', 'Una'
+      'Bilaspur',
+      'Chamba',
+      'Hamirpur',
+      'Kangra',
+      'Kinnaur',
+      'Kullu',
+      'Lahaul and Spiti',
+      'Mandi',
+      'Shimla',
+      'Sirmaur',
+      'Solan',
+      'Una',
     ],
     'Jammu and Kashmir': [
-      'Anantnag', 'Bandipora', 'Baramulla', 'Budgam', 'Doda', 'Ganderbal', 'Jammu',
-      'Kathua', 'Kishtwar', 'Kulgam', 'Kupwara', 'Poonch', 'Pulwama', 'Rajouri', 'Ramban',
-      'Reasi', 'Samba', 'Shopian', 'Srinagar', 'Udhampur'
+      'Anantnag',
+      'Bandipora',
+      'Baramulla',
+      'Budgam',
+      'Doda',
+      'Ganderbal',
+      'Jammu',
+      'Kathua',
+      'Kishtwar',
+      'Kulgam',
+      'Kupwara',
+      'Poonch',
+      'Pulwama',
+      'Rajouri',
+      'Ramban',
+      'Reasi',
+      'Samba',
+      'Shopian',
+      'Srinagar',
+      'Udhampur',
     ],
     'Jharkhand': [
-      'Bokaro', 'Chatra', 'Deoghar', 'Dhanbad', 'Dumka', 'East Singhbhum', 'Garhwa',
-      'Giridih', 'Godda', 'Gumla', 'Hazaribagh', 'Jamtara', 'Khunti', 'Koderma', 'Latehar',
-      'Lohardaga', 'Pakur', 'Palamu', 'Ramgarh', 'Ranchi', 'Sahibganj', 'Seraikela Kharsawan',
-      'Simdega', 'West Singhbhum'
+      'Bokaro',
+      'Chatra',
+      'Deoghar',
+      'Dhanbad',
+      'Dumka',
+      'East Singhbhum',
+      'Garhwa',
+      'Giridih',
+      'Godda',
+      'Gumla',
+      'Hazaribagh',
+      'Jamtara',
+      'Khunti',
+      'Koderma',
+      'Latehar',
+      'Lohardaga',
+      'Pakur',
+      'Palamu',
+      'Ramgarh',
+      'Ranchi',
+      'Sahibganj',
+      'Seraikela Kharsawan',
+      'Simdega',
+      'West Singhbhum',
     ],
     'Karnataka': [
-      'Bagalkot', 'Ballari', 'Belagavi', 'Bengaluru Rural', 'Bengaluru Urban', 'Bidar',
-      'Chamarajanagar', 'Chikkaballapur', 'Chikkamagaluru', 'Chitradurga', 'Dakshina Kannada',
-      'Davanagere', 'Dharwad', 'Gadag', 'Hassan', 'Haveri', 'Kalaburagi', 'Kodagu', 'Kolar',
-      'Koppal', 'Mandya', 'Mysuru', 'Raichur', 'Ramanagara', 'Shivamogga', 'Tumakuru',
-      'Udupi', 'Uttara Kannada', 'Vijayapura', 'Yadgir'
+      'Bagalkot',
+      'Ballari',
+      'Belagavi',
+      'Bengaluru Rural',
+      'Bengaluru Urban',
+      'Bidar',
+      'Chamarajanagar',
+      'Chikkaballapur',
+      'Chikkamagaluru',
+      'Chitradurga',
+      'Dakshina Kannada',
+      'Davanagere',
+      'Dharwad',
+      'Gadag',
+      'Hassan',
+      'Haveri',
+      'Kalaburagi',
+      'Kodagu',
+      'Kolar',
+      'Koppal',
+      'Mandya',
+      'Mysuru',
+      'Raichur',
+      'Ramanagara',
+      'Shivamogga',
+      'Tumakuru',
+      'Udupi',
+      'Uttara Kannada',
+      'Vijayapura',
+      'Yadgir',
     ],
     'Kerala': [
-      'Alappuzha', 'Ernakulam', 'Idukki', 'Kannur', 'Kasaragod', 'Kollam', 'Kottayam',
-      'Kozhikode', 'Malappuram', 'Palakkad', 'Pathanamthitta', 'Thiruvananthapuram', 'Thrissur', 'Wayanad'
+      'Alappuzha',
+      'Ernakulam',
+      'Idukki',
+      'Kannur',
+      'Kasaragod',
+      'Kollam',
+      'Kottayam',
+      'Kozhikode',
+      'Malappuram',
+      'Palakkad',
+      'Pathanamthitta',
+      'Thiruvananthapuram',
+      'Thrissur',
+      'Wayanad',
     ],
     'Ladakh': ['Kargil', 'Leh'],
     'Lakshadweep': ['Lakshadweep'],
     'Madhya Pradesh': [
-      'Agar Malwa', 'Alirajpur', 'Anuppur', 'Ashoknagar', 'Balaghat', 'Barwani', 'Betul',
-      'Bhind', 'Bhopal', 'Burhanpur', 'Chhatarpur', 'Chhindwara', 'Damoh', 'Datia', 'Dewas',
-      'Dhar', 'Dindori', 'Guna', 'Gwalior', 'Harda', 'Hoshangabad', 'Indore', 'Jabalpur',
-      'Jhabua', 'Katni', 'Khandwa', 'Khargone', 'Mandla', 'Mandsaur', 'Morena', 'Narsinghpur',
-      'Neemuch', 'Niwari', 'Panna', 'Raisen', 'Rajgarh', 'Ratlam', 'Rewa', 'Sagar', 'Satna',
-      'Sehore', 'Seoni', 'Shahdol', 'Shajapur', 'Sheopur', 'Shivpuri', 'Sidhi', 'Singrauli',
-      'Tikamgarh', 'Ujjain', 'Umaria', 'Vidisha'
+      'Agar Malwa',
+      'Alirajpur',
+      'Anuppur',
+      'Ashoknagar',
+      'Balaghat',
+      'Barwani',
+      'Betul',
+      'Bhind',
+      'Bhopal',
+      'Burhanpur',
+      'Chhatarpur',
+      'Chhindwara',
+      'Damoh',
+      'Datia',
+      'Dewas',
+      'Dhar',
+      'Dindori',
+      'Guna',
+      'Gwalior',
+      'Harda',
+      'Hoshangabad',
+      'Indore',
+      'Jabalpur',
+      'Jhabua',
+      'Katni',
+      'Khandwa',
+      'Khargone',
+      'Mandla',
+      'Mandsaur',
+      'Morena',
+      'Narsinghpur',
+      'Neemuch',
+      'Niwari',
+      'Panna',
+      'Raisen',
+      'Rajgarh',
+      'Ratlam',
+      'Rewa',
+      'Sagar',
+      'Satna',
+      'Sehore',
+      'Seoni',
+      'Shahdol',
+      'Shajapur',
+      'Sheopur',
+      'Shivpuri',
+      'Sidhi',
+      'Singrauli',
+      'Tikamgarh',
+      'Ujjain',
+      'Umaria',
+      'Vidisha',
     ],
     'Maharashtra': [
-      'Ahmednagar', 'Akola', 'Amravati', 'Aurangabad', 'Beed', 'Bhandara', 'Buldhana',
-      'Chandrapur', 'Dhule', 'Gadchiroli', 'Gondia', 'Hingoli', 'Jalgaon', 'Jalna', 'Kolhapur',
-      'Latur', 'Mumbai City', 'Mumbai Suburban', 'Nagpur', 'Nanded', 'Nandurbar', 'Nashik',
-      'Osmanabad', 'Palghar', 'Parbhani', 'Pune', 'Raigad', 'Ratnagiri', 'Sangli', 'Satara',
-      'Sindhudurg', 'Solapur', 'Thane', 'Wardha', 'Washim', 'Yavatmal'
+      'Ahmednagar',
+      'Akola',
+      'Amravati',
+      'Aurangabad',
+      'Beed',
+      'Bhandara',
+      'Buldhana',
+      'Chandrapur',
+      'Dhule',
+      'Gadchiroli',
+      'Gondia',
+      'Hingoli',
+      'Jalgaon',
+      'Jalna',
+      'Kolhapur',
+      'Latur',
+      'Mumbai City',
+      'Mumbai Suburban',
+      'Nagpur',
+      'Nanded',
+      'Nandurbar',
+      'Nashik',
+      'Osmanabad',
+      'Palghar',
+      'Parbhani',
+      'Pune',
+      'Raigad',
+      'Ratnagiri',
+      'Sangli',
+      'Satara',
+      'Sindhudurg',
+      'Solapur',
+      'Thane',
+      'Wardha',
+      'Washim',
+      'Yavatmal',
     ],
     'Manipur': [
-      'Bishnupur', 'Chandel', 'Churachandpur', 'Imphal East', 'Imphal West', 'Jiribam',
-      'Kakching', 'Kamjong', 'Kangpokpi', 'Noney', 'Pherzawl', 'Senapati', 'Tamenglong',
-      'Tengnoupal', 'Thoubal', 'Ukhrul'
+      'Bishnupur',
+      'Chandel',
+      'Churachandpur',
+      'Imphal East',
+      'Imphal West',
+      'Jiribam',
+      'Kakching',
+      'Kamjong',
+      'Kangpokpi',
+      'Noney',
+      'Pherzawl',
+      'Senapati',
+      'Tamenglong',
+      'Tengnoupal',
+      'Thoubal',
+      'Ukhrul',
     ],
     'Meghalaya': [
-      'East Garo Hills', 'East Jaintia Hills', 'East Khasi Hills', 'North Garo Hills',
-      'Ri Bhoi', 'South Garo Hills', 'South West Garo Hills', 'South West Khasi Hills',
-      'West Garo Hills', 'West Jaintia Hills', 'West Khasi Hills'
+      'East Garo Hills',
+      'East Jaintia Hills',
+      'East Khasi Hills',
+      'North Garo Hills',
+      'Ri Bhoi',
+      'South Garo Hills',
+      'South West Garo Hills',
+      'South West Khasi Hills',
+      'West Garo Hills',
+      'West Jaintia Hills',
+      'West Khasi Hills',
     ],
     'Mizoram': [
-      'Aizawl', 'Champhai', 'Hnahthial', 'Khawzawl', 'Kolasib', 'Lawngtlai', 'Lunglei',
-      'Mamit', 'Saiha', 'Saitual', 'Serchhip'
+      'Aizawl',
+      'Champhai',
+      'Hnahthial',
+      'Khawzawl',
+      'Kolasib',
+      'Lawngtlai',
+      'Lunglei',
+      'Mamit',
+      'Saiha',
+      'Saitual',
+      'Serchhip',
     ],
     'Nagaland': [
-      'Dimapur', 'Kiphire', 'Kohima', 'Longleng', 'Mokokchung', 'Mon', 'Noklak',
-      'Peren', 'Phek', 'Tuensang', 'Wokha', 'Zunheboto'
+      'Dimapur',
+      'Kiphire',
+      'Kohima',
+      'Longleng',
+      'Mokokchung',
+      'Mon',
+      'Noklak',
+      'Peren',
+      'Phek',
+      'Tuensang',
+      'Wokha',
+      'Zunheboto',
     ],
     'Odisha': [
-      'Angul', 'Balangir', 'Balasore', 'Bargarh', 'Bhadrak', 'Boudh', 'Cuttack',
-      'Deogarh', 'Dhenkanal', 'Gajapati', 'Ganjam', 'Jagatsinghpur', 'Jajpur', 'Jharsuguda',
-      'Kalahandi', 'Kandhamal', 'Kendrapara', 'Kendujhar', 'Khordha', 'Koraput', 'Malkangiri',
-      'Mayurbhanj', 'Nabarangpur', 'Nayagarh', 'Nuapada', 'Puri', 'Rayagada', 'Sambalpur',
-      'Subarnapur', 'Sundargarh'
+      'Angul',
+      'Balangir',
+      'Balasore',
+      'Bargarh',
+      'Bhadrak',
+      'Boudh',
+      'Cuttack',
+      'Deogarh',
+      'Dhenkanal',
+      'Gajapati',
+      'Ganjam',
+      'Jagatsinghpur',
+      'Jajpur',
+      'Jharsuguda',
+      'Kalahandi',
+      'Kandhamal',
+      'Kendrapara',
+      'Kendujhar',
+      'Khordha',
+      'Koraput',
+      'Malkangiri',
+      'Mayurbhanj',
+      'Nabarangpur',
+      'Nayagarh',
+      'Nuapada',
+      'Puri',
+      'Rayagada',
+      'Sambalpur',
+      'Subarnapur',
+      'Sundargarh',
     ],
     'Puducherry': ['Karaikal', 'Mahe', 'Puducherry', 'Yanam'],
     'Punjab': [
-      'Amritsar', 'Barnala', 'Bathinda', 'Faridkot', 'Fatehgarh Sahib', 'Fazilka', 'Ferozepur',
-      'Gurdaspur', 'Hoshiarpur', 'Jalandhar', 'Kapurthala', 'Ludhiana', 'Mansa', 'Moga',
-      'Muktsar', 'Pathankot', 'Patiala', 'Rupnagar', 'Sahibzada Ajit Singh Nagar', 'Sangrur',
-      'Shahid Bhagat Singh Nagar', 'Sri Muktsar Sahib', 'Tarn Taran'
+      'Amritsar',
+      'Barnala',
+      'Bathinda',
+      'Faridkot',
+      'Fatehgarh Sahib',
+      'Fazilka',
+      'Ferozepur',
+      'Gurdaspur',
+      'Hoshiarpur',
+      'Jalandhar',
+      'Kapurthala',
+      'Ludhiana',
+      'Mansa',
+      'Moga',
+      'Muktsar',
+      'Pathankot',
+      'Patiala',
+      'Rupnagar',
+      'Sahibzada Ajit Singh Nagar',
+      'Sangrur',
+      'Shahid Bhagat Singh Nagar',
+      'Sri Muktsar Sahib',
+      'Tarn Taran',
     ],
     'Rajasthan': [
-      'Ajmer', 'Alwar', 'Banswara', 'Baran', 'Barmer', 'Bharatpur', 'Bhilwara', 'Bikaner',
-      'Bundi', 'Chittorgarh', 'Churu', 'Dausa', 'Dholpur', 'Dungarpur', 'Hanumangarh',
-      'Jaipur', 'Jaisalmer', 'Jalore', 'Jhalawar', 'Jhunjhunu', 'Jodhpur', 'Karauli',
-      'Kota', 'Nagaur', 'Pali', 'Pratapgarh', 'Rajsamand', 'Sawai Madhopur', 'Sikar',
-      'Sirohi', 'Sri Ganganagar', 'Tonk', 'Udaipur'
+      'Ajmer',
+      'Alwar',
+      'Banswara',
+      'Baran',
+      'Barmer',
+      'Bharatpur',
+      'Bhilwara',
+      'Bikaner',
+      'Bundi',
+      'Chittorgarh',
+      'Churu',
+      'Dausa',
+      'Dholpur',
+      'Dungarpur',
+      'Hanumangarh',
+      'Jaipur',
+      'Jaisalmer',
+      'Jalore',
+      'Jhalawar',
+      'Jhunjhunu',
+      'Jodhpur',
+      'Karauli',
+      'Kota',
+      'Nagaur',
+      'Pali',
+      'Pratapgarh',
+      'Rajsamand',
+      'Sawai Madhopur',
+      'Sikar',
+      'Sirohi',
+      'Sri Ganganagar',
+      'Tonk',
+      'Udaipur',
     ],
     'Sikkim': ['East Sikkim', 'North Sikkim', 'South Sikkim', 'West Sikkim'],
     'Tamil Nadu': [
-      'Ariyalur', 'Chengalpattu', 'Chennai', 'Coimbatore', 'Cuddalore', 'Dharmapuri',
-      'Dindigul', 'Erode', 'Kallakurichi', 'Kancheepuram', 'Kanyakumari', 'Karur',
-      'Krishnagiri', 'Madurai', 'Mayiladuthurai', 'Nagapattinam', 'Namakkal', 'Nilgiris',
-      'Perambalur', 'Pudukkottai', 'Ramanathapuram', 'Ranipet', 'Salem', 'Sivaganga',
-      'Tenkasi', 'Thanjavur', 'Theni', 'Thoothukudi', 'Tiruchirappalli', 'Tirunelveli',
-      'Tirupathur', 'Tiruppur', 'Tiruvallur', 'Tiruvannamalai', 'Tiruvarur', 'Vellore',
-      'Viluppuram', 'Virudhunagar'
+      'Ariyalur',
+      'Chengalpattu',
+      'Chennai',
+      'Coimbatore',
+      'Cuddalore',
+      'Dharmapuri',
+      'Dindigul',
+      'Erode',
+      'Kallakurichi',
+      'Kancheepuram',
+      'Kanyakumari',
+      'Karur',
+      'Krishnagiri',
+      'Madurai',
+      'Mayiladuthurai',
+      'Nagapattinam',
+      'Namakkal',
+      'Nilgiris',
+      'Perambalur',
+      'Pudukkottai',
+      'Ramanathapuram',
+      'Ranipet',
+      'Salem',
+      'Sivaganga',
+      'Tenkasi',
+      'Thanjavur',
+      'Theni',
+      'Thoothukudi',
+      'Tiruchirappalli',
+      'Tirunelveli',
+      'Tirupathur',
+      'Tiruppur',
+      'Tiruvallur',
+      'Tiruvannamalai',
+      'Tiruvarur',
+      'Vellore',
+      'Viluppuram',
+      'Virudhunagar',
     ],
     'Telangana': [
-      'Adilabad', 'Bhadradri Kothagudem', 'Hyderabad', 'Jagtial', 'Jangaon', 'Jayashankar Bhupalpally',
-      'Jogulamba Gadwal', 'Kamareddy', 'Karimnagar', 'Khammam', 'Kumuram Bheem Asifabad',
-      'Mahabubabad', 'Mahabubnagar', 'Mancherial', 'Medak', 'Medchal Malkajgiri', 'Mulugu',
-      'Nagarkurnool', 'Nalgonda', 'Narayanpet', 'Nirmal', 'Nizamabad', 'Peddapalli',
-      'Rajanna Sircilla', 'Rangareddy', 'Sangareddy', 'Siddipet', 'Suryapet', 'Vikarabad',
-      'Wanaparthy', 'Warangal Rural', 'Warangal Urban', 'Yadadri Bhuvanagiri'
+      'Adilabad',
+      'Bhadradri Kothagudem',
+      'Hyderabad',
+      'Jagtial',
+      'Jangaon',
+      'Jayashankar Bhupalpally',
+      'Jogulamba Gadwal',
+      'Kamareddy',
+      'Karimnagar',
+      'Khammam',
+      'Kumuram Bheem Asifabad',
+      'Mahabubabad',
+      'Mahabubnagar',
+      'Mancherial',
+      'Medak',
+      'Medchal Malkajgiri',
+      'Mulugu',
+      'Nagarkurnool',
+      'Nalgonda',
+      'Narayanpet',
+      'Nirmal',
+      'Nizamabad',
+      'Peddapalli',
+      'Rajanna Sircilla',
+      'Rangareddy',
+      'Sangareddy',
+      'Siddipet',
+      'Suryapet',
+      'Vikarabad',
+      'Wanaparthy',
+      'Warangal Rural',
+      'Warangal Urban',
+      'Yadadri Bhuvanagiri',
     ],
     'Tripura': [
-      'Dhalai', 'Gomati', 'Khowai', 'North Tripura', 'Sepahijala', 'South Tripura', 'Unakoti', 'West Tripura'
+      'Dhalai',
+      'Gomati',
+      'Khowai',
+      'North Tripura',
+      'Sepahijala',
+      'South Tripura',
+      'Unakoti',
+      'West Tripura',
     ],
     'Uttar Pradesh': [
-      'Agra', 'Aligarh', 'Ambedkar Nagar', 'Amethi', 'Amroha', 'Auraiya', 'Ayodhya',
-      'Azamgarh', 'Baghpat', 'Bahraich', 'Ballia', 'Balrampur', 'Banda', 'Barabanki',
-      'Bareilly', 'Basti', 'Bhadohi', 'Bijnor', 'Budaun', 'Bulandshahr', 'Chandauli',
-      'Chitrakoot', 'Deoria', 'Etah', 'Etawah', 'Farrukhabad', 'Fatehpur', 'Firozabad',
-      'Gautam Buddha Nagar', 'Ghaziabad', 'Ghazipur', 'Gonda', 'Gorakhpur', 'Hamirpur',
-      'Hapur', 'Hardoi', 'Hathras', 'Jalaun', 'Jaunpur', 'Jhansi', 'Kannauj', 'Kanpur Dehat',
-      'Kanpur Nagar', 'Kasganj', 'Kaushambi', 'Kheri', 'Kushinagar', 'Lalitpur', 'Lucknow',
-      'Maharajganj', 'Mahoba', 'Mainpuri', 'Mathura', 'Mau', 'Meerut', 'Mirzapur', 'Moradabad',
-      'Muzaffarnagar', 'Pilibhit', 'Pratapgarh', 'Prayagraj', 'Rae Bareli', 'Rampur', 'Saharanpur',
-      'Sambhal', 'Sant Kabir Nagar', 'Shahjahanpur', 'Shamli', 'Shravasti', 'Siddharthnagar',
-      'Sitapur', 'Sonbhadra', 'Sultanpur', 'Unnao', 'Varanasi'
+      'Agra',
+      'Aligarh',
+      'Ambedkar Nagar',
+      'Amethi',
+      'Amroha',
+      'Auraiya',
+      'Ayodhya',
+      'Azamgarh',
+      'Baghpat',
+      'Bahraich',
+      'Ballia',
+      'Balrampur',
+      'Banda',
+      'Barabanki',
+      'Bareilly',
+      'Basti',
+      'Bhadohi',
+      'Bijnor',
+      'Budaun',
+      'Bulandshahr',
+      'Chandauli',
+      'Chitrakoot',
+      'Deoria',
+      'Etah',
+      'Etawah',
+      'Farrukhabad',
+      'Fatehpur',
+      'Firozabad',
+      'Gautam Buddha Nagar',
+      'Ghaziabad',
+      'Ghazipur',
+      'Gonda',
+      'Gorakhpur',
+      'Hamirpur',
+      'Hapur',
+      'Hardoi',
+      'Hathras',
+      'Jalaun',
+      'Jaunpur',
+      'Jhansi',
+      'Kannauj',
+      'Kanpur Dehat',
+      'Kanpur Nagar',
+      'Kasganj',
+      'Kaushambi',
+      'Kheri',
+      'Kushinagar',
+      'Lalitpur',
+      'Lucknow',
+      'Maharajganj',
+      'Mahoba',
+      'Mainpuri',
+      'Mathura',
+      'Mau',
+      'Meerut',
+      'Mirzapur',
+      'Moradabad',
+      'Muzaffarnagar',
+      'Pilibhit',
+      'Pratapgarh',
+      'Prayagraj',
+      'Rae Bareli',
+      'Rampur',
+      'Saharanpur',
+      'Sambhal',
+      'Sant Kabir Nagar',
+      'Shahjahanpur',
+      'Shamli',
+      'Shravasti',
+      'Siddharthnagar',
+      'Sitapur',
+      'Sonbhadra',
+      'Sultanpur',
+      'Unnao',
+      'Varanasi',
     ],
     'Uttarakhand': [
-      'Almora', 'Bageshwar', 'Chamoli', 'Champawat', 'Dehradun', 'Haridwar', 'Nainital',
-      'Pauri Garhwal', 'Pithoragarh', 'Rudraprayag', 'Tehri Garhwal', 'Udham Singh Nagar', 'Uttarkashi'
+      'Almora',
+      'Bageshwar',
+      'Chamoli',
+      'Champawat',
+      'Dehradun',
+      'Haridwar',
+      'Nainital',
+      'Pauri Garhwal',
+      'Pithoragarh',
+      'Rudraprayag',
+      'Tehri Garhwal',
+      'Udham Singh Nagar',
+      'Uttarkashi',
     ],
     'West Bengal': [
-      'Alipurduar', 'Bankura', 'Birbhum', 'Cooch Behar', 'Dakshin Dinajpur', 'Darjeeling',
-      'Hooghly', 'Howrah', 'Jalpaiguri', 'Jhargram', 'Kalimpong', 'Kolkata', 'Malda',
-      'Murshidabad', 'Nadia', 'North 24 Parganas', 'Paschim Bardhaman', 'Paschim Medinipur',
-      'Purba Bardhaman', 'Purba Medinipur', 'Purulia', 'South 24 Parganas', 'Uttar Dinajpur'
+      'Alipurduar',
+      'Bankura',
+      'Birbhum',
+      'Cooch Behar',
+      'Dakshin Dinajpur',
+      'Darjeeling',
+      'Hooghly',
+      'Howrah',
+      'Jalpaiguri',
+      'Jhargram',
+      'Kalimpong',
+      'Kolkata',
+      'Malda',
+      'Murshidabad',
+      'Nadia',
+      'North 24 Parganas',
+      'Paschim Bardhaman',
+      'Paschim Medinipur',
+      'Purba Bardhaman',
+      'Purba Medinipur',
+      'Purulia',
+      'South 24 Parganas',
+      'Uttar Dinajpur',
     ],
   };
 
@@ -272,7 +887,6 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
   // Photos
   List<File> selectedPhotos = [];
   bool isConfirmed = false;
-
 
   // Step tracking for better UX
   int _currentStep = 0;
@@ -295,12 +909,15 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     setState(() {
       _fullNameController.text = prefs.getString('userName') ?? "";
       _phoneController.text = prefs.getString('userPhone') ?? "";
-      
+
       String? savedEmail = prefs.getString('userEmail');
       if (savedEmail != null && savedEmail.isNotEmpty) {
         _emailController.text = savedEmail;
       } else if (_fullNameController.text.isNotEmpty) {
-        String cleanName = _fullNameController.text.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+        String cleanName = _fullNameController.text.toLowerCase().replaceAll(
+          RegExp(r'\s+'),
+          '',
+        );
         _emailController.text = "$cleanName@gmail.com";
       }
     });
@@ -313,20 +930,10 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     }
 
     if (!isConfirmed) {
-      _showSnackBar('Please enable Terms & Conditions to submit', isError: true);
-      return;
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    
-    // RE-REGISTRATION CHECK
-    String normName = _fullNameController.text.trim().toLowerCase();
-    String normPhone = _phoneController.text.trim();
-    String partnerKey = "${normName}_$normPhone";
-    List<String> partnerKeys = prefs.getStringList('all_partners') ?? [];
-    
-    if (partnerKeys.contains(partnerKey)) {
-      _showSnackBar('You are already registered as a partner with this phone number.', isError: true);
+      _showSnackBar(
+        'Please enable Terms & Conditions to submit',
+        isError: true,
+      );
       return;
     }
 
@@ -339,68 +946,59 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
       );
     }
 
-    // Create new Turf object
-    final newTurf = Turf(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: _businessNameController.text.trim(),
-      location: "${selectedPartnerCity ?? _cityController.text.trim()}, ${selectedPartnerState ?? ''}",
-      city: selectedPartnerCity ?? _cityController.text.trim(),
-      distance: 2.0,
-      price: int.tryParse(_priceController.text.trim()) ?? 500,
-      rating: 5.0,
-      images: [
-        "https://images.unsplash.com/photo-1531315630201-bb15abeb1653?w=800",
-      ],
-      amenities: selectedAmenities,
-      sports: [...selectedSports, ...customSports],
-      mapLink: _mapsLinkController.text.trim(),
-      address: _addressController.text.trim(),
-      description: _descriptionController.text.trim(),
-    );
+    try {
+      // Call backend — server decides: reuse existing user or create new
+      final response = await ApiService().post(
+        '/api/users/user-registration/turf_owner_register/',
+        body: {
+          'username': _phoneController.text.trim(),
+          'email': '${_phoneController.text.trim()}@partner.turfzone.com',
+          'password': 'Partner@${_phoneController.text.trim()}',
+          'password_confirm': 'Partner@${_phoneController.text.trim()}',
+          'first_name': _fullNameController.text.trim().split(' ').first,
+          'last_name': _fullNameController.text.trim().split(' ').length > 1
+              ? _fullNameController.text.trim().split(' ').sublist(1).join(' ')
+              : '',
+          'phone_number': _phoneController.text.trim(),
+          'google_maps_share_link': _mapsLinkController.text.trim(),
+          'turf_name': _businessNameController.text.trim(),
+          'description': _descriptionController.text.trim(),
+          'address': _addressController.text.trim(),
+          'city': selectedPartnerCity ?? _cityController.text.trim(),
+          'state': selectedPartnerState ?? '',
+          'price_per_hour': int.tryParse(_priceController.text.trim()) ?? 500,
+        },
+      );
 
-    // Save to service
-    TurfDataService().addTurf(newTurf);
+      // Save tokens from backend response
+      if (response['tokens'] != null) {
+        await ApiService.saveTokens(
+          response['tokens']['access'],
+          response['tokens']['refresh'],
+        );
+      }
 
-    // Save partner status and registered turf details
-    await prefs.setBool('isPartner', true);
-
-    // Update the list of all registered turfs for this partner
-    String userPhone = _phoneController.text.trim();
-    List<String> turfNames =
-        prefs.getStringList('registeredTurfNames_$userPhone') ?? [];
-    if (!turfNames.contains(newTurf.name)) {
-      turfNames.add(newTurf.name);
-    }
-    await prefs.setStringList('registeredTurfNames_$userPhone', turfNames);
-
-    // Keep these for backward compatibility / current focus
-    await prefs.setString('registeredTurfName', newTurf.name);
-    // Store specific turf data using its name to avoid overwriting multiple turfs
-    await prefs.setString(
-      'turf_data_${newTurf.name}_location',
-      newTurf.location,
-    );
-    await prefs.setInt('turf_data_${newTurf.name}_price', newTurf.price);
-
-    // PERSISTENT PARTNER RECORD (for future logins)
-    // already calculated partnerKey above
-    if (!partnerKeys.contains(partnerKey)) {
-      partnerKeys.add(partnerKey);
-      await prefs.setStringList('all_partners', partnerKeys);
-    }
-
-    // Store specific turf data for this partner key (Legacy/Current Focus)
-    await prefs.setString('turf_${partnerKey}_name', newTurf.name);
-    await prefs.setString('turf_${partnerKey}_location', newTurf.location);
-    await prefs.setInt('turf_${partnerKey}_price', newTurf.price);
-
-    // Simulate API call
-    Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pop(context);
+      // Dismiss loading dialog and show success
+      if (mounted) Navigator.pop(context);
       _showReviewDialog();
-    });
+    } on ApiException catch (e) {
+      // Backend returned a real error (400/500)
+      if (mounted) Navigator.pop(context); // dismiss loading
+      String errorMsg = 'Registration failed. Please try again.';
+      try {
+        final body = jsonDecode(e.body);
+        errorMsg = body['error'] ?? body['errors']?.toString() ?? errorMsg;
+      } catch (_) {}
+      _showSnackBar(errorMsg, isError: true);
+    } catch (e) {
+      // Network / unexpected error
+      if (mounted) Navigator.pop(context); // dismiss loading
+      _showSnackBar(
+        'Connection error. Please check your network.',
+        isError: true,
+      );
+    }
   }
-
 
   void _showReviewDialog() {
     showDialog(
@@ -482,7 +1080,8 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           .join(' ');
 
       setState(() {
-        if (!availableAmenities.contains(amenity) && !customAmenities.contains(amenity)) {
+        if (!availableAmenities.contains(amenity) &&
+            !customAmenities.contains(amenity)) {
           customAmenities.add(amenity);
         }
         if (!selectedAmenities.contains(amenity)) {
@@ -524,10 +1123,12 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
         _scrollToTop();
       }
     } else {
-      _showSnackBar('Please fix errors in the form before proceeding', isError: true);
+      _showSnackBar(
+        'Please fix errors in the form before proceeding',
+        isError: true,
+      );
     }
   }
-
 
   void _previousStep() {
     if (_currentStep > 0) {
@@ -769,7 +1370,6 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     );
   }
 
-
   Widget _buildStep2BusinessDetails() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -861,13 +1461,24 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   Row(
+                  Row(
                     children: [
                       Text(
                         "State",
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
                       ),
-                      Text(" *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.red[400])),
+                      Text(
+                        " *",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red[400],
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -881,10 +1492,19 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                     child: DropdownButtonHideUnderline(
                       child: DropdownButtonFormField<String>(
                         value: selectedPartnerState,
-                        hint: const Text("State", style: TextStyle(fontSize: 13)),
+                        hint: const Text(
+                          "State",
+                          style: TextStyle(fontSize: 13),
+                        ),
                         isExpanded: true,
                         items: indianStatesCities.keys.map((state) {
-                          return DropdownMenuItem(value: state, child: Text(state, style: const TextStyle(fontSize: 13)));
+                          return DropdownMenuItem(
+                            value: state,
+                            child: Text(
+                              state,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          );
                         }).toList(),
                         onChanged: (val) {
                           setState(() {
@@ -909,9 +1529,20 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                     children: [
                       Text(
                         "City",
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
                       ),
-                      Text(" *", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.red[400])),
+                      Text(
+                        " *",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red[400],
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -925,12 +1556,23 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                     child: DropdownButtonHideUnderline(
                       child: DropdownButtonFormField<String>(
                         value: selectedPartnerCity,
-                        hint: const Text("City", style: TextStyle(fontSize: 13)),
+                        hint: const Text(
+                          "City",
+                          style: TextStyle(fontSize: 13),
+                        ),
                         isExpanded: true,
                         items: selectedPartnerState == null
                             ? []
-                            : indianStatesCities[selectedPartnerState]!.map((city) {
-                                return DropdownMenuItem(value: city, child: Text(city, style: const TextStyle(fontSize: 13)));
+                            : indianStatesCities[selectedPartnerState]!.map((
+                                city,
+                              ) {
+                                return DropdownMenuItem(
+                                  value: city,
+                                  child: Text(
+                                    city,
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                );
                               }).toList(),
                         onChanged: (val) {
                           setState(() {
@@ -1029,7 +1671,8 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
             FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
           ],
           validator: (value) {
-            if (value == null || value.trim().isEmpty) return 'Enter account holder name';
+            if (value == null || value.trim().isEmpty)
+              return 'Enter account holder name';
             return null;
           },
         ),
@@ -1058,7 +1701,8 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           validator: (value) {
             if (value == null || value.isEmpty) return 'Confirm account number';
-            if (value != _accountNumberController.text) return 'Account numbers mismatch';
+            if (value != _accountNumberController.text)
+              return 'Account numbers mismatch';
             return null;
           },
         ),
@@ -1541,7 +2185,6 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
   }) {
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1591,7 +2234,6 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
                     autovalidateMode: AutovalidateMode.onUserInteraction,
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
-
                       hintText: hint,
                       border: InputBorder.none,
                       prefixText: prefixText,
@@ -1625,7 +2267,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
             // Only show if it's one of the first 6 or showAll is true
             int index = combinedSports.indexOf(sport);
             if (!showAllSports && index >= 6) return const SizedBox.shrink();
-            
+
             final isSelected = selectedSports.contains(sport);
             return GestureDetector(
               onTap: () {
@@ -1763,7 +2405,10 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
   }
 
   Widget _buildAmenitiesGridCompact() {
-    List<String> combinedAmenities = [...availableAmenities, ...customAmenities];
+    List<String> combinedAmenities = [
+      ...availableAmenities,
+      ...customAmenities,
+    ];
     List<String> displayedAmenities = showAllAmenities
         ? combinedAmenities
         : combinedAmenities.take(6).toList();

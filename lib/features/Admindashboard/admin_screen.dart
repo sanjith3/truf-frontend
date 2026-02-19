@@ -67,6 +67,8 @@ class _AdminScreenState extends State<AdminScreen> {
   void initState() {
     super.initState();
     _turfService.addListener(_onDataChanged);
+    // Load owner's turfs from API (authenticated)
+    _turfService.loadMyTurfs();
     _loadRegisteredTurf();
   }
 
@@ -104,13 +106,49 @@ class _AdminScreenState extends State<AdminScreen> {
       }
 
       _filteredAdminTurfs = [];
-      Set<String> processedNames = {};
+      Set<String> processedIds = {};
       final now = DateTime.now();
+
+      // ── PRIMARY: Use API turfs from loadMyTurfs() ──
+      final apiTurfs = _turfService.myTurfs;
+      if (apiTurfs.isNotEmpty) {
+        print('🏠 OWNER DASH: ${apiTurfs.length} turfs from API');
+        for (var turf in apiTurfs) {
+          processedIds.add(turf.id.toString());
+          _filteredAdminTurfs.add(
+            AdminTurf(
+              id: turf.id.toString(),
+              name: turf.name,
+              location: turf.city,
+              distance: turf.distance,
+              price: turf.price,
+              rating: turf.rating,
+              images: turf.images.isNotEmpty
+                  ? turf.images
+                  : [
+                      'https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800',
+                    ],
+              amenities: turf.amenities,
+              mapLink: turf.mapLink,
+              address: turf.address,
+              description: turf.description,
+              todayBookings: 0,
+              todayRevenue: 0,
+              availableSlots: 24,
+              isActive: turf.turfStatus == 'approved',
+            ),
+          );
+        }
+      }
+
+      // ── FALLBACK: Add locally registered turfs not yet in API ──
+      Set<String> processedNames = processedIds.isNotEmpty
+          ? _filteredAdminTurfs.map((t) => t.name.toLowerCase()).toSet()
+          : {};
 
       for (var name in _registeredTurfNames) {
         if (processedNames.contains(name.toLowerCase())) continue;
 
-        // Stats calculation helper for this turf
         final turfBookings = TurfDataService().bookings
             .where(
               (b) =>
@@ -163,7 +201,7 @@ class _AdminScreenState extends State<AdminScreen> {
             );
           }
         } else {
-          // Dynamic turf
+          // Dynamic turf from SharedPreferences
           String? loc = prefs.getString('turf_data_${name}_location');
           int? price = prefs.getInt('turf_data_${name}_price');
 
@@ -196,6 +234,7 @@ class _AdminScreenState extends State<AdminScreen> {
         processedNames.add(name.toLowerCase());
       }
 
+      print('🏠 TOTAL ADMIN TURFS: ${_filteredAdminTurfs.length}');
       _updateNavScreens();
     });
   }

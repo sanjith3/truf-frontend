@@ -19,6 +19,9 @@ class Turf {
   final String? maxOfferType; // 'percentage' or 'flat'
   final double? maxOfferValue; // e.g. 20.0 for 20%
 
+  // ─── Owner dashboard: turf status ───
+  final String turfStatus; // 'pending', 'approved', 'rejected', 'suspended'
+
   Turf({
     required this.id,
     required this.name,
@@ -36,6 +39,7 @@ class Turf {
     this.hasActiveOffer = false,
     this.maxOfferType,
     this.maxOfferValue,
+    this.turfStatus = 'approved',
   }) : sports = sports ?? [];
 
   Map<String, dynamic> toJson() {
@@ -56,6 +60,7 @@ class Turf {
       'hasActiveOffer': hasActiveOffer,
       'maxOfferType': maxOfferType,
       'maxOfferValue': maxOfferValue,
+      'turfStatus': turfStatus,
     };
   }
 
@@ -132,6 +137,7 @@ class Turf {
       maxOfferValue:
           (json['max_offer_value'] as num?)?.toDouble() ??
           (json['maxOfferValue'] as num?)?.toDouble(),
+      turfStatus: json['status']?.toString() ?? 'approved',
     );
   }
 }

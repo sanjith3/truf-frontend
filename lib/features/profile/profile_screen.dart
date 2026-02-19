@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 import 'package:turfzone/features/partner/join_partner_screen.dart';
 import 'package:turfzone/features/bookings/my_bookings_screen.dart';
 import 'package:turfzone/features/Help_support/help_support_screen.dart';
@@ -10,7 +11,6 @@ import 'package:turfzone/features/auth/otp_login_screen.dart';
 import 'package:turfzone/features/profile/edit_profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/Admindashboard/admin_screen.dart';
-import '../../services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -898,6 +898,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: InkWell(
                               onTap: () async {
                                 debugPrint("Logout button pressed");
+
+                                // 1. Clear JWT tokens (CRITICAL — prevents auto-login)
+                                await ApiService.clearTokens();
+
+                                // 2. Clear all cached user data
                                 final prefs =
                                     await SharedPreferences.getInstance();
                                 await prefs.remove('userName');
@@ -908,7 +913,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 await prefs.remove('registeredTurfName');
                                 await prefs.remove('registeredLocation');
                                 await prefs.remove('registeredPrice');
+                                await prefs.remove('isLoggedIn');
+                                await prefs.remove('userRole');
 
+                                // 3. Reset navigation stack — remove ALL routes
                                 if (context.mounted) {
                                   Navigator.pushAndRemoveUntil(
                                     context,
