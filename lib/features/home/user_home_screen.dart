@@ -8,6 +8,7 @@ import 'package:turfzone/features/Admin_pinset/admin_pin_screen.dart';
 import 'package:turfzone/features/home/favorites_screen.dart';
 import '../../turffdetail/turfdetails_screen.dart';
 import '../../services/turf_data_service.dart';
+import '../../services/favorites_service.dart';
 // api_service import removed — no longer used directly in this screen
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -2226,15 +2227,32 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
 
 class TurfCard extends StatefulWidget {
   final Turf turf;
-  const TurfCard({super.key, required this.turf});
+  final VoidCallback? onFavoriteToggled;
+  const TurfCard({super.key, required this.turf, this.onFavoriteToggled});
 
   @override
   State<TurfCard> createState() => _TurfCardState();
 }
 
 class _TurfCardState extends State<TurfCard> {
+  final FavoritesService _favoritesService = FavoritesService();
   int _currentImageIndex = 0;
-  bool _isFavorite = false;
+  late bool _isFavorite;
+  bool _isToggling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isFavorite = widget.turf.isFavorite;
+  }
+
+  @override
+  void didUpdateWidget(covariant TurfCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.turf.isFavorite != widget.turf.isFavorite) {
+      _isFavorite = widget.turf.isFavorite;
+    }
+  }
 
   Future<void> _openMapLocation() async {
     final Uri uri = Uri.parse(widget.turf.mapLink);
@@ -2482,23 +2500,51 @@ class _TurfCardState extends State<TurfCard> {
                       top: 55,
                       right: 12,
                       child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isFavorite = !_isFavorite;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                _isFavorite
-                                    ? "${widget.turf.name} added to favorites"
-                                    : "${widget.turf.name} removed from favorites",
-                              ),
-                              duration: const Duration(seconds: 1),
-                              backgroundColor: Colors.green,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
+                        onTap: _isToggling
+                            ? null
+                            : () async {
+                                if (widget.onFavoriteToggled != null) {
+                                  widget.onFavoriteToggled!();
+                                  return;
+                                }
+                                setState(() => _isToggling = true);
+                                try {
+                                  final newState = await _favoritesService
+                                      .toggleFavorite(
+                                        int.parse(widget.turf.id),
+                                      );
+                                  if (mounted) {
+                                    setState(() {
+                                      _isFavorite = newState;
+                                      widget.turf.isFavorite = newState;
+                                      _isToggling = false;
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          newState
+                                              ? '${widget.turf.name} added to favorites'
+                                              : '${widget.turf.name} removed from favorites',
+                                        ),
+                                        duration: const Duration(seconds: 1),
+                                        backgroundColor: Colors.green,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    setState(() => _isToggling = false);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Failed: $e'),
+                                        backgroundColor: Colors.red,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
