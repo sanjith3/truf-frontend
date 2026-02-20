@@ -3,6 +3,7 @@ import 'package:turfzone/features/home/user_home_screen.dart';
 import 'package:turfzone/features/editslottime/edit_turf_screen.dart';
 import 'my_bookings_screen.dart';
 import 'package:turfzone/models/booking.dart';
+import '../../services/api_service.dart';
 import 'package:turfzone/features/turfslot/slot_management_screen.dart';
 import 'package:turfzone/features/partner/join_partner_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,7 +25,10 @@ class AdminTurf {
   final String description;
   final int todayBookings;
   final double todayRevenue;
-  final int availableSlots;
+  final int totalBookings;
+  final double totalRevenue;
+  final int slotsCount;
+  final double avgRating;
   bool isActive;
 
   AdminTurf({
@@ -39,9 +43,12 @@ class AdminTurf {
     required this.mapLink,
     required this.address,
     required this.description,
-    required this.todayBookings,
-    required this.todayRevenue,
-    required this.availableSlots,
+    this.todayBookings = 0,
+    this.todayRevenue = 0,
+    this.totalBookings = 0,
+    this.totalRevenue = 0,
+    this.slotsCount = 0,
+    this.avgRating = 0,
     this.isActive = true,
   });
 }
@@ -61,6 +68,9 @@ class _AdminScreenState extends State<AdminScreen> {
   List<String> _registeredTurfNames = [];
   List<AdminTurf> _filteredAdminTurfs = [];
 
+  // Live dashboard stats from API
+  Map<String, dynamic> _dashboardStats = {};
+
   final TurfDataService _turfService = TurfDataService();
 
   @override
@@ -70,6 +80,7 @@ class _AdminScreenState extends State<AdminScreen> {
     // Load local data first (immediate), then fetch from API
     _loadRegisteredTurf();
     _initOwnerTurfs();
+    _loadDashboardStats();
   }
 
   /// Fetch owner turfs from API, then rebuild dashboard
@@ -104,6 +115,19 @@ class _AdminScreenState extends State<AdminScreen> {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
+  /// Fetch aggregate dashboard stats from backend
+  Future<void> _loadDashboardStats() async {
+    try {
+      final api = ApiService();
+      final res = await api.getAuth('/api/turfs/turfs/owner_dashboard_stats/');
+      if (res['success'] == true && mounted) {
+        setState(() => _dashboardStats = res);
+      }
+    } catch (e) {
+      debugPrint('Dashboard stats error: $e');
+    }
+  }
+
   Future<void> _loadRegisteredTurf() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -127,9 +151,16 @@ class _AdminScreenState extends State<AdminScreen> {
 
       // ── PRIMARY: Use API turfs from loadMyTurfs() ──
       final apiTurfs = _turfService.myTurfs;
+      final rawTurfs = _turfService.myTurfsRaw;
       if (apiTurfs.isNotEmpty) {
         print('🏠 OWNER DASH: ${apiTurfs.length} turfs from API');
-        for (var turf in apiTurfs) {
+        for (var i = 0; i < apiTurfs.length; i++) {
+          final turf = apiTurfs[i];
+          // Extract stats from raw JSON (may be null for public browsing)
+          final rawStats = (i < rawTurfs.length)
+              ? rawTurfs[i]['stats'] as Map<String, dynamic>?
+              : null;
+
           processedIds.add(turf.id.toString());
           _filteredAdminTurfs.add(
             AdminTurf(
@@ -148,9 +179,14 @@ class _AdminScreenState extends State<AdminScreen> {
               mapLink: turf.mapLink,
               address: turf.address,
               description: turf.description,
-              todayBookings: 0,
-              todayRevenue: 0,
-              availableSlots: 24,
+              todayBookings: rawStats?['today_bookings'] ?? 0,
+              todayRevenue:
+                  double.tryParse('${rawStats?['today_revenue'] ?? 0}') ?? 0,
+              totalBookings: rawStats?['total_bookings'] ?? 0,
+              totalRevenue:
+                  double.tryParse('${rawStats?['total_revenue'] ?? 0}') ?? 0,
+              slotsCount: rawStats?['slots_count'] ?? 0,
+              avgRating: (rawStats?['avg_rating'] ?? 0).toDouble(),
               isActive: turf.turfStatus == 'approved',
             ),
           );
@@ -181,13 +217,13 @@ class _AdminScreenState extends State<AdminScreen> {
         );
 
         final savedSlots = TurfDataService().getSavedSlots(name, now);
-        int availableSlots;
+        int slotsCount;
         if (savedSlots != null) {
-          availableSlots = savedSlots
+          slotsCount = savedSlots
               .where((s) => s['status'] == 'available' && s['disabled'] != true)
               .length;
         } else {
-          availableSlots = 24 - todayBookings;
+          slotsCount = 24 - todayBookings;
         }
 
         final matches = adminTurfs
@@ -211,7 +247,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 description: mat.description,
                 todayBookings: todayBookings,
                 todayRevenue: todayRevenue.toDouble(),
-                availableSlots: availableSlots,
+                slotsCount: slotsCount,
                 isActive: mat.isActive,
               ),
             );
@@ -243,7 +279,7 @@ class _AdminScreenState extends State<AdminScreen> {
               description: "Your newly registered turf",
               todayBookings: todayBookings,
               todayRevenue: todayRevenue.toDouble(),
-              availableSlots: availableSlots,
+              slotsCount: slotsCount,
             ),
           );
         }
@@ -456,108 +492,28 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  // Admin turfs data
-  List<AdminTurf> adminTurfs = [
-    AdminTurf(
-      id: '1',
-      name: "Green Field Arena",
-      location: "PN Pudur",
-      distance: 2.5,
-      price: 500,
-      rating: 4.8,
-      images: [
-        "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1770&q=80",
-      ],
-      amenities: ["Lights", "Parking", "Water"],
-      mapLink: "https://maps.app.goo.gl/xyz123",
-      address: "123 Sports Complex, PN Pudur, Coimbatore",
-      description: "Premium turf with professional-grade facilities",
-      todayBookings: 12,
-      todayRevenue: 9588,
-      availableSlots: 8,
-    ),
-    AdminTurf(
-      id: '2',
-      name: "City Sports Turf",
-      location: "Gandhipuram",
-      distance: 4.2,
-      price: 650,
-      rating: 4.5,
-      images: [
-        "https://images.unsplash.com/photo-1546519638-68e109498ffc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1770&q=80",
-      ],
-      amenities: ["Cafeteria", "Parking"],
-      mapLink: "https://maps.app.goo.gl/abc456",
-      address: "45 Main Road, Gandhipuram, Coimbatore",
-      description: "City center turf with excellent amenities",
-      todayBookings: 8,
-      todayRevenue: 5200,
-      availableSlots: 12,
-    ),
-    AdminTurf(
-      id: '3',
-      name: "Elite Football Ground",
-      location: "Race Course",
-      distance: 3.1,
-      price: 800,
-      rating: 4.9,
-      images: [
-        "https://images.unsplash.com/photo-1511886929837-354d827aae26?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1770&q=80",
-      ],
-      amenities: ["Flood Lights", "Gym", "Parking", "WiFi", "Showers"],
-      mapLink: "https://maps.app.goo.gl/def789",
-      address: "Race Course Road, Coimbatore",
-      description: "Professional football ground with international standards",
-      todayBookings: 15,
-      todayRevenue: 12000,
-      availableSlots: 5,
-    ),
-    AdminTurf(
-      id: '4',
-      name: "Sports Hub Arena",
-      location: "Peelamedu",
-      distance: 5.3,
-      price: 700,
-      rating: 4.6,
-      images: [
-        "https://images.unsplash.com/photo-1531315630201-bb15abeb1653?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1770&q=80",
-      ],
-      amenities: ["CCTV", "Changing Rooms", "Parking"],
-      mapLink: "https://maps.app.goo.gl/ghi789",
-      address: "Tech Park Road, Peelamedu, Coimbatore",
-      description: "Modern sports facility with advanced amenities",
-      todayBookings: 10,
-      todayRevenue: 7000,
-      availableSlots: 10,
-    ),
-  ];
+  // Admin turfs data — previously hardcoded, now all from API
+  List<AdminTurf> adminTurfs = [];
 
-  // Business Stats
+  // Business Stats — from live API
   double get totalRevenue {
-    final now = DateTime.now();
-    return _turfService.bookings
-        .where(
-          (b) => b.status == BookingStatus.completed && isSameDay(b.date, now),
-        )
-        .where((b) => _filteredAdminTurfs.any((t) => t.name == b.turfName))
-        .fold(0, (sum, b) => sum + b.amount);
+    final val = _dashboardStats['today_revenue'];
+    if (val == null) return 0;
+    return double.tryParse('$val') ?? 0;
   }
 
   int get totalBookings {
-    final now = DateTime.now();
-    return _turfService.bookings
-        .where((b) => isSameDay(b.date, now))
-        .where((b) => _filteredAdminTurfs.any((t) => t.name == b.turfName))
-        .length;
+    return (_dashboardStats['today_bookings'] as int?) ?? 0;
   }
 
   int get totalAvailableSlots =>
-      _filteredAdminTurfs.fold(0, (sum, turf) => sum + turf.availableSlots);
+      _filteredAdminTurfs.fold(0, (sum, turf) => sum + turf.slotsCount);
 
-  double get averageRating => _filteredAdminTurfs.isEmpty
-      ? 0
-      : _filteredAdminTurfs.fold<double>(0, (sum, turf) => sum + turf.rating) /
-            _filteredAdminTurfs.length;
+  double get averageRating {
+    final val = _dashboardStats['avg_rating'];
+    if (val == null) return 0;
+    return (val is num) ? val.toDouble() : (double.tryParse('$val') ?? 0);
+  }
 
   // Navigation Screens
   List<Widget> _navScreens = [];
@@ -1270,7 +1226,7 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                     _buildTurfStat(
                       icon: Icons.schedule,
-                      value: '${turf.availableSlots}',
+                      value: '${turf.slotsCount}',
                       label: 'Slots',
                       color: Colors.orange,
                     ),

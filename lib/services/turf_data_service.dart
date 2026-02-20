@@ -43,9 +43,11 @@ class TurfDataService extends ChangeNotifier {
   // OWNER TURFS — separate from public listing
   // ============================================================
   List<Turf> _myTurfs = [];
+  List<Map<String, dynamic>> _myTurfsRaw = []; // raw JSON for stats
   bool _isLoadingMyTurfs = false;
 
   List<Turf> get myTurfs => List.unmodifiable(_myTurfs);
+  List<Map<String, dynamic>> get myTurfsRaw => List.unmodifiable(_myTurfsRaw);
   bool get isLoadingMyTurfs => _isLoadingMyTurfs;
 
   /// Load turfs WITH user location → backend returns real distance
@@ -127,6 +129,18 @@ class TurfDataService extends ChangeNotifier {
       );
       print("🏠 MY TURFS RESPONSE: ${response.runtimeType}");
       _myTurfs = _parseTurfList(response);
+      // Store raw JSON for admin dashboard stats extraction
+      if (response is Map && response['results'] is List) {
+        _myTurfsRaw = List<Map<String, dynamic>>.from(
+          (response['results'] as List).map(
+            (e) => Map<String, dynamic>.from(e),
+          ),
+        );
+      } else if (response is List) {
+        _myTurfsRaw = List<Map<String, dynamic>>.from(
+          response.map((e) => Map<String, dynamic>.from(e)),
+        );
+      }
       print("🏠 LOADED ${_myTurfs.length} OWNER TURFS");
     } catch (e) {
       print("🚨 ERROR loading my turfs: $e");
