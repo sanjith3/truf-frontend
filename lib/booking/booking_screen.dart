@@ -3,10 +3,16 @@ import '../models/turf.dart';
 import '../turffdetail/turfdetails_screen.dart';
 import '../payment/payment_summary_screen.dart';
 import '../services/api_service.dart';
+import '../features/bookings/my_bookings_screen.dart';
 
 class BookingScreen extends StatefulWidget {
   final Turf turf;
-  const BookingScreen({super.key, required this.turf});
+  final bool isRedeemFlow;
+  const BookingScreen({
+    super.key,
+    required this.turf,
+    this.isRedeemFlow = false,
+  });
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
@@ -115,6 +121,10 @@ class _BookingScreenState extends State<BookingScreen> {
       if (_selectedSlotIds.contains(slot.slotId)) {
         _selectedSlotIds.remove(slot.slotId);
       } else {
+        // Redeem flow: single slot only
+        if (widget.isRedeemFlow) {
+          _selectedSlotIds.clear();
+        }
         _selectedSlotIds.add(slot.slotId);
       }
     });
@@ -130,6 +140,12 @@ class _BookingScreenState extends State<BookingScreen> {
           duration: Duration(seconds: 2),
         ),
       );
+      return;
+    }
+
+    // Redeem flow: call redeem API directly
+    if (widget.isRedeemFlow) {
+      _redeemBooking();
       return;
     }
 
@@ -152,6 +168,73 @@ class _BookingScreenState extends State<BookingScreen> {
       // Re-enable after returning from payment screen
       if (mounted) setState(() => _isProcessing = false);
     });
+  }
+
+  // ─── REDEEM FREE BOOKING ───
+  Future<void> _redeemBooking() async {
+    if (_selectedSlotIds.length != 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select exactly one slot for free booking'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+
+    final dateStr =
+        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+
+    try {
+      final response = await _api.postAuth(
+        '/api/bookings/bookings/redeem/',
+        body: {
+          'turf_id': widget.turf.id,
+          'booking_date': dateStr,
+          'slot_ids': [_selectedSlotIds.first],
+        },
+      );
+
+      if (response != null && response['success'] == true) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Free booking confirmed!'),
+            backgroundColor: Color(0xFF4CAF50),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        // Navigate to My Bookings
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+          (route) => route.isFirst,
+        );
+      } else {
+        if (!mounted) return;
+        final error = response?['error'] ?? 'Redeem failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Redeem failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
   }
 
   // ─── SLOT TIME PARSING (for category grouping) ───
@@ -597,6 +680,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _buildBottomBar() {
+    final bool isRedeem = widget.isRedeemFlow;
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -605,51 +689,79 @@ class _BookingScreenState extends State<BookingScreen> {
           top: BorderSide(color: Colors.grey.shade200, width: 0.6),
         ),
       ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 55,
-        child: ElevatedButton(
-          onPressed: _selectedSlotIds.isNotEmpty && !_isProcessing
-              ? _proceedToPayment
-              : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1DB954),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(0),
-            ),
-            elevation: 0,
-            disabledBackgroundColor: Colors.grey.shade300,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_selectedSlotIds.isNotEmpty && _hasAnyOfferInSelected)
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Text(
-                    "₹$_originalTotalDisplay",
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white70,
-                      decoration: TextDecoration.lineThrough,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              Text(
-                _selectedSlotIds.isNotEmpty
-                    ? "BOOK ${_selectedSlotIds.length} HOUR${_selectedSlotIds.length > 1 ? "S" : ""}  •  ₹$_totalDisplay"
-                    : "SELECT TIME SLOTS",
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.6,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isRedeem)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              color: const Color(0xFF4CAF50).withOpacity(0.1),
+              child: const Text(
+                '🎁 Select one slot for your free booking',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF4CAF50),
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ],
+            ),
+          SizedBox(
+            width: double.infinity,
+            height: 55,
+            child: ElevatedButton(
+              onPressed: _selectedSlotIds.isNotEmpty && !_isProcessing
+                  ? _proceedToPayment
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isRedeem
+                    ? const Color(0xFF4CAF50)
+                    : const Color(0xFF1DB954),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(0),
+                ),
+                elevation: 0,
+                disabledBackgroundColor: Colors.grey.shade300,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (!isRedeem &&
+                      _selectedSlotIds.isNotEmpty &&
+                      _hasAnyOfferInSelected)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: Text(
+                        "₹$_originalTotalDisplay",
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.white70,
+                          decoration: TextDecoration.lineThrough,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  Text(
+                    isRedeem
+                        ? (_selectedSlotIds.isNotEmpty
+                              ? "REDEEM FREE BOOKING  •  ₹0"
+                              : "SELECT A TIME SLOT")
+                        : (_selectedSlotIds.isNotEmpty
+                              ? "BOOK ${_selectedSlotIds.length} HOUR${_selectedSlotIds.length > 1 ? "S" : ""}  •  ₹$_totalDisplay"
+                              : "SELECT TIME SLOTS"),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

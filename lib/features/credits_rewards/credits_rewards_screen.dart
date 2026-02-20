@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../models/turf.dart';
+import '../../booking/booking_screen.dart';
 
 class CreditsRewardsScreen extends StatefulWidget {
   const CreditsRewardsScreen({super.key});
@@ -191,7 +193,7 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
       return;
     }
 
-    // Show simple confirmation dialog
+    // Show confirmation, then turf picker
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -205,7 +207,7 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
           ),
         ),
         content: const Text(
-          'This will deduct 100 credits and create a free booking. You can select your preferred turf and time slot from the booking screen.\n\nProceed?',
+          '100 credits will be deducted upon successful redemption.\n\nYou\'ll select a turf and one time slot next.',
           style: TextStyle(fontSize: 15, color: Colors.grey),
         ),
         actions: [
@@ -216,17 +218,7 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              // Navigate to booking screen for slot selection
-              // The actual redeem API call happens there after selecting turf + slots
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Select a turf and time slot to redeem your free booking',
-                  ),
-                  backgroundColor: Color(0xFF4CAF50),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+              _showTurfPicker();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryColor,
@@ -235,7 +227,7 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
               ),
             ),
             child: const Text(
-              'Redeem',
+              'Choose Turf',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
@@ -243,6 +235,29 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ─── TURF PICKER BOTTOM SHEET ───
+  void _showTurfPicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _TurfPickerSheet(
+        onTurfSelected: (turf) {
+          Navigator.pop(ctx); // close sheet
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BookingScreen(turf: turf, isRedeemFlow: true),
+            ),
+          ).then((_) {
+            // Refresh credits after returning
+            _loadCreditsData();
+          });
+        },
       ),
     );
   }
@@ -709,6 +724,188 @@ class _CreditsRewardsScreenState extends State<CreditsRewardsScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─── TURF PICKER BOTTOM SHEET ───
+class _TurfPickerSheet extends StatefulWidget {
+  final void Function(Turf turf) onTurfSelected;
+  const _TurfPickerSheet({required this.onTurfSelected});
+
+  @override
+  State<_TurfPickerSheet> createState() => _TurfPickerSheetState();
+}
+
+class _TurfPickerSheetState extends State<_TurfPickerSheet> {
+  List<Turf> _turfs = [];
+  List<Turf> _filtered = [];
+  bool _loading = true;
+  String _search = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTurfs();
+  }
+
+  Future<void> _fetchTurfs() async {
+    try {
+      final response = await ApiService().get('/api/turfs/turfs/');
+      if (response != null && response['results'] != null) {
+        final list = (response['results'] as List)
+            .map((j) => Turf.fromJson(j))
+            .toList();
+        setState(() {
+          _turfs = list;
+          _filtered = list;
+          _loading = false;
+        });
+      } else {
+        setState(() => _loading = false);
+      }
+    } catch (e) {
+      debugPrint('Turf fetch error: $e');
+      setState(() => _loading = false);
+    }
+  }
+
+  void _onSearch(String q) {
+    setState(() {
+      _search = q;
+      _filtered = _turfs
+          .where(
+            (t) =>
+                t.name.toLowerCase().contains(q.toLowerCase()) ||
+                t.city.toLowerCase().contains(q.toLowerCase()),
+          )
+          .toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 10),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Select Turf for Free Booking',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+          ),
+          // Search
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              onChanged: _onSearch,
+              decoration: InputDecoration(
+                hintText: 'Search turfs...',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // List
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _filtered.isEmpty
+                ? Center(
+                    child: Text(
+                      _search.isEmpty
+                          ? 'No turfs available'
+                          : 'No turfs matching "$_search"',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _filtered.length,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemBuilder: (_, i) {
+                      final turf = _filtered[i];
+                      final img = turf.images.isNotEmpty
+                          ? turf.images[0]
+                          : null;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(10),
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: img != null
+                                ? Image.network(
+                                    img,
+                                    width: 56,
+                                    height: 56,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 56,
+                                      height: 56,
+                                      color: Colors.grey[200],
+                                      child: const Icon(
+                                        Icons.sports_soccer,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  )
+                                : Container(
+                                    width: 56,
+                                    height: 56,
+                                    color: Colors.grey[200],
+                                    child: const Icon(
+                                      Icons.sports_soccer,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                          ),
+                          title: Text(
+                            turf.name,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            turf.city.isNotEmpty ? turf.city : turf.location,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 13,
+                            ),
+                          ),
+                          trailing: const Icon(
+                            Icons.chevron_right,
+                            color: Colors.grey,
+                          ),
+                          onTap: () => widget.onTurfSelected(turf),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
