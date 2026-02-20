@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/auth/otp_login_screen.dart';
+import 'package:turfzone/features/home/user_home_screen.dart';
+import 'package:turfzone/services/auth_state.dart';
+import 'package:turfzone/services/api_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -47,14 +51,69 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    Future.delayed(const Duration(seconds: 2, milliseconds: 500), () {
-      if (!mounted) return;
+    // Run auth check — navigate when BOTH animation and check are done
+    _checkAuthAndNavigate();
+  }
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const OtpLoginScreen()),
-      );
-    });
+  Future<void> _checkAuthAndNavigate() async {
+    // Run auth check and minimum delay in parallel
+    final results = await Future.wait([
+      _determineDestination(),
+      Future.delayed(const Duration(milliseconds: 1800)),
+    ]);
+
+    if (!mounted) return;
+
+    final Widget destination = results[0] as Widget;
+
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => destination,
+        transitionDuration: const Duration(milliseconds: 400),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
+  /// Check if user is authenticated.
+  /// Returns the screen to navigate to.
+  Future<Widget> _determineDestination() async {
+    try {
+      final hasToken = await ApiService.hasToken();
+      if (!hasToken) {
+        print('🔐 Splash: No token → Login');
+        return const OtpLoginScreen();
+      }
+
+      // Token exists — validate it by loading profile
+      await AuthState.instance.loadProfile();
+      print('🔐 Splash: Token valid → Home');
+      return const UserHomeScreen();
+    } on AuthExpiredException {
+      print('🔐 Splash: Token expired → Login');
+      // Token was invalid — clear everything
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_token');
+      await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
+      await AuthState.instance.clear();
+      return const OtpLoginScreen();
+    } catch (e) {
+      print('🔐 Splash: Error ($e) — checking offline fallback');
+      // Network error — check if we have cached profile data
+      final prefs = await SharedPreferences.getInstance();
+      final hasToken =
+          prefs.getString('auth_token') ?? prefs.getString('access_token');
+      if (hasToken != null && hasToken.isNotEmpty) {
+        // We have a stored token — go to home (offline mode)
+        print('🔐 Splash: Offline with token → Home');
+        return const UserHomeScreen();
+      }
+      return const OtpLoginScreen();
+    }
   }
 
   @override

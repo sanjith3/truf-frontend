@@ -858,14 +858,14 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     });
 
     try {
-      // Check permission
+      // ── Step 1: Check permission ──
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          // Fallback: load turfs without location
-          await _turfService.loadTurfsWithoutLocation();
+          // Turfs already loaded by TurfDataService constructor — just no distance
           if (mounted) {
+            setState(() => _isLocationLoading = false);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
@@ -879,9 +879,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        // Fallback: load turfs without location
-        await _turfService.loadTurfsWithoutLocation();
         if (mounted) {
+          setState(() => _isLocationLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
@@ -893,37 +892,47 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         return;
       }
 
-      // Get position
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      // Send location to backend — get turfs with real distance
-      await _turfService.loadTurfsWithLocation(
-        position.latitude,
-        position.longitude,
-      );
-
-      if (mounted) {
-        setState(() {
-          _selectedState = "Tamil Nadu";
-          _selectedLocation = "Coimbatore";
-          _applyFilters();
-        });
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Location set to $_selectedLocation, $_selectedState',
-            ),
-          ),
+      // ── Step 2: Try last-known position (instant, no GPS wait) ──
+      Position? lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        print(
+          '📍 Using LAST KNOWN location: ${lastKnown.latitude}, ${lastKnown.longitude}',
         );
+        // Re-fetch with distance — turfs already visible, this just adds sorting
+        await _turfService.loadTurfsWithLocation(
+          lastKnown.latitude,
+          lastKnown.longitude,
+        );
+        if (mounted) {
+          setState(() {
+            _applyFilters();
+          });
+        }
       }
+
+      // ── Step 3: Fetch fresh GPS in background (may take seconds) ──
+      Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high)
+          .then((Position position) async {
+            print('📍 Fresh GPS: ${position.latitude}, ${position.longitude}');
+            await _turfService.loadTurfsWithLocation(
+              position.latitude,
+              position.longitude,
+            );
+            if (mounted) {
+              setState(() {
+                _selectedState = "Tamil Nadu";
+                _selectedLocation = "Coimbatore";
+                _applyFilters();
+              });
+            }
+          })
+          .catchError((e) {
+            print('📍 Fresh GPS error (non-fatal): $e');
+            // Last-known or initial load already covers us
+          });
     } catch (e) {
-      // Fallback: load turfs without location
-      await _turfService.loadTurfsWithoutLocation();
+      // Turfs already loaded — just log the error
+      print('📍 Location error (turfs still visible): $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
