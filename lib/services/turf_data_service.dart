@@ -12,8 +12,9 @@ class TurfDataService extends ChangeNotifier {
   factory TurfDataService() => _instance;
 
   TurfDataService._internal() {
-    print("🚀🚀🚀 TurfDataService CREATED — calling API now");
-    _loadTurfsFromApi();
+    print("🚀🚀🚀 TurfDataService CREATED");
+    _loadCachedTurfs(); // instant — from SharedPreferences
+    _loadTurfsFromApi(); // async — background refresh
   }
 
   final ApiService _api = ApiService();
@@ -102,16 +103,58 @@ class TurfDataService extends ChangeNotifier {
       print('🔥🔥🔥 TURF API RESPONSE TYPE: ${response.runtimeType}');
 
       _turfs = _parseTurfList(response);
+      _cacheTurfs(response); // save to local cache
 
       print('🔥🔥🔥 LOADED ${_turfs.length} TURFS FROM API');
       _error = null;
     } catch (e) {
       print('🚨🚨🚨 ERROR LOADING TURFS: $e');
       _error = e.toString();
-      _turfs = [];
+      // Keep cached turfs if available, only clear if cache is also empty
+      if (_turfs.isEmpty) _turfs = [];
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // ============================================================
+  // LOCAL TURF CACHE — instant load on app restart
+  // ============================================================
+  static const String _cacheKey = 'cached_turfs_v1';
+
+  /// Load turfs from local cache (instant, no network)
+  Future<void> _loadCachedTurfs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString(_cacheKey);
+      if (cached != null && _turfs.isEmpty) {
+        final decoded = jsonDecode(cached);
+        _turfs = _parseTurfList(decoded);
+        print('⚡ Loaded ${_turfs.length} turfs from CACHE (instant)');
+        notifyListeners();
+      }
+    } catch (e) {
+      print('⚡ Cache load failed (non-fatal): $e');
+    }
+  }
+
+  /// Save turfs to local cache after API response
+  Future<void> _cacheTurfs(dynamic response) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      List<dynamic> turfList;
+      if (response is Map && response.containsKey('results')) {
+        turfList = response['results'] as List;
+      } else if (response is List) {
+        turfList = response;
+      } else {
+        return;
+      }
+      await prefs.setString(_cacheKey, jsonEncode(turfList));
+      print('⚡ Cached ${turfList.length} turfs to SharedPreferences');
+    } catch (e) {
+      print('⚡ Cache save failed (non-fatal): $e');
     }
   }
 
