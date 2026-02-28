@@ -1648,10 +1648,21 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 ),
               ),
 
-            // Growth widgets — additive inserts
-            const FirstOfferBanner(),
-            const StreakCard(),
-            const SocialProofBanner(),
+            // Growth widgets — compact inserts
+            FirstOfferBanner(
+              onBookNow: () {
+                if (_filteredTurfs.isNotEmpty) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          TurfDetailsScreen(turf: _filteredTurfs.first),
+                    ),
+                  );
+                }
+              },
+            ),
+            const StreakStatsBar(),
             const ReferralProgressBar(),
 
             // Turf Cards
