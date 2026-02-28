@@ -1,21 +1,26 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../features/bookings/my_bookings_screen.dart';
 import '../features/home/user_home_screen.dart';
+import '../features/referral/invite_friends_screen.dart';
 import '../models/turf.dart';
 import '../services/api_service.dart';
+import '../services/auth_state.dart';
 
-/// Payment Screen — confirm flow
+/// Payment Screen — Razorpay checkout flow
 ///
 /// Receives: previewToken (String), totalPayable (String), metadata
-/// Calls: POST /api/bookings/bookings/confirm/
+/// Flow:
+///   1. POST /api/payments/create-order/ → Razorpay order_id
+///   2. Open Razorpay checkout SDK
+///   3. On success → POST /api/payments/verify/ → booking confirmed
 ///
 /// RULES:
 /// - totalPayable is String, NEVER double
 /// - No local booking creation
-/// - No TurfDataService().addBooking()
-/// - All booking data comes from backend confirm response
+/// - All booking data comes from backend verify/confirm response
 class PaymentScreen extends StatefulWidget {
   final String previewToken;
   final String totalPayable; // Always String, never double
@@ -43,13 +48,28 @@ class _PaymentScreenState extends State<PaymentScreen> {
   bool _isProcessing = false;
   String _userName = 'Guest User';
   String _userPhone = '';
+  String _userEmail = '';
 
   final ApiService _api = ApiService();
+  late Razorpay _razorpay;
+
+  // Stored after create-order, used in verify
+  String? _currentOrderId;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
   }
 
   Future<void> _loadUserInfo() async {
@@ -57,13 +77,160 @@ class _PaymentScreenState extends State<PaymentScreen> {
     setState(() {
       _userName = prefs.getString('userName') ?? 'Guest User';
       _userPhone = prefs.getString('userPhone') ?? '';
+      _userEmail = prefs.getString('userEmail') ?? '';
     });
   }
 
-  // ─── CONFIRM API CALL ───
+  // ─── STEP 1: Create Razorpay order via backend ───
   Future<void> _processPayment() async {
     if (_isProcessing) return;
 
+    setState(() => _isProcessing = true);
+
+    try {
+      final response = await _api.postAuthRaw(
+        '/api/payments/create-order/',
+        body: {'preview_token': widget.previewToken},
+      );
+
+      if (!mounted) return;
+
+      final body = jsonDecode(response.body);
+      final statusCode = response.statusCode;
+
+      if (statusCode == 200 && body['order_id'] != null) {
+        // Order created — open Razorpay checkout
+        _currentOrderId = body['order_id'];
+        final keyId = body['key_id'] ?? '';
+        final amount = body['amount']; // in paise
+
+        var options = {
+          'key': keyId,
+          'amount': amount,
+          'order_id': _currentOrderId,
+          'name': 'TurfZone',
+          'description': '${widget.turfName} - ${widget.bookingDate}',
+          'prefill': {
+            'name': _userName,
+            'contact': _userPhone,
+            'email': _userEmail,
+          },
+          'theme': {'color': '#1DB954'},
+        };
+
+        _razorpay.open(options);
+      } else if (statusCode == 503) {
+        // Payment gateway not configured — fall back to direct confirm
+        setState(() => _isProcessing = false);
+        _fallbackDirectConfirm();
+      } else if (statusCode == 400) {
+        setState(() => _isProcessing = false);
+        _showErrorDialog(
+          "Error",
+          body['error']?.toString() ?? "Could not create payment order.",
+          shouldGoBack: true,
+        );
+      } else if (statusCode == 401) {
+        setState(() => _isProcessing = false);
+        _showErrorDialog(
+          "Session Expired",
+          "Your session has expired. Please login again.",
+          shouldGoToLogin: true,
+        );
+      } else {
+        setState(() => _isProcessing = false);
+        _showErrorDialog(
+          "Error",
+          body['error']?.toString() ??
+              "Payment order failed. Please try again.",
+        );
+      }
+    } on AuthExpiredException {
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _showErrorDialog(
+        "Session Expired",
+        "Your session has expired. Please login again.",
+        shouldGoToLogin: true,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      // Fallback to direct confirm if Razorpay unavailable
+      _fallbackDirectConfirm();
+      print('🚨 Create order error: $e');
+    }
+  }
+
+  // ─── STEP 2a: Razorpay payment success → verify + confirm ───
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    if (!mounted) return;
+
+    try {
+      final verifyResponse = await _api.postAuthRaw(
+        '/api/payments/verify/',
+        body: {
+          'razorpay_order_id': response.orderId ?? '',
+          'razorpay_payment_id': response.paymentId ?? '',
+          'razorpay_signature': response.signature ?? '',
+          'preview_token': widget.previewToken,
+          'total_payable': widget.totalPayable,
+        },
+      );
+
+      if (!mounted) return;
+
+      final body = jsonDecode(verifyResponse.body);
+
+      if (verifyResponse.statusCode == 200 && body['success'] == true) {
+        setState(() => _isProcessing = false);
+        _showPaymentSuccess(
+          bookingId: body['booking_id']?.toString() ?? '',
+          bookingDate: widget.bookingDate,
+          startTime: '',
+          endTime: '',
+          totalPaid: widget.totalPayable,
+        );
+      } else {
+        setState(() => _isProcessing = false);
+        _showErrorDialog(
+          "Verification Failed",
+          body['error']?.toString() ??
+              "Payment was received but booking confirmation failed. Contact support.",
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _showErrorDialog(
+        "Verification Error",
+        "Payment may have been processed. Please check My Bookings or contact support.",
+      );
+      print('🚨 Verify error: $e');
+    }
+  }
+
+  // ─── STEP 2b: Razorpay payment error ───
+  void _handlePaymentError(PaymentFailureResponse response) {
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+    _showErrorDialog(
+      "Payment Failed",
+      response.message ?? "Payment was cancelled or failed. Please try again.",
+    );
+  }
+
+  // ─── STEP 2c: External wallet selected ───
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('External wallet: ${response.walletName}')),
+    );
+  }
+
+  // ─── FALLBACK: Direct confirm (when Razorpay not configured) ───
+  Future<void> _fallbackDirectConfirm() async {
     setState(() => _isProcessing = true);
 
     try {
@@ -81,7 +248,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
       final statusCode = response.statusCode;
 
       if (statusCode == 201 && body['success'] == true) {
-        // ✅ Booking confirmed
+        // Refresh user profile so first_booking_completed updates immediately
+        await AuthState.instance.loadProfile();
         setState(() => _isProcessing = false);
         _showPaymentSuccess(
           bookingId: body['booking_id']?.toString() ?? '',
@@ -91,7 +259,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
           totalPaid: body['total_payable']?.toString() ?? widget.totalPayable,
         );
       } else if (statusCode == 410) {
-        // Preview expired
         setState(() => _isProcessing = false);
         _showErrorDialog(
           "Preview Expired",
@@ -99,7 +266,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
           shouldGoBack: true,
         );
       } else if (statusCode == 409) {
-        // Slot conflict or price mismatch
         final error = body['error']?.toString() ?? 'Conflict';
         final newTotal = body['new_total_payable']?.toString();
         setState(() => _isProcessing = false);
@@ -112,21 +278,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
         } else {
           _showErrorDialog("Slot Unavailable", error, shouldGoBack: true);
         }
-      } else if (statusCode == 401) {
-        // JWT expired
-        setState(() => _isProcessing = false);
-        _showErrorDialog(
-          "Session Expired",
-          "Your session has expired. Please login again.",
-          shouldGoToLogin: true,
-        );
-      } else if (statusCode == 404) {
-        setState(() => _isProcessing = false);
-        _showErrorDialog(
-          "Error",
-          body['error']?.toString() ?? "Invalid preview token",
-          shouldGoBack: true,
-        );
       } else {
         setState(() => _isProcessing = false);
         _showErrorDialog(
@@ -264,7 +415,72 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 20),
+
+                // ─── Invite Friends CTA ───
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF1DB954).withOpacity(0.08),
+                        const Color(0xFF1ED760).withOpacity(0.04),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: const Color(0xFF1DB954).withOpacity(0.2),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        '🎉 Earn ₹50 cashback by inviting 3 friends!',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context); // close bottom sheet
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const InviteFriendsScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.share, size: 18),
+                          label: const Text('Invite Friends Now'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1DB954),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          'Maybe Later',
+                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
 
                 // My Bookings button
                 SizedBox(

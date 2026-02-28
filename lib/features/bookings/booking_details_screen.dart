@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/booking.dart';
+import 'booking_success_screen.dart';
 
 class BookingDetailsScreen extends StatelessWidget {
   final Booking booking;
@@ -354,7 +355,77 @@ class BookingDetailsScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
+
+            // Invite Teammates — only for upcoming/confirmed bookings
+            if (booking.status == BookingStatus.upcoming ||
+                booking.status == BookingStatus.confirmed)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFFFF6B00).withOpacity(0.2),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    const Row(
+                      children: [
+                        Text('⚡', style: TextStyle(fontSize: 20)),
+                        SizedBox(width: 8),
+                        Text(
+                          'Invite your team to this game!',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Share with teammates and earn ₹10 per join',
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BookingSuccessScreen(
+                                bookingId: int.tryParse(booking.bookingId) ?? 0,
+                                turfName: booking.turfName,
+                                bookingDate: DateFormat(
+                                  'yyyy-MM-dd',
+                                ).format(booking.date),
+                                timeSlot:
+                                    '${booking.startTime} - ${booking.endTime}',
+                                totalPaid: booking.amount.toStringAsFixed(0),
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.groups, size: 18),
+                        label: const Text('Invite Teammates'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF6B00),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 16),
 
             // Help Button
             Center(

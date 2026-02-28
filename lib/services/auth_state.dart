@@ -61,6 +61,14 @@ class AuthState {
         await prefs.setString('userRole', _role);
         await prefs.setBool('isPartner', _isOwner);
 
+        // Sync first_booking_completed flag
+        if (user['first_booking_completed'] != null) {
+          await prefs.setBool(
+            'first_booking_completed',
+            user['first_booking_completed'] == true,
+          );
+        }
+
         // Also update user info if available
         if (user['first_name'] != null) {
           await prefs.setString(

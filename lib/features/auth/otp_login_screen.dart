@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/api_service.dart';
 import '../../services/auth_state.dart';
@@ -265,8 +266,9 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                                   decoration: TextDecoration.underline,
                                 ),
                                 recognizer: TapGestureRecognizer()
-                                  ..onTap = () =>
-                                      _showTermsDialog("Terms and Conditions"),
+                                  ..onTap = () => _launchURL(
+                                    "https://turfzone.com/legal/terms",
+                                  ),
                               ),
                               const TextSpan(text: " and "),
                               TextSpan(
@@ -277,8 +279,9 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
                                   decoration: TextDecoration.underline,
                                 ),
                                 recognizer: TapGestureRecognizer()
-                                  ..onTap = () =>
-                                      _showTermsDialog("Privacy Policy"),
+                                  ..onTap = () => _launchURL(
+                                    "https://turfzone.com/legal/privacy",
+                                  ),
                               ),
                             ],
                           ),
@@ -518,26 +521,15 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
     }
   }
 
-  void _showTermsDialog(String title) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: SingleChildScrollView(
-          child: Text(
-            "This is a placeholder for $title.\n\n"
-            "By using TurfZone, you agree to our policies regarding booking, cancellations, and usage of our platform.",
-            style: const TextStyle(fontSize: 14, height: 1.5),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Close"),
-          ),
-        ],
-      ),
-    );
+  Future<void> _launchURL(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        _showError(context, 'Could not open $url');
+      }
+    }
   }
 
   void _showError(BuildContext context, String message) {

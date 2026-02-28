@@ -47,6 +47,7 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
   String _platformFee = '0';
   String _gstOnPlatformFee = '0';
   String _totalPayable = '0';
+  String _firstBookingDiscount = '0';
   String _turfName = '';
   String _expiresAt = '';
 
@@ -83,6 +84,8 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
           _gstOnPlatformFee =
               response['gst_on_platform_fee']?.toString() ?? '0';
           _totalPayable = response['total_payable']?.toString() ?? '0';
+          _firstBookingDiscount =
+              response['first_booking_discount']?.toString() ?? '0';
           _turfName = response['turf_name']?.toString() ?? widget.turf.name;
           _expiresAt = response['expires_at']?.toString() ?? '';
           _isLoading = false;
@@ -214,6 +217,8 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
 
   Widget _buildSummaryView() {
     final hasDiscount = _discountTotal != '0' && _discountTotal != '0.00';
+    final hasFirstBookingDiscount =
+        _firstBookingDiscount != '0' && _firstBookingDiscount != '0.00';
 
     return Column(
       children: [
@@ -335,6 +340,12 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
                       _priceRow("GST (18%)", "₹$_gstAmount"),
                       _priceRow("Platform Fee", "₹$_platformFee"),
                       _priceRow("GST on Platform Fee", "₹$_gstOnPlatformFee"),
+                      if (hasFirstBookingDiscount)
+                        _priceRow(
+                          "First Booking Discount",
+                          "- ₹$_firstBookingDiscount",
+                          isGreen: true,
+                        ),
                       const Divider(height: 20),
                       _priceRow(
                         "Total Payable",

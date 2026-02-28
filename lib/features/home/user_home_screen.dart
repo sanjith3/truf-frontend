@@ -14,6 +14,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/tournament/tournament_screen.dart';
 import '../../services/auth_state.dart';
+import 'package:turfzone/features/home/growth_widgets.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -1647,6 +1648,12 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 ),
               ),
 
+            // Growth widgets — additive inserts
+            const FirstOfferBanner(),
+            const StreakCard(),
+            const SocialProofBanner(),
+            const ReferralProgressBar(),
+
             // Turf Cards
             Expanded(
               child: _filteredTurfs.isEmpty
@@ -2573,6 +2580,47 @@ class _TurfCardState extends State<TurfCard> {
                             color: _isFavorite ? Colors.red : Colors.grey,
                             size: 18,
                           ),
+                        ),
+                      ),
+                    ),
+
+                    // Cashback badge — bottom right of image
+                    Positioned(
+                      bottom: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade700,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.monetization_on,
+                              color: Colors.white,
+                              size: 13,
+                            ),
+                            SizedBox(width: 3),
+                            Text(
+                              'Earn ₹50 back',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

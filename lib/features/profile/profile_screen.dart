@@ -4,14 +4,16 @@ import '../../services/api_service.dart';
 import 'package:turfzone/features/partner/join_partner_screen.dart';
 import 'package:turfzone/features/bookings/my_bookings_screen.dart';
 import 'package:turfzone/features/Help_support/help_support_screen.dart';
-import 'package:turfzone/features/Privacy_policy/privacy_policy_screen.dart';
-import 'package:turfzone/features/Terms_condition/terms_conditions_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:turfzone/features/credits_rewards/credits_rewards_screen.dart';
 import 'package:turfzone/features/auth/otp_login_screen.dart';
 import 'package:turfzone/features/profile/edit_profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/Admindashboard/admin_screen.dart';
 import '../../services/auth_state.dart';
+import 'package:turfzone/features/referral/invite_friends_screen.dart';
+import 'package:turfzone/features/wallet/wallet_screen.dart';
+import 'package:turfzone/features/home/growth_widgets.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -405,6 +407,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 10),
 
+                // Invite Friends
+                _buildMenuCard(
+                  icon: Icons.card_giftcard,
+                  title: "Invite Friends",
+                  subtitle: "Earn ₹50 per friend who books",
+                  badge: "₹50",
+                  iconColor: const Color(0xFFFF6B00),
+                  bgColor: const Color(0xFFFF6B00).withOpacity(0.1),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const InviteFriendsScreen(),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 10),
+
+                // Wallet
+                _buildMenuCard(
+                  icon: Icons.account_balance_wallet,
+                  title: "Wallet",
+                  subtitle: "View balance, cashback & transactions",
+                  iconColor: const Color(0xFF6C63FF),
+                  bgColor: const Color(0xFF6C63FF).withOpacity(0.1),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const WalletScreen()),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 10),
+
+                // Loyalty Badge
+                const LoyaltyBadge(),
+
+                const SizedBox(height: 10),
+
                 // Help & Support
                 _buildMenuCard(
                   icon: Icons.help_center,
@@ -462,14 +506,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: Icons.privacy_tip,
                   title: "Privacy Policy",
                   subtitle: "How we handle your data",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const PrivacyPolicyScreen(),
-                      ),
-                    );
-                  },
+                  onTap: () => _launchURL("https://turfzone.com/legal/privacy"),
                 ),
 
                 const SizedBox(height: 10),
@@ -479,14 +516,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: Icons.description,
                   title: "Terms & Conditions",
                   subtitle: "User agreement and policies",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const TermsConditionsScreen(),
-                      ),
-                    );
-                  },
+                  onTap: () => _launchURL("https://turfzone.com/legal/terms"),
                 ),
 
                 const SizedBox(height: 20),
@@ -781,6 +811,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _launchURL(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open $url'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showLogoutDialog(BuildContext context) {
