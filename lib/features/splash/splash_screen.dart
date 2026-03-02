@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/auth/otp_login_screen.dart';
@@ -13,223 +14,375 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _textAnimation;
+    with TickerProviderStateMixin {
+  // ─── Master timeline: exactly 3000ms ───
+  late AnimationController _master;
+
+  // 0.0s–0.4s: logo fade 0→1 + scale 0.92→1.00
+  late Animation<double> _logoFade;
+  late Animation<double> _logoScale;
+
+  // 0.8s–2.8s: cinematic 3% zoom push-in
+  late Animation<double> _cameraZoom;
+
+  // 1.2s–2.6s: text fade in
+  late Animation<double> _textFade;
+
+  // 2.8s–3.0s: content fades out (NOT background)
+  late Animation<double> _exitFade;
+
+  // ─── Glow breathing (continuous sine wave) ───
+  late AnimationController _glowCtrl;
+
+  // ─── Lightning flicker: 0.6s–1.4s ───
+  late AnimationController _flickerCtrl;
+
+  // ─── Dust particles ───
+  late AnimationController _dustCtrl;
+  final List<_DustParticle> _particles = [];
+  final Random _rng = Random();
+
+  // ─── Auth ───
+  Widget? _destination;
 
   @override
   void initState() {
     super.initState();
 
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+    for (int i = 0; i < 20; i++) {
+      _particles.add(_DustParticle(_rng));
+    }
+
+    // ─── Master: 3000ms ───
+    _master = AnimationController(
       vsync: this,
+      duration: const Duration(milliseconds: 3000),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+    // Logo: 0.0s–0.4s → interval 0.0–0.133
+    _logoFade = Tween(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.8, curve: Curves.fastOutSlowIn),
+        parent: _master,
+        curve: const Interval(0.0, 0.133, curve: Curves.easeOutCubic),
+      ),
+    );
+    _logoScale = Tween(begin: 0.92, end: 1.00).animate(
+      CurvedAnimation(
+        parent: _master,
+        curve: const Interval(0.0, 0.133, curve: Curves.easeOutCubic),
       ),
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    // Camera zoom: 0.8s–2.8s → interval 0.267–0.933
+    _cameraZoom = Tween(begin: 1.00, end: 1.03).animate(
       CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.3, 1.0, curve: Curves.easeInOut),
+        parent: _master,
+        curve: const Interval(0.267, 0.933, curve: Curves.easeInOutSine),
       ),
     );
 
-    _textAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    // Text: 1.2s–2.6s → interval 0.400–0.867
+    _textFade = Tween(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.5, 1.0, curve: Curves.easeInOut),
+        parent: _master,
+        curve: const Interval(0.400, 0.867, curve: Curves.easeOutCubic),
       ),
     );
 
-    _controller.forward();
+    // Exit: 2.8s–3.0s → interval 0.933–1.0 (content only, not bg)
+    _exitFade = Tween(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _master,
+        curve: const Interval(0.933, 1.0, curve: Curves.easeIn),
+      ),
+    );
 
-    // Run auth check — navigate when BOTH animation and check are done
-    _checkAuthAndNavigate();
+    // ─── Glow breathing ───
+    _glowCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
+
+    // ─── Lightning flicker: 0.6s–1.4s ───
+    _flickerCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    // trigger at 0.6s
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) _flickerCtrl.forward();
+    });
+
+    // ─── Dust ───
+    _dustCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    )..repeat();
+
+    // GO
+    _master.forward();
+    _master.addStatusListener((status) {
+      if (status == AnimationStatus.completed) _navigateNext();
+    });
+
+    // Auth in parallel
+    _resolveAuth();
   }
 
-  Future<void> _checkAuthAndNavigate() async {
-    // Run auth check and minimum delay in parallel
-    final results = await Future.wait([
-      _determineDestination(),
-      Future.delayed(const Duration(milliseconds: 1800)),
-    ]);
-
-    if (!mounted) return;
-
-    final Widget destination = results[0] as Widget;
-
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => destination,
-        transitionDuration: const Duration(milliseconds: 400),
-        transitionsBuilder: (_, animation, __, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
-    );
-  }
-
-  /// Check if user is authenticated.
-  /// Returns the screen to navigate to.
-  Future<Widget> _determineDestination() async {
+  Future<void> _resolveAuth() async {
     try {
       final hasToken = await ApiService.hasToken();
       if (!hasToken) {
-        print('🔐 Splash: No token → Login');
-        return const OtpLoginScreen();
+        _destination = const OtpLoginScreen();
+        return;
       }
-
-      // Token exists — validate it by loading profile
       await AuthState.instance.loadProfile();
-      print('🔐 Splash: Token valid → Home');
-      return const UserHomeScreen();
+      _destination = const UserHomeScreen();
     } on AuthExpiredException {
-      print('🔐 Splash: Token expired → Login');
-      // Token was invalid — clear everything
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('auth_token');
       await prefs.remove('access_token');
       await prefs.remove('refresh_token');
       await AuthState.instance.clear();
-      return const OtpLoginScreen();
-    } catch (e) {
-      print('🔐 Splash: Error ($e) — checking offline fallback');
-      // Network error — check if we have cached profile data
+      _destination = const OtpLoginScreen();
+    } catch (_) {
       final prefs = await SharedPreferences.getInstance();
-      final hasToken =
+      final token =
           prefs.getString('auth_token') ?? prefs.getString('access_token');
-      if (hasToken != null && hasToken.isNotEmpty) {
-        // We have a stored token — go to home (offline mode)
-        print('🔐 Splash: Offline with token → Home');
-        return const UserHomeScreen();
-      }
-      return const OtpLoginScreen();
+      _destination = (token != null && token.isNotEmpty)
+          ? const UserHomeScreen()
+          : const OtpLoginScreen();
     }
+  }
+
+  void _navigateNext() async {
+    if (!mounted) return;
+    while (_destination == null) {
+      await Future.delayed(const Duration(milliseconds: 50));
+      if (!mounted) return;
+    }
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => _destination!,
+        transitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (_, a, __, child) =>
+            FadeTransition(opacity: a, child: child),
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _master.dispose();
+    _glowCtrl.dispose();
+    _flickerCtrl.dispose();
+    _dustCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Scaffold bg matches gradient top — NEVER black
     return Scaffold(
-      backgroundColor: const Color(0xFF1DB954),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color(0xFF1DB954),
-              const Color(0xFF1DB954).withOpacity(0.9),
-              const Color(0xFF17A34A),
-            ],
-          ),
-        ),
-        child: Center(
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Transform.scale(
-                    scale: _scaleAnimation.value,
-                    child: Opacity(
-                      opacity: _fadeAnimation.value,
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(100),
-                          child: Image.asset(
-                            "assets/images/logo.png",
-                            width: 140,
-                            height: 140,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
+      backgroundColor: const Color(0xFF001510),
+      body: AnimatedBuilder(
+        animation: Listenable.merge([
+          _master,
+          _glowCtrl,
+          _flickerCtrl,
+          _dustCtrl,
+        ]),
+        builder: (context, _) {
+          final glowBreath = sin(_glowCtrl.value * pi) * 0.5 + 0.5;
+          final flickerVal = _flickerCtrl.isAnimating
+              ? (sin(_flickerCtrl.value * pi * 6) * 0.3 + 0.7)
+              : 1.0;
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              // ─── Layer 0: Background gradient — ALWAYS visible, no Opacity wrapper ───
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF001510),
+                      Color(0xFF002A1F),
+                      Color(0xFF003D2E),
+                    ],
+                    stops: [0.0, 0.5, 1.0],
+                  ),
+                ),
+              ),
+
+              // ─── Layer 1: Soft stadium radial light — always visible ───
+              Opacity(
+                opacity: 0.05,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment(0, -0.85),
+                      radius: 0.7,
+                      colors: [Colors.white, Colors.transparent],
                     ),
                   ),
-                  const SizedBox(height: 40),
-                  Opacity(
-                    opacity: _textAnimation.value,
+                ),
+              ),
+
+              // ─── Layer 2: Floating dust — always visible ───
+              Opacity(
+                opacity: 0.35,
+                child: CustomPaint(
+                  painter: _DustPainter(
+                    particles: _particles,
+                    t: _dustCtrl.value,
+                  ),
+                  size: Size.infinite,
+                ),
+              ),
+
+              // ─── Layer 3: Logo + text — this fades in/out ───
+              Opacity(
+                opacity: _exitFade.value,
+                child: Center(
+                  child: Transform.scale(
+                    scale: _cameraZoom.value,
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'TURF ZONE',
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 2.0,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
+                        // ─── Logo with glow ───
+                        Opacity(
+                          opacity: _logoFade.value,
+                          child: Transform.scale(
+                            scale: _logoScale.value,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: _logoFade.value > 0.2
+                                    ? [
+                                        BoxShadow(
+                                          color: const Color(0xFF1DB954)
+                                              .withOpacity(
+                                                0.12 *
+                                                    glowBreath *
+                                                    flickerVal *
+                                                    _logoFade.value,
+                                              ),
+                                          blurRadius: 30 + 15 * glowBreath,
+                                          spreadRadius: 5 + 8 * glowBreath,
+                                        ),
+                                        BoxShadow(
+                                          color: const Color(0xFF1DB954)
+                                              .withOpacity(
+                                                0.06 *
+                                                    glowBreath *
+                                                    _logoFade.value,
+                                              ),
+                                          blurRadius: 60 + 20 * glowBreath,
+                                          spreadRadius: 15 + 10 * glowBreath,
+                                        ),
+                                      ]
+                                    : [],
                               ),
-                            ],
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(100),
+                                child: Image.asset(
+                                  'assets/images/logo.png',
+                                  width: 130,
+                                  height: 130,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        Transform.translate(
-                          offset: Offset(0, 10 * (1 - _textAnimation.value)),
-                          child: Text(
+
+                        const SizedBox(height: 36),
+
+                        // ─── "TURF ZONE" ───
+                        Opacity(
+                          opacity: _textFade.value,
+                          child: const Text(
+                            'TURF ZONE',
+                            style: TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 4.0,
+                              height: 1.0,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        // ─── Subtitle ───
+                        Opacity(
+                          opacity: _textFade.value * 0.7,
+                          child: const Text(
                             'Book Your Turf Anytime, Anywhere',
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white.withOpacity(0.9),
-                              letterSpacing: 1.0,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white,
+                              letterSpacing: 1.2,
+                              height: 1.0,
+                              decoration: TextDecoration.none,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(height: 50),
-                        SizedBox(
-                          width: 200,
-                          child: LinearProgressIndicator(
-                            backgroundColor: Colors.white.withOpacity(0.2),
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white.withOpacity(0.8),
-                            ),
-                            minHeight: 2,
-                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              );
-            },
-          ),
-        ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
+}
+
+// ─── DUST PARTICLE ───
+class _DustParticle {
+  late double x, y, size, speedX, speedY, opacity;
+
+  _DustParticle(Random rng) {
+    x = rng.nextDouble();
+    y = rng.nextDouble();
+    size = 0.8 + rng.nextDouble() * 1.5;
+    speedX = (rng.nextDouble() - 0.5) * 0.03;
+    speedY = -0.01 - rng.nextDouble() * 0.02;
+    opacity = 0.15 + rng.nextDouble() * 0.25;
+  }
+}
+
+class _DustPainter extends CustomPainter {
+  final List<_DustParticle> particles;
+  final double t;
+
+  _DustPainter({required this.particles, required this.t});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final p in particles) {
+      final px = ((p.x + p.speedX * t * 10) % 1.0) * size.width;
+      final py = ((p.y + p.speedY * t * 10) % 1.0) * size.height;
+      canvas.drawCircle(
+        Offset(px, py),
+        p.size,
+        Paint()
+          ..color = Colors.white.withOpacity(p.opacity)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, p.size * 0.6),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DustPainter old) => true;
 }

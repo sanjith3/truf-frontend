@@ -13,7 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   // ─── BASE URL CONFIGURATION ───
   // LAN IP — NOT localhost / 127.0.0.1 / 10.0.2.2
-  static const String BASE_URL = 'http://10.21.97.36:8000';
+  static const String BASE_URL = 'http://10.33.236.36:8000';
 
   // SharedPreferences keys for JWT tokens
   static const String _accessTokenKey = 'auth_access_token';
