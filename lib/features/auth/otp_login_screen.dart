@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,7 +41,8 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
       // User has a stored token — validate and load profile
       try {
         await AuthState.instance.loadProfile();
-        // Token is valid, role loaded — go to home
+        // Token is valid, role loaded — upload FCM token silently
+        _uploadFcmToken();
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -53,6 +55,22 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
         await ApiService.clearTokens();
       }
     }
+  }
+
+  /// Upload FCM token to backend silently (fire-and-forget).
+  void _uploadFcmToken() {
+    FirebaseMessaging.instance.getToken().then((token) async {
+      if (token == null) return;
+      try {
+        await _api.postAuth(
+          '/api/users/fcm-token/',
+          body: {'fcm_token': token},
+        );
+        debugPrint('✅ FCM token registered with backend');
+      } catch (e) {
+        debugPrint('⚠️ FCM token upload skipped: $e');
+      }
+    });
   }
 
   @override
@@ -404,6 +422,9 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
         // Load full profile (role, turf_owner, etc.) before navigating
         await AuthState.instance.loadProfile();
 
+        // Upload FCM token to backend silently (fire-and-forget)
+        _uploadFcmToken();
+
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -485,6 +506,9 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
 
         // Load full profile before navigating
         await AuthState.instance.loadProfile();
+
+        // Upload FCM token to backend silently (fire-and-forget)
+        _uploadFcmToken();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

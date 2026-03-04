@@ -908,6 +908,11 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
         title: const Text('Slot Management'),
         backgroundColor: const Color(0xFF1DB954),
         elevation: 0,
+        // ── Date selector pinned below AppBar — always visible ───────────
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(90),
+          child: _buildDateSelector(),
+        ),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
@@ -931,18 +936,28 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
       ),
       body: _selectedTurf == null
           ? const Center(child: Text('No turfs available'))
-          : Column(
-              children: [
-                _buildTurfSelector(),
-                _buildDateSelector(),
-                _buildStatsCards(),
-                _buildTimeSlotHeader(),
-                Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _buildTimeSlotGrid(),
-                ),
-              ],
+          : RefreshIndicator(
+              onRefresh: () => _loadSlotsForDate(_selectedDate),
+              color: const Color(0xFF1DB954),
+              child: CustomScrollView(
+                slivers: [
+                  // Turf selector — scrolls away
+                  SliverToBoxAdapter(child: _buildTurfSelector()),
+                  // Stats cards — scrolls away
+                  SliverToBoxAdapter(child: _buildStatsCards()),
+                  // Section header — scrolls away
+                  SliverToBoxAdapter(child: _buildTimeSlotHeader()),
+                  // Loading or slot grid — scrolls away
+                  if (_isLoading)
+                    const SliverFillRemaining(
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else
+                    SliverToBoxAdapter(child: _buildTimeSlotGrid()),
+                  // Bottom padding
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                ],
+              ),
             ),
     );
   }
@@ -1008,10 +1023,10 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
 
     return Container(
       height: 90,
-      margin: const EdgeInsets.only(bottom: 8),
+      color: const Color(0xFF1DB954), // match AppBar so it blends seamlessly
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         itemCount: days.length,
         itemBuilder: (ctx, idx) {
           final day = days[idx];
@@ -1024,27 +1039,25 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
             },
             child: Container(
               width: 65,
-              margin: EdgeInsets.only(right: idx == days.length - 1 ? 0 : 12),
+              margin: EdgeInsets.only(right: idx == days.length - 1 ? 0 : 10),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? const Color(0xFF1DB954)
+                    ? Colors.white
                     : isToday
-                    ? Colors.blue.shade50
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                    ? Colors.green.shade800
+                    : Colors.green.shade700,
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: isSelected
-                      ? Colors.green.shade700
-                      : isToday
-                      ? Colors.blue.shade200
-                      : Colors.grey.shade200,
+                      ? Colors.white
+                      : Colors.white.withOpacity(0.3),
                   width: 1.5,
                 ),
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: const Color(0xFF1DB954).withOpacity(0.3),
-                          blurRadius: 8,
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 6,
                           offset: const Offset(0, 3),
                         ),
                       ]
@@ -1056,30 +1069,32 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
                   Text(
                     _getDayName(day.weekday),
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: isSelected ? Colors.white : Colors.grey.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    day.day.toString(),
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
                       color: isSelected
-                          ? Colors.white
-                          : isToday
-                          ? Colors.blue.shade800
-                          : Colors.black87,
+                          ? const Color(0xFF1DB954)
+                          : Colors.white.withOpacity(0.85),
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
+                    day.day.toString(),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected
+                          ? const Color(0xFF1DB954)
+                          : Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
                     _getMonthName(day.month),
                     style: TextStyle(
-                      fontSize: 11,
-                      color: isSelected ? Colors.white70 : Colors.grey.shade600,
+                      fontSize: 10,
+                      color: isSelected
+                          ? const Color(0xFF1DB954)
+                          : Colors.white.withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -1332,59 +1347,67 @@ class AdminTimeSlotCard extends StatelessWidget {
       badgeColor = Colors.green;
     }
 
-    return GestureDetector(
-      onTap: isPast ? null : onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.shade200,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              slot.time.split(' - ')[0],
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-                decoration: isPast ? TextDecoration.lineThrough : null,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: isPast ? null : onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.shade200,
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
-            ),
-            Text(
-              slot.time.split(' - ')[1],
-              style: TextStyle(
-                fontSize: 11,
-                color: textColor.withOpacity(0.8),
-                decoration: isPast ? TextDecoration.lineThrough : null,
-              ),
-            ),
-            const SizedBox(height: 4),
-            if (badge != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: badgeColor,
-                  borderRadius: BorderRadius.circular(12),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                slot.time.split(' - ')[0],
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                  decoration: isPast ? TextDecoration.lineThrough : null,
                 ),
-                child: Text(
-                  badge,
-                  style: const TextStyle(
-                    fontSize: 7,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+              ),
+              Text(
+                slot.time.split(' - ')[1],
+                style: TextStyle(
+                  fontSize: 11,
+                  color: textColor.withOpacity(0.8),
+                  decoration: isPast ? TextDecoration.lineThrough : null,
+                ),
+              ),
+              const SizedBox(height: 4),
+              if (badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: badgeColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    badge,
+                    style: const TextStyle(
+                      fontSize: 7,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

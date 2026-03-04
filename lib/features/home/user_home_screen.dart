@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:turfzone/booking/booking_screen.dart';
 import 'package:turfzone/models/turf.dart';
@@ -25,6 +25,9 @@ class UserHomeScreen extends StatefulWidget {
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final FocusNode _searchFocusNode = FocusNode();
+  bool _showStickyHeader = false;
   List<Turf> _filteredTurfs = [];
   final TurfDataService _turfService = TurfDataService();
   // _apiService removed — no longer needed after removing debug test
@@ -1202,6 +1205,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     // Set up listeners
     _turfService.addListener(_onDataChanged);
     _searchController.addListener(_searchTurfs);
+    _scrollController.addListener(_onScroll);
 
     if (_turfs.isNotEmpty) {
       _maxPrice = _turfs
@@ -1332,8 +1336,30 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     });
   }
 
+  void _onScroll() {
+    final show = _scrollController.offset > 150;
+    if (show != _showStickyHeader) {
+      setState(() => _showStickyHeader = show);
+    }
+  }
+
+  void _scrollToTopAndSearch() {
+    _scrollController
+        .animateTo(
+          0,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+        )
+        .then((_) {
+          if (mounted) _searchFocusNode.requestFocus();
+        });
+  }
+
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _searchFocusNode.dispose();
     _searchController.dispose();
     _turfService.removeListener(_onDataChanged);
     super.dispose();
@@ -1347,157 +1373,176 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            // Reduced Green Top Section
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Colors.green[700]!, Colors.green[600]!],
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(15),
-                  bottomRight: Radius.circular(15),
-                ),
-              ),
-              child: Column(
-                children: [
-                  // Top Row: Location and Icons
-                  Row(
+            // ── Main scrollable content ──────────────────────────
+            ListView(
+              controller: _scrollController,
+              children: [
+                // Reduced Green Top Section (scrolls away with content)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Colors.green[700]!, Colors.green[600]!],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(15),
+                      bottomRight: Radius.circular(15),
+                    ),
+                  ),
+                  child: Column(
                     children: [
-                      // Location
-                      Expanded(
-                        child: InkWell(
-                          onTap: _showLocationPicker,
-                          borderRadius: BorderRadius.circular(10),
-                          child: Padding(
-                            padding: const EdgeInsets.all(4.0),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.location_on_outlined,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Row(
+                      // Top Row: Location and Icons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: _showLocationPicker,
+                              borderRadius: BorderRadius.circular(10),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.location_on_outlined,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Flexible(
-                                            child: Text(
-                                              _selectedLocation,
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  _selectedLocation,
+                                                  style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
                                               ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
+                                              const Icon(
+                                                Icons.keyboard_arrow_down,
+                                                color: Colors.white,
+                                                size: 14,
+                                              ),
+                                            ],
                                           ),
-                                          const Icon(
-                                            Icons.keyboard_arrow_down,
-                                            color: Colors.white,
-                                            size: 14,
+                                          Text(
+                                            _selectedState,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.white.withOpacity(
+                                                0.9,
+                                              ),
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ],
                                       ),
-                                      Text(
-                                        _selectedState,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.white.withOpacity(0.9),
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Favorites Icon
+                          Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            child: IconButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FavoritesScreen(),
+                                  ),
+                                );
+                              },
+                              icon: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withOpacity(0.2),
+                                ),
+                                child: const Icon(
+                                  Icons.favorite_outline,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Tournament Icon
+                          Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            child: IconButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const TournamentScreen(),
+                                  ),
+                                );
+                              },
+                              icon: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withOpacity(0.2),
+                                ),
+                                child: const Icon(
+                                  Icons.emoji_events_outlined,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Admin Icon
+                          if (_isPartner)
+                            Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              child: IconButton(
+                                onPressed: _handleAdminAccess,
+                                icon: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white.withOpacity(0.2),
+                                  ),
+                                  child: const Icon(
+                                    Icons.workspace_premium,
+                                    color: Color(0xFFFFD700),
+                                    size: 20,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      // Favorites Icon
-                      Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        child: IconButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => FavoritesScreen(),
                               ),
-                            );
-                          },
-                          icon: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withOpacity(0.2),
                             ),
-                            child: const Icon(
-                              Icons.favorite_outline,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Tournament Icon
-                      Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        child: IconButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const TournamentScreen(),
-                              ),
-                            );
-                          },
-
-                          icon: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withOpacity(0.2),
-                            ),
-                            child: const Icon(
-                              Icons.emoji_events_outlined,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Admin Icon
-                      // Admin Icon
-                      if (_isPartner)
-                        Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          child: IconButton(
-                            onPressed: _handleAdminAccess,
+                          // Profile Icon
+                          IconButton(
                             icon: Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
@@ -1505,214 +1550,253 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                                 color: Colors.white.withOpacity(0.2),
                               ),
                               child: const Icon(
-                                Icons.workspace_premium,
-                                color: Color(0xFFFFD700),
+                                Icons.person_outlined,
+                                color: Colors.white,
                                 size: 20,
                               ),
                             ),
-                          ),
-                        ),
-
-                      // Profile Icon
-                      IconButton(
-                        icon: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.2),
-                          ),
-                          child: const Icon(
-                            Icons.person_outlined,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        onPressed: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ProfileScreen(),
-                            ),
-                          );
-                          // Refresh data when returning from profile
-                          _loadUserData();
-                        },
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Welcome Text
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _userName.isNotEmpty
-                              ? "Hello, $_userName!"
-                              : "Book Your Turf",
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          "Play your favorite sport anytime",
-                          style: TextStyle(fontSize: 12, color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Search Bar
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: "Search turfs by name or location...",
-                        hintStyle: TextStyle(color: Colors.grey[600]),
-                        prefixIcon: Icon(
-                          Icons.search,
-                          color: Colors.green[800],
-                          size: 22,
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            Icons.filter_list,
-                            color: Colors.green[800],
-                            size: 22,
-                          ),
-                          onPressed: () => _showFilterOptions(context),
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 15,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-                ],
-              ),
-            ),
-
-            // Show only when filters are active
-            if (_isFilterActive())
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "${_filteredTurfs.length} turfs found",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.green[800],
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: _resetFilters,
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                      child: Text(
-                        "Clear Filters",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.green[800],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            // Growth widgets — compact inserts
-            FirstOfferBanner(
-              onBookNow: () {
-                if (_filteredTurfs.isNotEmpty) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          TurfDetailsScreen(turf: _filteredTurfs.first),
-                    ),
-                  );
-                }
-              },
-            ),
-            const StreakStatsBar(),
-            const ReferralProgressBar(),
-
-            // Turf Cards
-            Expanded(
-              child: _filteredTurfs.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(40),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.search_off,
-                            size: 60,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            "No turfs found",
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          Text(
-                            "Try adjusting your filters or search",
-                            style: TextStyle(color: Colors.grey[500]),
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ProfileScreen(),
+                                ),
+                              );
+                              _loadUserData();
+                            },
                           ),
                         ],
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                      itemCount: _filteredTurfs.length,
-                      itemBuilder: (context, index) {
-                        return Column(
+
+                      const SizedBox(height: 12),
+
+                      // Welcome Text
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            TurfCard(turf: _filteredTurfs[index]),
-                            // Add subtle divider between cards (except last one)
-                            if (index < _filteredTurfs.length - 1)
-                              const Divider(
-                                height: 20,
-                                thickness: 0.5,
-                                color: Color(0xFFEEEEEE),
-                                indent: 20,
-                                endIndent: 20,
+                            Text(
+                              _userName.isNotEmpty
+                                  ? "Hello, $_userName!"
+                                  : "Book Your Turf",
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
                               ),
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              "Play your favorite sport anytime",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white70,
+                              ),
+                            ),
                           ],
-                        );
-                      },
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Search Bar
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          decoration: InputDecoration(
+                            hintText: "Search turfs by name or location...",
+                            hintStyle: TextStyle(color: Colors.grey[600]),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Colors.green[800],
+                              size: 22,
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                Icons.filter_list,
+                                color: Colors.green[800],
+                                size: 22,
+                              ),
+                              onPressed: () => _showFilterOptions(context),
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                ),
+
+                // Show only when filters are active
+                if (_isFilterActive())
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
                     ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "${_filteredTurfs.length} turfs found",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green[800],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _resetFilters,
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                          child: Text(
+                            "Clear Filters",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.green[800],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Growth widgets
+                OfferBannersRow(
+                  onBookNow: () {
+                    if (_filteredTurfs.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              TurfDetailsScreen(turf: _filteredTurfs.first),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const StreakStatsBar(),
+                const ReferralProgressBar(),
+
+                // Turf Cards
+                if (_filteredTurfs.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 60,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No turfs found",
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        Text(
+                          "Try adjusting your filters or search",
+                          style: TextStyle(color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                    child: Column(
+                      children: [
+                        for (int i = 0; i < _filteredTurfs.length; i++) ...[
+                          TurfCard(turf: _filteredTurfs[i]),
+                          if (i < _filteredTurfs.length - 1)
+                            const Divider(
+                              height: 20,
+                              thickness: 0.5,
+                              color: Color(0xFFEEEEEE),
+                              indent: 20,
+                              endIndent: 20,
+                            ),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+
+            // ── Sticky green header (slides in from top when scrolled) ──
+            AnimatedSlide(
+              offset: _showStickyHeader ? Offset.zero : const Offset(0, -1),
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOut,
+              child: AnimatedOpacity(
+                opacity: _showStickyHeader ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 220),
+                child: Container(
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Colors.green[700]!, Colors.green[600]!],
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _userName.isNotEmpty
+                                ? 'Hello, $_userName!'
+                                : 'TurfZone',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _scrollToTopAndSearch,
+                          icon: const Icon(Icons.search, color: Colors.white),
+                          tooltip: 'Search turfs',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -2263,6 +2347,7 @@ class TurfCard extends StatefulWidget {
 
 class _TurfCardState extends State<TurfCard> {
   final FavoritesService _favoritesService = FavoritesService();
+  final PageController _pageController = PageController();
   int _currentImageIndex = 0;
   late bool _isFavorite;
   bool _isToggling = false;
@@ -2279,6 +2364,12 @@ class _TurfCardState extends State<TurfCard> {
     if (oldWidget.turf.isFavorite != widget.turf.isFavorite) {
       _isFavorite = widget.turf.isFavorite;
     }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _openMapLocation() async {
@@ -2333,69 +2424,132 @@ class _TurfCardState extends State<TurfCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image with error handling
-          GestureDetector(
-            onTap: _viewTurfDetails,
-            child: ClipRRect(
+    return GestureDetector(
+      onTap: _viewTurfDetails,
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Image slider with PageView ─────────────────────────────────
+            ClipRRect(
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(16),
                 topRight: Radius.circular(16),
               ),
-              child: Container(
+              child: SizedBox(
                 height: 180,
                 width: double.infinity,
-                color: Colors.grey[100],
                 child: Stack(
                   children: [
-                    // Image with error handling
-                    Builder(
-                      builder: (context) {
-                        final hasImages = widget.turf.images.isNotEmpty;
+                    // PageView for swiping between images
+                    widget.turf.images.isEmpty
+                        ? _buildImageError()
+                        : PageView.builder(
+                            controller: _pageController,
+                            onPageChanged: (i) =>
+                                setState(() => _currentImageIndex = i),
+                            itemCount: widget.turf.images.length,
+                            itemBuilder: (context, idx) {
+                              final url = widget.turf.images[idx];
+                              return GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => FullScreenImageViewer(
+                                      images: widget.turf.images,
+                                      initialIndex: idx,
+                                    ),
+                                  ),
+                                ),
+                                child: Image.network(
+                                  url,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: 180,
+                                  errorBuilder: (_, __, ___) =>
+                                      _buildImageError(),
+                                  loadingBuilder: (_, child, prog) =>
+                                      prog == null
+                                      ? child
+                                      : Container(
+                                          color: Colors.grey[200],
+                                          child: const Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                        ),
+                                ),
+                              );
+                            },
+                          ),
 
-                        if (!hasImages) {
-                          return _buildImageError();
-                        }
-
-                        return Image.network(
-                          widget.turf.images[_currentImageIndex.clamp(
-                            0,
-                            widget.turf.images.length - 1,
-                          )],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                          errorBuilder: (context, error, stackTrace) {
-                            return _buildImageError();
-                          },
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          },
-                        );
-                      },
-                    ),
-
-                    // Gradient overlay
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.3),
-                          ],
+                    // Gradient overlay (bottom fade)
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withAlpha(77),
+                            ],
+                          ),
                         ),
                       ),
                     ),
+
+                    // Image counter / dot indicators
+                    if (widget.turf.images.length > 1)
+                      Positioned(
+                        bottom: 8,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            widget.turf.images.length,
+                            (i) => AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              width: _currentImageIndex == i ? 18 : 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: _currentImageIndex == i
+                                    ? Colors.white
+                                    : Colors.white.withAlpha(128),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    // Photo count badge (top-right, only if multi)
+                    if (widget.turf.images.length > 1)
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${_currentImageIndex + 1}/${widget.turf.images.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
 
                     // Rating badge - ALWAYS ON TOP LEFT
                     Positioned(
@@ -2639,214 +2793,220 @@ class _TurfCardState extends State<TurfCard> {
                 ),
               ),
             ),
-          ),
 
-          // Turf Details
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Name and Location
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            // Turf Details
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Name and Location
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.turf.name,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on,
+                                  size: 14,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    widget.turf.location,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey[600],
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Price with offer — backend data only
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            widget.turf.name,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
+                            "₹${widget.turf.price}",
+                            style: TextStyle(
+                              fontSize: _hasOffer ? 14 : 22,
+                              fontWeight: _hasOffer
+                                  ? FontWeight.w500
+                                  : FontWeight.w800,
+                              color: _hasOffer
+                                  ? Colors.grey[500]
+                                  : Colors.green,
+                              decoration: _hasOffer
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                              decorationColor: _hasOffer ? Colors.red : null,
+                              decorationThickness: _hasOffer ? 2 : null,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.location_on,
-                                size: 14,
-                                color: Colors.grey[600],
+                          if (_hasOffer)
+                            Container(
+                              margin: const EdgeInsets.only(top: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
                               ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  widget.turf.location,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey[600],
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                              decoration: BoxDecoration(
+                                color: Colors.red[50],
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: Colors.red[100]!,
+                                  width: 1,
                                 ),
                               ),
-                            ],
+                              child: Text(
+                                _offerText,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.red[700],
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          Text(
+                            "/hour",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    // Price with offer — backend data only
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          "₹${widget.turf.price}",
-                          style: TextStyle(
-                            fontSize: _hasOffer ? 14 : 22,
-                            fontWeight: _hasOffer
-                                ? FontWeight.w500
-                                : FontWeight.w800,
-                            color: _hasOffer ? Colors.grey[500] : Colors.green,
-                            decoration: _hasOffer
-                                ? TextDecoration.lineThrough
-                                : null,
-                            decorationColor: _hasOffer ? Colors.red : null,
-                            decorationThickness: _hasOffer ? 2 : null,
-                          ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Sports Available with smaller chips
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Sports Available:",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[600],
                         ),
-                        if (_hasOffer)
-                          Container(
-                            margin: const EdgeInsets.only(top: 2),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: widget.turf.sports.map((sport) {
+                          return Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
+                              horizontal: 10,
+                              vertical: 5,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.red[50],
-                              borderRadius: BorderRadius.circular(4),
+                              color: _getSportColor(sport).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: Colors.red[100]!,
-                                width: 1,
+                                color: _getSportColor(sport).withOpacity(0.2),
+                                width: 0.8,
                               ),
                             ),
-                            child: Text(
-                              _offerText,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.red[700],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        Text(
-                          "/hour",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // Sports Available with smaller chips
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Sports Available:",
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: widget.turf.sports.map((sport) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getSportColor(sport).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: _getSportColor(sport).withOpacity(0.2),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _getSportIcon(sport),
-                                size: 12,
-                                color: _getSportColor(sport),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                sport,
-                                style: TextStyle(
-                                  fontSize: 11,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _getSportIcon(sport),
+                                  size: 12,
                                   color: _getSportColor(sport),
-                                  fontWeight: FontWeight.w500,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 5),
+                                Text(
+                                  sport,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: _getSportColor(sport),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Book Button with special offer text
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BookingScreen(turf: widget.turf),
                           ),
                         );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // Book Button with special offer text
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => BookingScreen(turf: widget.turf),
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 2,
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      elevation: 2,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.calendar_month, size: 20),
-                        const SizedBox(width: 10),
-                        const Text(
-                          "Book Now",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.calendar_month, size: 20),
+                          const SizedBox(width: 10),
+                          const Text(
+                            "Book Now",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        if (_hasOffer) const SizedBox(width: 4),
-                        if (_hasOffer)
-                          const Icon(Icons.bolt, size: 16, color: Colors.amber),
-                      ],
+                          if (_hasOffer) const SizedBox(width: 4),
+                          if (_hasOffer)
+                            const Icon(
+                              Icons.bolt,
+                              size: 16,
+                              color: Colors.amber,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -2943,5 +3103,149 @@ class _TurfCardState extends State<TurfCard> {
       default:
         return Icons.sports;
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fullscreen image viewer — opened when user taps any photo in the card slider
+// ─────────────────────────────────────────────────────────────────────────────
+class FullScreenImageViewer extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const FullScreenImageViewer({
+    super.key,
+    required this.images,
+    this.initialIndex = 0,
+  });
+
+  @override
+  State<FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
+  late final PageController _ctrl;
+  late int _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _ctrl = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Photos with pinch-to-zoom
+          PageView.builder(
+            controller: _ctrl,
+            onPageChanged: (i) => setState(() => _current = i),
+            itemCount: widget.images.length,
+            itemBuilder: (_, i) => InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Center(
+                child: Image.network(
+                  widget.images[i],
+                  fit: BoxFit.contain,
+                  loadingBuilder: (_, child, prog) => prog == null
+                      ? child
+                      : const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                  errorBuilder: (_, __, ___) => const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image,
+                          color: Colors.white54,
+                          size: 48,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Image unavailable',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Top bar: close button + counter
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const Spacer(),
+                  if (widget.images.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: Text(
+                        '${_current + 1} / ${widget.images.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+
+          // Dot indicators at bottom
+          if (widget.images.length > 1)
+            Positioned(
+              bottom: 32,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  widget.images.length,
+                  (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: _current == i ? 20 : 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: _current == i
+                          ? Colors.white
+                          : Colors.white.withAlpha(120),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

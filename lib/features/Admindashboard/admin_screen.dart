@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:turfzone/features/home/user_home_screen.dart';
 import 'package:turfzone/features/editslottime/edit_turf_screen.dart';
@@ -9,6 +10,7 @@ import 'package:turfzone/features/partner/join_partner_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'reports_screen.dart';
 import '../../services/turf_data_service.dart';
+import 'pending_approval_screen.dart';
 
 // Turf model for admin
 class AdminTurf {
@@ -71,16 +73,30 @@ class _AdminScreenState extends State<AdminScreen> {
   // Live dashboard stats from API
   Map<String, dynamic> _dashboardStats = {};
 
+  // When non-null, the owner has no approved turfs — show pending screen
+  Map<String, dynamic>? _pendingApprovalData;
+
   final TurfDataService _turfService = TurfDataService();
 
   @override
   void initState() {
     super.initState();
     _turfService.addListener(_onDataChanged);
-    // Load local data first (immediate), then fetch from API
+    // Load local data first (immediate), then fetch from API sequentially
     _loadRegisteredTurf();
-    _initOwnerTurfs();
-    _loadDashboardStats();
+    _startInit();
+  }
+
+  /// Sequential init: load turfs first, then stats (avoids race conditions).
+  Future<void> _startInit() async {
+    await _initOwnerTurfs(); // loads myTurfs and calls _loadRegisteredTurf
+    await _loadDashboardStats(); // then checks can_manage
+  }
+
+  /// Full refresh: sequential — turfs first, then stats.
+  Future<void> _refreshAll() async {
+    await _initOwnerTurfs();
+    await _loadDashboardStats();
   }
 
   /// Fetch owner turfs from API, then rebuild dashboard
@@ -115,16 +131,37 @@ class _AdminScreenState extends State<AdminScreen> {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
-  /// Fetch aggregate dashboard stats from backend
+  /// Fetch aggregate dashboard stats from backend.
+  /// If can_manage == false, stores the limited response so the build
+  /// method can render PendingApprovalScreen instead of the full dashboard.
   Future<void> _loadDashboardStats() async {
     try {
       final api = ApiService();
       final res = await api.getAuth('/api/turfs/turfs/owner_dashboard_stats/');
-      if (res['success'] == true && mounted) {
-        setState(() => _dashboardStats = res);
+      if (!mounted) return;
+      if (res['success'] == true) {
+        if (res['can_manage'] == false) {
+          setState(() {
+            _pendingApprovalData = res;
+            _dashboardStats = {};
+          });
+        } else {
+          setState(() {
+            _dashboardStats = res;
+            _pendingApprovalData = null; // clear any stale pending gate
+          });
+          _loadRegisteredTurf();
+        }
+      } else {
+        // Unexpected response — clear the pending gate defensively
+        if (mounted) setState(() => _pendingApprovalData = null);
       }
     } catch (e) {
       debugPrint('Dashboard stats error: $e');
+      // On error, do NOT keep showing PendingApprovalScreen forever.
+      if (mounted && _turfService.myTurfs.isNotEmpty) {
+        setState(() => _pendingApprovalData = null);
+      }
     }
   }
 
@@ -170,11 +207,8 @@ class _AdminScreenState extends State<AdminScreen> {
               distance: turf.distance,
               price: turf.price,
               rating: turf.rating,
-              images: turf.images.isNotEmpty
-                  ? turf.images
-                  : [
-                      'https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800',
-                    ],
+              // Use backend images; empty list shows placeholder in _buildTurfCard
+              images: turf.images,
               amenities: turf.amenities,
               mapLink: turf.mapLink,
               address: turf.address,
@@ -693,6 +727,33 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ── Approval gate: show pending screen for unapproved owners ──────────
+    // Safety bypass: if myTurfs already has approved turfs, skip the gate.
+    final hasApprovedTurf = _turfService.myTurfs.any(
+      (t) => t.turfStatus == 'approved',
+    );
+    if (_pendingApprovalData != null && !hasApprovedTurf) {
+      final data = _pendingApprovalData!;
+      final rawStatuses = data['turf_statuses'] as List<dynamic>? ?? [];
+      return PendingApprovalScreen(
+        pendingCount: data['pending_count'] as int? ?? 0,
+        rejectedCount: data['rejected_count'] as int? ?? 0,
+        suspendedCount: data['suspended_count'] as int? ?? 0,
+        message:
+            data['message'] as String? ??
+            'Your turf is under review. Please check back later.',
+        turfStatuses: rawStatuses
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList(),
+        onRefresh: _refreshAll,
+      );
+    } else if (hasApprovedTurf && _pendingApprovalData != null) {
+      // Stale pending data — clear it so we don't loop
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _pendingApprovalData = null);
+      });
+    }
+
     if (_navScreens.isEmpty) {
       return Scaffold(
         backgroundColor: backgroundColor,
@@ -757,7 +818,14 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Managing ${_filteredAdminTurfs.length} turfs',
+                      () {
+                        // Use stats total_turfs from API (most accurate)
+                        final statsTotal =
+                            _dashboardStats['total_turfs'] as int?;
+                        final displayCount =
+                            statsTotal ?? _filteredAdminTurfs.length;
+                        return 'Managing $displayCount turf${displayCount == 1 ? '' : 's'}';
+                      }(),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.white.withOpacity(0.9),
@@ -1018,35 +1086,61 @@ class _AdminScreenState extends State<AdminScreen> {
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
                 ),
-                child: Image.network(
-                  turf.images[0],
-                  height: 140,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 140,
-                      width: double.infinity,
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(
-                          Icons.image_not_supported,
-                          color: Colors.grey,
-                          size: 40,
+                child: turf.images.isNotEmpty
+                    ? Image.network(
+                        turf.images[0],
+                        height: 140,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 140,
+                            width: double.infinity,
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: Icon(
+                                Icons.image_not_supported,
+                                color: Colors.grey,
+                                size: 40,
+                              ),
+                            ),
+                          );
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            height: 140,
+                            width: double.infinity,
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
+                        height: 140,
+                        width: double.infinity,
+                        color: Colors.grey[200],
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.stadium_outlined,
+                              size: 40,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'No photos yet',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      height: 140,
-                      width: double.infinity,
-                      color: Colors.grey[200],
-                      child: const Center(child: CircularProgressIndicator()),
-                    );
-                  },
-                ),
               ),
               // Status Badge
               Positioned(
@@ -1262,13 +1356,16 @@ class _AdminScreenState extends State<AdminScreen> {
                           icon: Icons.edit,
                           label: 'Edit',
                           color: Colors.orange,
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () async {
+                            final refreshed = await Navigator.push<bool>(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const EditTurfScreen(),
+                                builder: (_) => EditTurfScreen(turf: turf),
                               ),
                             );
+                            if (refreshed == true && mounted) {
+                              _refreshAll();
+                            }
                           },
                         ),
                       ),
@@ -1503,9 +1600,107 @@ class _AdminScreenState extends State<AdminScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          // ── Image gallery ────────────────────────────────
+                          if (turf.images.isNotEmpty) ...[
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: SizedBox(
+                                height: 220,
+                                width: double.infinity,
+                                child: PageView.builder(
+                                  itemCount: turf.images.length,
+                                  itemBuilder: (ctx, idx) {
+                                    final url = turf.images[idx];
+                                    return Image.network(
+                                      url,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (ctx, err, st) {
+                                        if (kDebugMode) {
+                                          debugPrint('[IMG ERROR] $url — $err');
+                                        }
+                                        return Container(
+                                          color: Colors.grey[200],
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.broken_image_rounded,
+                                                size: 40,
+                                                color: Colors.grey[500],
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                'Image unavailable',
+                                                style: TextStyle(
+                                                  color: Colors.grey[600],
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                      loadingBuilder: (ctx, child, prog) {
+                                        if (prog == null) return child;
+                                        return Container(
+                                          color: Colors.grey[100],
+                                          child: const Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                            if (turf.images.length > 1)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Center(
+                                  child: Text(
+                                    '${turf.images.length} photos — swipe to view',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[500],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 20),
+                          ] else ...[
+                            Container(
+                              height: 220,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.add_photo_alternate_outlined,
+                                      size: 48,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'No images uploaded yet',
+                                      style: TextStyle(color: Colors.grey[500]),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // ── Description ──────────────────────────────────
+                          const Text(
                             'Description',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: Colors.black87,
@@ -1521,9 +1716,9 @@ class _AdminScreenState extends State<AdminScreen> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          Text(
+                          const Text(
                             'Amenities',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: Colors.black87,

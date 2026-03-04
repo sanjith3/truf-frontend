@@ -258,96 +258,97 @@ class _BookingScreenState extends State<BookingScreen> {
         backgroundColor: const Color(0xFF1DB954),
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          // Turf Info Card
-          TurfInfoCard(turf: widget.turf),
-          const SizedBox(height: 16),
-
-          // Date selector
-          _buildDateSelector(next30Days),
-          const SizedBox(height: 16),
-
-          // Color legend
-          _buildClarityBox(),
-          const SizedBox(height: 16),
-
-          // Time slot header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1DB954)),
+              ),
+            )
+          : _errorMessage != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _errorMessage!,
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _fetchAvailability,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1DB954),
+                    ),
+                    child: const Text(
+                      "Retry",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : ListView(
               children: [
-                const Text(
-                  "Select Time Slots",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.orange.shade200),
-                  ),
-                  child: Text(
-                    "${_selectedSlotIds.length} selected",
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange.shade800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+                // Turf Info Card
+                TurfInfoCard(turf: widget.turf),
+                const SizedBox(height: 16),
 
-          const SizedBox(height: 12),
+                // Date selector (scrolls away naturally)
+                _buildDateSelector(next30Days),
+                const SizedBox(height: 16),
 
-          // Time slots or loading/error
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Color(0xFF1DB954),
+                // Color legend
+                _buildClarityBox(),
+                const SizedBox(height: 16),
+
+                // Time slot header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      const Text(
+                        "Select Time Slots",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  )
-                : _errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: Colors.grey.shade400,
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _errorMessage!,
-                          style: TextStyle(color: Colors.grey.shade600),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.orange.shade200),
                         ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: _fetchAvailability,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1DB954),
-                          ),
-                          child: const Text(
-                            "Retry",
-                            style: TextStyle(color: Colors.white),
+                        child: Text(
+                          "${_selectedSlotIds.length} selected",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade800,
                           ),
                         ),
-                      ],
-                    ),
-                  )
-                : _slots.isEmpty
-                ? Center(
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Time slot categories (all scroll naturally)
+                if (_slots.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -367,7 +368,8 @@ class _BookingScreenState extends State<BookingScreen> {
                       ],
                     ),
                   )
-                : SingleChildScrollView(
+                else ...[
+                  Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       children: [
@@ -403,13 +405,14 @@ class _BookingScreenState extends State<BookingScreen> {
                             return hour >= 18 && hour <= 23;
                           },
                         ),
-                        const SizedBox(height: 80),
                       ],
                     ),
                   ),
-          ),
-        ],
-      ),
+                ],
+
+                const SizedBox(height: 80),
+              ],
+            ),
 
       // Sticky bottom bar
       bottomNavigationBar: _buildBottomBar(),

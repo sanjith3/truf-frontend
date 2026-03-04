@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/api_service.dart';
@@ -947,10 +948,14 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
     }
 
     try {
-      // Call backend — server decides: reuse existing user or create new
+      // ── Step 1: Register turf owner + create turf with ALL data ──
+      final allSports = [...selectedSports, ...customSports];
+      final allAmenities = [...selectedAmenities, ...customAmenities];
+
       final response = await ApiService().post(
         '/api/users/user-registration/turf_owner_register/',
         body: {
+          // Account credentials
           'username': _phoneController.text.trim(),
           'email': '${_phoneController.text.trim()}@partner.turfzone.com',
           'password': 'Partner@${_phoneController.text.trim()}',
@@ -960,30 +965,84 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
               ? _fullNameController.text.trim().split(' ').sublist(1).join(' ')
               : '',
           'phone_number': _phoneController.text.trim(),
-          'google_maps_share_link': _mapsLinkController.text.trim(),
+
+          // Turf basic info
           'turf_name': _businessNameController.text.trim(),
           'description': _descriptionController.text.trim(),
+          'price_per_hour': int.tryParse(_priceController.text.trim()) ?? 500,
+          'max_players': 22, // default — no dedicated field in form
+          // Location
           'address': _addressController.text.trim(),
           'city': selectedPartnerCity ?? _cityController.text.trim(),
           'state': selectedPartnerState ?? '',
-          'price_per_hour': int.tryParse(_priceController.text.trim()) ?? 500,
+          'postal_code': _zipCodeController.text.trim(),
+          'google_maps_share_link': _mapsLinkController.text.trim(),
+
+          // Sports & Amenities (sent as JSON arrays of names)
+          'sports': allSports,
+          'amenities': allAmenities,
+
+          // Bank details
+          'account_holder_name': _accountHolderNameController.text.trim(),
+          'bank_account': _accountNumberController.text.trim(),
+          'bank_name': _bankNameController.text.trim(),
+          'ifsc_code': _ifscCodeController.text.trim(),
         },
       );
 
-      // Save tokens from backend response
+      // ── Step 2: Save tokens from backend response ──
+      String? accessToken;
       if (response['tokens'] != null) {
+        accessToken = response['tokens']['access'];
         await ApiService.saveTokens(
-          response['tokens']['access'],
+          accessToken!,
           response['tokens']['refresh'],
         );
       }
 
-      // Dismiss loading dialog and show success
-      if (mounted) Navigator.pop(context);
+      // ── Step 3: Upload photos one-by-one (if any selected) ──
+      final turfId = response['turf_id'];
+      if (selectedPhotos.isNotEmpty && turfId != null && accessToken != null) {
+        for (int i = 0; i < selectedPhotos.length; i++) {
+          try {
+            final file = selectedPhotos[i];
+            final uploadUrl =
+                '${ApiService.BASE_URL}/api/turfs/turfs/$turfId/upload_image/';
+            final request = http.MultipartRequest('POST', Uri.parse(uploadUrl));
+            request.headers['Authorization'] = 'Bearer $accessToken';
+            request.headers['Accept'] = 'application/json';
+
+            final stream = http.ByteStream(file.openRead());
+            final length = await file.length();
+            request.files.add(
+              http.MultipartFile(
+                'image',
+                stream,
+                length,
+                filename: file.path.split(Platform.pathSeparator).last,
+              ),
+            );
+            request.fields['is_cover'] = i == 0 ? 'true' : 'false';
+
+            final streamed = await request.send().timeout(
+              const Duration(seconds: 30),
+            );
+            final resp = await http.Response.fromStream(streamed);
+            print(
+              '📷 Image $i upload: ${resp.statusCode} — ${resp.body.substring(0, resp.body.length.clamp(0, 120))}',
+            );
+          } catch (imgErr) {
+            print('⚠️ Image $i upload failed: $imgErr');
+            // Don't fail the whole registration just because a photo upload failed
+          }
+        }
+      }
+
+      // ── Step 4: Show success ──
+      if (mounted) Navigator.pop(context); // dismiss loading
       _showReviewDialog();
     } on ApiException catch (e) {
-      // Backend returned a real error (400/500)
-      if (mounted) Navigator.pop(context); // dismiss loading
+      if (mounted) Navigator.pop(context);
       String errorMsg = 'Registration failed. Please try again.';
       try {
         final body = jsonDecode(e.body);
@@ -991,8 +1050,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
       } catch (_) {}
       _showSnackBar(errorMsg, isError: true);
     } catch (e) {
-      // Network / unexpected error
-      if (mounted) Navigator.pop(context); // dismiss loading
+      if (mounted) Navigator.pop(context);
       _showSnackBar(
         'Connection error. Please check your network.',
         isError: true,

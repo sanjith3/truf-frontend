@@ -119,6 +119,57 @@ class ApiService {
     }
   }
 
+  /// Multipart POST — no auth required.
+  /// [fields] are plain text key-value pairs.
+  /// [files] maps field name → file path.
+  Future<dynamic> postMultipart(
+    String path, {
+    required Map<String, String> fields,
+    List<File>? files,
+    String fileField = 'images',
+  }) async {
+    final url = Uri.parse('$BASE_URL$path');
+    print('🔥 MULTIPART POST $url | fields: ${fields.keys}');
+
+    try {
+      final request = http.MultipartRequest('POST', url);
+      request.headers.addAll({'Accept': 'application/json'});
+      request.fields.addAll(fields);
+
+      if (files != null) {
+        for (final file in files) {
+          final stream = http.ByteStream(file.openRead());
+          final length = await file.length();
+          final multipartFile = http.MultipartFile(
+            fileField,
+            stream,
+            length,
+            filename: file.path.split(Platform.pathSeparator).last,
+          );
+          request.files.add(multipartFile);
+        }
+      }
+
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 60),
+      );
+      final response = await http.Response.fromStream(streamed);
+      print('🔥 MULTIPART POST ${response.statusCode}: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body);
+      } else {
+        throw ApiException(response.statusCode, response.body);
+      }
+    } on SocketException catch (e) {
+      print('🚨 SOCKET ERROR (MULTIPART): $e');
+      rethrow;
+    } catch (e) {
+      print('🚨 MULTIPART ERROR: $e (${e.runtimeType})');
+      rethrow;
+    }
+  }
+
   // ─── AUTHENTICATED REQUESTS (JWT required) ───
 
   /// GET request with JWT Bearer token

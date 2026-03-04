@@ -8,6 +8,7 @@ import '../features/referral/invite_friends_screen.dart';
 import '../models/turf.dart';
 import '../services/api_service.dart';
 import '../services/auth_state.dart';
+import 'card_payment_screen.dart';
 
 /// Payment Screen — Razorpay checkout flow
 ///
@@ -28,6 +29,8 @@ class PaymentScreen extends StatefulWidget {
   final String bookingDate;
   final int slotCount;
   final Turf turf;
+  final String couponDiscount; // Coupon discount amount, default '0'
+  final String couponCode; // Coupon code applied, default ''
 
   const PaymentScreen({
     super.key,
@@ -37,6 +40,8 @@ class PaymentScreen extends StatefulWidget {
     required this.bookingDate,
     required this.slotCount,
     required this.turf,
+    this.couponDiscount = '0',
+    this.couponCode = '',
   });
 
   @override
@@ -122,7 +127,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
       } else if (statusCode == 503) {
         // Payment gateway not configured — fall back to direct confirm
         setState(() => _isProcessing = false);
-        _fallbackDirectConfirm();
+        if (_selectedPaymentMethod == 'card') {
+          _goToCardPayment();
+        } else {
+          _fallbackDirectConfirm();
+        }
       } else if (statusCode == 400) {
         setState(() => _isProcessing = false);
         _showErrorDialog(
@@ -229,6 +238,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  // ─── CARD: Navigate to card entry screen ───
+  void _goToCardPayment() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CardPaymentScreen(
+          totalPayable: widget.totalPayable,
+          onSuccess: () => _fallbackDirectConfirm(),
+        ),
+      ),
+    );
+  }
+
   // ─── FALLBACK: Direct confirm (when Razorpay not configured) ───
   Future<void> _fallbackDirectConfirm() async {
     setState(() => _isProcessing = true);
@@ -239,6 +261,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
         body: {
           'preview_token': widget.previewToken,
           'total_payable': widget.totalPayable,
+          'coupon_discount': widget.couponDiscount,
+          if (widget.couponCode.isNotEmpty) 'coupon_code': widget.couponCode,
         },
       );
 
@@ -470,7 +494,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () {
+                          // Close the sheet first, then navigate home clearing the stack
+                          Navigator.pop(context);
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const UserHomeScreen(),
+                            ),
+                            (route) => false,
+                          );
+                        },
                         child: const Text(
                           'Maybe Later',
                           style: TextStyle(color: Colors.grey, fontSize: 13),
@@ -719,7 +753,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: _isProcessing ? null : _processPayment,
+                onPressed: _isProcessing
+                    ? null
+                    : (_selectedPaymentMethod == 'card'
+                          ? _goToCardPayment
+                          : _processPayment),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1DB954),
                   disabledBackgroundColor: Colors.grey.shade300,

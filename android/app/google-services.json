@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "564716716033",
+    "project_id": "trufspot",
+    "storage_bucket": "trufspot.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:564716716033:android:ab9722a9ce4144c835c000",
+        "android_client_info": {
+          "package_name": "com.turfspot.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBK092JEUKc3sM7NPo5kH5Dk5FtMMtRUsU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
