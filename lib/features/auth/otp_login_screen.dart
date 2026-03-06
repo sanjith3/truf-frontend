@@ -9,6 +9,7 @@ import '../../services/api_service.dart';
 import '../../services/auth_state.dart';
 import '../home/user_home_screen.dart';
 import 'forgot_password_screen.dart';
+import 'otp_verify_screen.dart';
 
 class OtpLoginScreen extends StatefulWidget {
   const OtpLoginScreen({super.key});
@@ -447,99 +448,131 @@ class _OtpLoginScreenState extends State<OtpLoginScreen> {
     }
   }
 
-  // ─── BACKEND REGISTRATION ───
+  // ─── BACKEND REGISTRATION (with OTP) ───
   Future<void> _handleRegistration() async {
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
     final password = _passwordController.text.trim();
 
     if (name.isEmpty) {
-      _showError(context, "Please enter your name");
+      _showError(context, 'Please enter your name');
       return;
     }
     if (name.length > 25) {
-      _showError(context, "Name must be less than 25 characters");
+      _showError(context, 'Name must be less than 25 characters');
       return;
     }
     if (phone.length != 10) {
-      _showError(context, "Please enter a valid 10-digit phone number");
+      _showError(context, 'Please enter a valid 10-digit phone number');
       return;
     }
     if (password.isEmpty || password.length < 6) {
-      _showError(context, "Password must be at least 6 characters");
+      _showError(context, 'Password must be at least 6 characters');
       return;
     }
     if (!_agreedToTerms) {
-      _showError(context, "Please agree to the Terms & Privacy Policy");
+      _showError(context, 'Please agree to the Terms & Privacy Policy');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      final response = await _api.post(
-        '/api/users/user-registration/normal_user_register/',
-        body: {
-          'username': phone, // Use phone as username
-          'phone_number': phone,
-          'first_name': name,
-          'last_name': '',
-          'email': '$phone@turfzone.app', // Placeholder email
-          'password': password,
-          'password_confirm': password,
-        },
+      // Step 1: Send OTP to phone number
+      await _api.post(
+        '/api/users/otp/send_otp/',
+        body: {'phone': phone, 'purpose': 'registration'},
       );
 
-      if (response['success'] == true) {
-        // Store JWT tokens
-        await ApiService.saveTokens(
-          response['tokens']['access'],
-          response['tokens']['refresh'],
-        );
+      if (!mounted) return;
 
-        // Store user info
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('userName', name);
-        await prefs.setString('userPhone', phone);
-        await prefs.setBool('isLoggedIn', true);
-        await prefs.setString('userRole', 'user');
+      // Step 2: Navigate to OTP verification screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpVerificationScreen(
+            phoneNumber: phone,
+            purpose: 'registration',
+            onVerified: (tempToken) async {
+              // Step 3: Complete registration with verified temp token
+              try {
+                final response = await _api.post(
+                  '/api/users/otp/complete_registration/',
+                  body: {
+                    'name': name,
+                    'phone': phone,
+                    'password': password,
+                    'otp_token': tempToken,
+                  },
+                );
 
-        // Load full profile before navigating
-        await AuthState.instance.loadProfile();
+                if (response['success'] == true) {
+                  await ApiService.saveTokens(
+                    response['tokens']['access'],
+                    response['tokens']['refresh'],
+                  );
 
-        // Upload FCM token to backend silently (fire-and-forget)
-        _uploadFcmToken();
+                  final prefs = await SharedPreferences.getInstance();
+                  final user = response['user'];
+                  await prefs.setString(
+                    'userName',
+                    user['first_name'] ?? user['username'] ?? name,
+                  );
+                  await prefs.setString('userPhone', phone);
+                  await prefs.setBool('isLoggedIn', true);
+                  await prefs.setString('userRole', 'user');
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Registration successful! Welcome to TurfZone"),
-              backgroundColor: Color(0xFF1DB954),
-              duration: Duration(seconds: 2),
-            ),
-          );
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const UserHomeScreen()),
-          );
-        }
-      } else {
-        final errors = response['errors'];
-        if (errors != null && errors is Map) {
-          final firstError = errors.values.first;
-          if (firstError is List && firstError.isNotEmpty) {
-            _showError(context, firstError.first.toString());
-          } else {
-            _showError(context, firstError.toString());
-          }
-        } else {
-          _showError(context, response['error'] ?? 'Registration failed');
-        }
-      }
+                  await AuthState.instance.loadProfile();
+                  _uploadFcmToken();
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Registration successful! Welcome to TurfZone',
+                        ),
+                        backgroundColor: Color(0xFF1DB954),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const UserHomeScreen()),
+                    );
+                  }
+                } else {
+                  if (mounted) {
+                    _showError(
+                      context,
+                      response['error'] ??
+                          'Registration failed. Please try again.',
+                    );
+                  }
+                }
+              } on ApiException catch (e) {
+                if (mounted) {
+                  _showError(context, 'Registration failed (${e.statusCode})');
+                }
+              } catch (_) {
+                if (mounted) {
+                  _showError(context, 'Cannot connect to server.');
+                }
+              }
+            },
+          ),
+        ),
+      );
     } on ApiException catch (e) {
-      _showError(context, "Registration failed: ${e.statusCode}");
-    } catch (e) {
-      _showError(context, "Cannot connect to server. Check your connection.");
+      if (e.statusCode == 429) {
+        _showError(
+          context,
+          'Too many OTP requests. Please wait and try again.',
+        );
+      } else {
+        _showError(context, 'Failed to send OTP. Please try again.');
+      }
+    } catch (_) {
+      _showError(context, 'Cannot connect to server. Check your connection.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

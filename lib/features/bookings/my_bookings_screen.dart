@@ -24,22 +24,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   bool _isLoading = true;
   String? _errorMessage;
 
-  // Define turf images for each booking
-  final Map<String, String> _turfImages = {
-    'Green Field Arena':
-        'https://images.unsplash.com/photo-1531315630201-bb15abeb1653?w=800',
-    'Elite Football Ground':
-        'https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800',
-    'City Sports Turf':
-        'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800',
-    'Victory Sports Park':
-        'https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=800',
-    'Premium Sports Arena':
-        'https://images.unsplash.com/photo-1547347298-4074fc3086f0?w=800',
-    'Budget Sports Ground':
-        'https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=800',
-  };
-
   @override
   void initState() {
     super.initState();
@@ -436,13 +420,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => BookingDetailsScreen(
-          booking: booking,
-          imageUrl:
-              _turfImages[booking.turfName] ??
-              "https://images.unsplash.com/photo-1531315630201-bb15abeb1653?w=800",
-          isAdmin: widget.isAdmin,
-        ),
+        builder: (_) =>
+            BookingDetailsScreen(booking: booking, isAdmin: widget.isAdmin),
       ),
     ).then((_) => _loadMyBookings()); // refresh on return
   }
@@ -577,9 +556,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         final canCancel = _canCancelBooking(bookings[index]);
         return BookingTurfCard(
           booking: bookings[index],
-          imageUrl:
-              _turfImages[bookings[index].turfName] ??
-              "https://images.unsplash.com/photo-1531315630201-bb15abeb1653?w=800",
           showCancelButton: showCancelButton,
           canCancel: canCancel,
           isAdmin: widget.isAdmin,
@@ -595,7 +571,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
 
 class BookingTurfCard extends StatelessWidget {
   final Booking booking;
-  final String imageUrl;
   final bool showCancelButton;
   final bool canCancel;
   final bool isAdmin;
@@ -607,7 +582,6 @@ class BookingTurfCard extends StatelessWidget {
   const BookingTurfCard({
     super.key,
     required this.booking,
-    required this.imageUrl,
     required this.showCancelButton,
     required this.canCancel,
     required this.isAdmin,
@@ -680,18 +654,30 @@ class BookingTurfCard extends StatelessWidget {
           // Image with Status Badge
           Stack(
             children: [
-              Container(
-                height: 105,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(18),
-                    topRight: Radius.circular(18),
-                  ),
-                  image: DecorationImage(
-                    image: NetworkImage(imageUrl),
-                    fit: BoxFit.cover,
-                  ),
+              // Turf image — real URL from API or gradient placeholder
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(18),
+                  topRight: Radius.circular(18),
+                ),
+                child: SizedBox(
+                  height: 105,
+                  width: double.infinity,
+                  child:
+                      booking.imageUrl != null && booking.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          booking.imageUrl!,
+                          height: 105,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              _buildImagePlaceholder(),
+                          loadingBuilder: (_, child, progress) {
+                            if (progress == null) return child;
+                            return _buildImagePlaceholder(loading: true);
+                          },
+                        )
+                      : _buildImagePlaceholder(),
                 ),
               ),
 
@@ -1136,6 +1122,26 @@ class BookingTurfCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildImagePlaceholder({bool loading = false}) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1DB954), Color(0xFF0D7A35)],
+        ),
+      ),
+      child: Center(
+        child: loading
+            ? const CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              )
+            : const Icon(Icons.grass, size: 36, color: Colors.white54),
+      ),
     );
   }
 }

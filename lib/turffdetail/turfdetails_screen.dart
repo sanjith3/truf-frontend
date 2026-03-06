@@ -21,19 +21,13 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
 
   // Ensure we have at least 5 images (admin will provide)
   List<String> get _turfImages {
-    // If admin provides less than 5 images, duplicate existing ones or use placeholders
-    List<String> images = widget.turf.images;
-    if (images.length < 5) {
-      // For demo: if less than 5 images, duplicate or add placeholders
-      while (images.length < 5) {
-        images.add(
-          images.isNotEmpty
-              ? images[images.length % images.length]
-              : 'https://via.placeholder.com/800x600?text=Turf+Image+${images.length + 1}',
-        );
-      }
+    final images = List<String>.from(widget.turf.images);
+    if (images.isEmpty) {
+      // No placeholder needed — the carousel will show a gradient placeholder
+      return images;
     }
-    return images.take(5).toList(); // Ensure exactly 5 images
+    // We show however many real images exist — no duplication
+    return images;
   }
 
   List<String> get _availableGames => widget.turf.sports;
@@ -389,42 +383,63 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: _availableGames.map((game) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.blue.shade100),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _getGameIcon(game),
-                                size: 18,
-                                color: Colors.blue.shade700,
+                    _availableGames.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.blue.shade100),
+                            ),
+                            child: Text(
+                              "No sports configured yet",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.blue.shade400,
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                game,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blue.shade700,
+                            ),
+                          )
+                        : Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: _availableGames.map((game) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
                                 ),
-                              ),
-                            ],
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.blue.shade100,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _getGameIcon(game),
+                                      size: 18,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      game,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
                           ),
-                        );
-                      }).toList(),
-                    ),
 
                     const SizedBox(height: 30),
 
@@ -437,47 +452,70 @@ class _TurfDetailsScreenState extends State<TurfDetailsScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                            childAspectRatio: 3.5,
-                          ),
-                      itemCount: _facilities.length,
-                      itemBuilder: (context, index) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.green.shade100),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                size: 18,
-                                color: Colors.green.shade700,
+                    _facilities.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green.shade100),
+                            ),
+                            child: Text(
+                              "No amenities listed yet",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.green.shade400,
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  _facilities[index],
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.green.shade800,
+                            ),
+                          )
+                        : GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10,
+                                  childAspectRatio: 3.5,
+                                ),
+                            itemCount: _facilities.length,
+                            itemBuilder: (context, index) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.green.shade100,
                                   ),
                                 ),
-                              ),
-                            ],
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle,
+                                      size: 18,
+                                      color: Colors.green.shade700,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        _facilities[index],
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.green.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
 
                     const SizedBox(height: 30),
 

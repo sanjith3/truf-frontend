@@ -6,30 +6,42 @@ import 'booking_success_screen.dart';
 
 class BookingDetailsScreen extends StatelessWidget {
   final Booking booking;
-  final String imageUrl;
   final bool isAdmin;
 
   const BookingDetailsScreen({
     super.key,
     required this.booking,
-    required this.imageUrl,
     this.isAdmin = false,
   });
 
   Future<void> _openMapLocation(BuildContext context, String mapLink) async {
+    if (mapLink.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Map link not available")));
+      return;
+    }
     final Uri uri = Uri.parse(mapLink);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Could not open Google Maps")),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not open Google Maps")),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    const double platformFee = 10.0;
-    final double totalAmount = booking.amount;
-    final double baseAmount = totalAmount - platformFee;
+    // Real financial breakdown from API
+    final double finalPrice = booking.amount;
+    final double totalPrice = booking.totalPrice > 0
+        ? booking.totalPrice
+        : finalPrice;
+    final double discount = booking.discount;
+    final double gst = booking.gstAmount;
+    final double platformFee = booking.platformFee;
+    final double creditsUsed = booking.creditsUsed;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -117,100 +129,83 @@ class BookingDetailsScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
+                  // Turf Image — real API URL or green gradient placeholder
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(16),
                     ),
-                    child: Image.network(
-                      imageUrl,
-                      height: 150,
+                    child: SizedBox(
+                      height: 160,
                       width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 150,
-                          width: double.infinity,
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.image_not_supported,
-                                  color: Colors.grey,
-                                  size: 40,
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  "Image not available",
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Container(
-                          height: 150,
-                          width: double.infinity,
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      },
+                      child:
+                          booking.imageUrl != null &&
+                              booking.imageUrl!.isNotEmpty
+                          ? Image.network(
+                              booking.imageUrl!,
+                              height: 160,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  _buildImagePlaceholder(),
+                              loadingBuilder: (_, child, progress) {
+                                if (progress == null) return child;
+                                return _buildImagePlaceholder(loading: true);
+                              },
+                            )
+                          : _buildImagePlaceholder(),
                     ),
                   ),
+
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Turf name + rating
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              booking.turfName,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                            Expanded(
+                              child: Text(
+                                booking.turfName,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.amber[50],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.star,
-                                    size: 14,
-                                    color: Colors.amber,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    booking.rating.toString(),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                            if (booking.rating > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber[50],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.star,
+                                      size: 14,
+                                      color: Colors.amber,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      booking.rating.toStringAsFixed(1),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 12),
+                        // Address
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -222,7 +217,9 @@ class BookingDetailsScreen extends StatelessWidget {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                booking.address,
+                                booking.address.isNotEmpty
+                                    ? booking.address
+                                    : booking.location,
                                 style: TextStyle(
                                   color: Colors.grey[700],
                                   fontSize: 14,
@@ -232,6 +229,47 @@ class BookingDetailsScreen extends StatelessWidget {
                             ),
                           ],
                         ),
+
+                        // Offer badge
+                        if (booking.hasActiveOffer &&
+                            booking.offerValue != null) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1DB954).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFF1DB954).withOpacity(0.4),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.local_offer,
+                                  size: 14,
+                                  color: Color(0xFF1DB954),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  booking.offerType == 'percentage'
+                                      ? '${booking.offerValue}% OFF offer applied'
+                                      : '₹${booking.offerValue} OFF offer applied',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1DB954),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
                         const SizedBox(height: 16),
                         SizedBox(
                           width: double.infinity,
@@ -259,7 +297,7 @@ class BookingDetailsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Booking Time and Amenities
+            // Date & Time + Sports info
             Row(
               children: [
                 Expanded(
@@ -272,14 +310,30 @@ class BookingDetailsScreen extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildInfoSection(
-                    "Amenities",
-                    booking.amenities.take(3).join(", "),
+                    "Sports",
+                    booking.sports.isNotEmpty
+                        ? booking.sports.take(3).join(", ")
+                        : (booking.amenities.isNotEmpty
+                              ? booking.amenities.take(3).join(", ")
+                              : "—"),
                     Icons.sports_soccer,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // Amenities row (only if there are amenities)
+            if (booking.amenities.isNotEmpty) ...[
+              _buildInfoSection(
+                "Amenities",
+                booking.amenities.join("  •  "),
+                Icons.checklist,
+                fullWidth: true,
+              ),
+              const SizedBox(height: 24),
+            ] else
+              const SizedBox(height: 8),
 
             // Payment Bill
             const Text(
@@ -302,26 +356,45 @@ class BookingDetailsScreen extends StatelessWidget {
                 children: [
                   _buildPaymentRow(
                     "Base Price",
-                    "₹${baseAmount.toStringAsFixed(0)}",
+                    "₹${totalPrice.toStringAsFixed(0)}",
                   ),
-                  _buildPaymentRow("Platform Fee", "₹$platformFee"),
+                  if (discount > 0)
+                    _buildPaymentRow(
+                      "Discount",
+                      "-₹${discount.toStringAsFixed(0)}",
+                      valueColor: const Color(0xFF00C853),
+                    ),
+                  if (gst > 0)
+                    _buildPaymentRow("GST", "₹${gst.toStringAsFixed(0)}"),
+                  if (platformFee > 0)
+                    _buildPaymentRow(
+                      "Platform Fee",
+                      "₹${platformFee.toStringAsFixed(0)}",
+                    ),
+                  if (creditsUsed > 0)
+                    _buildPaymentRow(
+                      "Credits Used",
+                      "-₹${creditsUsed.toStringAsFixed(0)}",
+                      valueColor: Colors.purple,
+                    ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(),
                   ),
                   _buildPaymentRow(
-                    "Total Amount",
-                    "₹$totalAmount",
+                    "Total Paid",
+                    "₹${finalPrice.toStringAsFixed(0)}",
                     isTotal: true,
                   ),
                   const SizedBox(height: 12),
+                  // Payment status pill
                   Container(
                     padding: const EdgeInsets.symmetric(
                       vertical: 8,
                       horizontal: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: booking.paymentStatus == 'Paid'
+                      color: booking.paymentStatus.toLowerCase() == 'paid'
                           ? Colors.green[50]
                           : Colors.orange[50],
                       borderRadius: BorderRadius.circular(8),
@@ -330,21 +403,21 @@ class BookingDetailsScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          booking.paymentStatus == 'Paid'
+                          booking.paymentStatus.toLowerCase() == 'paid'
                               ? Icons.verified_user
                               : Icons.info_outline,
                           size: 16,
-                          color: booking.paymentStatus == 'Paid'
+                          color: booking.paymentStatus.toLowerCase() == 'paid'
                               ? Colors.green[700]
                               : Colors.orange[700],
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          "Payment Status: ${booking.paymentStatus}",
+                          "Payment: ${booking.paymentStatus.toUpperCase()}",
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: booking.paymentStatus == 'Paid'
+                            color: booking.paymentStatus.toLowerCase() == 'paid'
                                 ? Colors.green[700]
                                 : Colors.orange[700],
                           ),
@@ -356,6 +429,33 @@ class BookingDetailsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+
+            // Cancelled reason
+            if (booking.status == BookingStatus.cancelled &&
+                booking.cancelledReason != null &&
+                booking.cancelledReason!.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red[200]!),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.red[400], size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "Cancellation reason: ${booking.cancelledReason}",
+                        style: TextStyle(color: Colors.red[700], fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             // Invite Teammates — only for upcoming/confirmed bookings
             if (booking.status == BookingStatus.upcoming ||
@@ -427,7 +527,7 @@ class BookingDetailsScreen extends StatelessWidget {
               ),
             const SizedBox(height: 16),
 
-            // Help Button
+            // Help
             Center(
               child: TextButton(
                 onPressed: () {},
@@ -446,7 +546,32 @@ class BookingDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoSection(String title, String value, IconData icon) {
+  Widget _buildImagePlaceholder({bool loading = false}) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1DB954), Color(0xFF0D7A35)],
+        ),
+      ),
+      child: Center(
+        child: loading
+            ? const CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              )
+            : const Icon(Icons.grass, size: 48, color: Colors.white54),
+      ),
+    );
+  }
+
+  Widget _buildInfoSection(
+    String title,
+    String value,
+    IconData icon, {
+    bool fullWidth = false,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -485,7 +610,12 @@ class BookingDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPaymentRow(String label, String value, {bool isTotal = false}) {
+  Widget _buildPaymentRow(
+    String label,
+    String value, {
+    bool isTotal = false,
+    Color? valueColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -504,7 +634,9 @@ class BookingDetailsScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: isTotal ? 16 : 14,
               fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
-              color: isTotal ? const Color(0xFF00C853) : Colors.black,
+              color:
+                  valueColor ??
+                  (isTotal ? const Color(0xFF00C853) : Colors.black),
             ),
           ),
         ],
