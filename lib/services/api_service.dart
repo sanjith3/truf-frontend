@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 /// Central API service — single source of truth for backend URL.
 /// All screens must call backend through this service.
@@ -15,7 +16,13 @@ class ApiService {
   // LAN IP — NOT localhost / 127.0.0.1 / 10.0.2.2
   static const String BASE_URL = 'http://10.33.236.36:8000';
 
-  // SharedPreferences keys for JWT tokens
+  // BUG-12 FIX: Tokens stored in flutter_secure_storage (Android Keystore /
+  // iOS Keychain) — never in plain SharedPreferences XML on disk.
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
+  // Secure storage keys for JWT tokens
   static const String _accessTokenKey = 'auth_access_token';
   static const String _refreshTokenKey = 'auth_refresh_token';
 
@@ -26,30 +33,26 @@ class ApiService {
     String accessToken,
     String refreshToken,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_accessTokenKey, accessToken);
-    await prefs.setString(_refreshTokenKey, refreshToken);
-    print('🔐 Tokens saved to SharedPreferences');
+    await _storage.write(key: _accessTokenKey, value: accessToken);
+    await _storage.write(key: _refreshTokenKey, value: refreshToken);
+    debugPrint('🔐 Tokens saved to secure storage');
   }
 
   /// Get stored access token (returns null if not logged in)
   static Future<String?> getAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_accessTokenKey);
+    return _storage.read(key: _accessTokenKey);
   }
 
   /// Get stored refresh token
   static Future<String?> getRefreshToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_refreshTokenKey);
+    return _storage.read(key: _refreshTokenKey);
   }
 
   /// Clear tokens on logout
   static Future<void> clearTokens() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_accessTokenKey);
-    await prefs.remove(_refreshTokenKey);
-    print('🔐 Tokens cleared');
+    await _storage.delete(key: _accessTokenKey);
+    await _storage.delete(key: _refreshTokenKey);
+    debugPrint('🔐 Tokens cleared from secure storage');
   }
 
   /// Check if user has a stored token (does NOT verify validity)

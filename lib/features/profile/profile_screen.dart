@@ -9,7 +9,7 @@ import 'package:turfzone/features/credits_rewards/credits_rewards_screen.dart';
 import 'package:turfzone/features/auth/otp_login_screen.dart';
 import 'package:turfzone/features/profile/edit_profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:turfzone/features/Admindashboard/admin_screen.dart';
+import 'package:turfzone/features/Admin_pinset/admin_pin_screen.dart';
 import '../../services/auth_state.dart';
 import 'package:turfzone/features/referral/invite_friends_screen.dart';
 import 'package:turfzone/features/wallet/wallet_screen.dart';
@@ -492,9 +492,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: "Partner Dashboard",
                     subtitle: "Manage your registered turf",
                     onTap: () {
+                      // ✅ Always go through PIN screen — same as badge/icon path
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => AdminScreen()),
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminPinScreen(pushOnSuccess: true),
+                        ),
                       );
                     },
                   ),

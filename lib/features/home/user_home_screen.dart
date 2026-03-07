@@ -3,7 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:turfzone/booking/booking_screen.dart';
 import 'package:turfzone/models/turf.dart';
 import 'package:turfzone/features/profile/profile_screen.dart';
-import 'package:turfzone/features/Admindashboard/admin_screen.dart';
+
 import 'package:turfzone/features/Admin_pinset/admin_pin_screen.dart';
 import 'package:turfzone/features/home/favorites_screen.dart';
 import '../../turffdetail/turfdetails_screen.dart';
@@ -849,9 +849,9 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   }
 
   Future<void> _handleAdminAccess() async {
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => AdminPinScreen()),
+      MaterialPageRoute(builder: (_) => const AdminPinScreen()),
     );
   }
 

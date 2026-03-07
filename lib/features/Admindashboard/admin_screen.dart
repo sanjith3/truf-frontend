@@ -1,9 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:turfzone/features/home/user_home_screen.dart';
 import 'package:turfzone/features/editslottime/edit_turf_screen.dart';
+import 'package:turfzone/features/Admindashboard/admin_turf_model.dart';
 import 'my_bookings_screen.dart';
-import 'package:turfzone/models/booking.dart';
 import '../../services/api_service.dart';
 import 'package:turfzone/features/turfslot/slot_management_screen.dart';
 import 'package:turfzone/features/partner/join_partner_screen.dart';
@@ -11,108 +9,45 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'reports_screen.dart';
 import '../../services/turf_data_service.dart';
 import 'pending_approval_screen.dart';
+import 'referral_qr_card.dart';
+import 'package:turfzone/features/home/user_home_screen.dart';
 
-// Turf model for admin
-class AdminTurf {
-  final String id;
-  final String name;
-  final String location;
-  final double distance;
-  final int price;
-  final double rating;
-  final List<String> images;
-  final List<String> amenities;
-  final String mapLink;
-  final String address;
-  final String description;
-  final int todayBookings;
-  final double todayRevenue;
-  final int totalBookings;
-  final double totalRevenue;
-  final int slotsCount;
-  final double avgRating;
-  bool isActive;
-
-  AdminTurf({
-    required this.id,
-    required this.name,
-    required this.location,
-    required this.distance,
-    required this.price,
-    required this.rating,
-    required this.images,
-    required this.amenities,
-    required this.mapLink,
-    required this.address,
-    required this.description,
-    this.todayBookings = 0,
-    this.todayRevenue = 0,
-    this.totalBookings = 0,
-    this.totalRevenue = 0,
-    this.slotsCount = 0,
-    this.avgRating = 0,
-    this.isActive = true,
-  });
-}
+// ─── WIDGET ────────────────────────────────────────────────────────────────────
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
-
   @override
   State<AdminScreen> createState() => _AdminScreenState();
 }
 
 class _AdminScreenState extends State<AdminScreen> {
+  // ── palette
+  static const _green = Color(0xFF1DB954);
+  static const _darkGreen = Color(0xFF158040);
+  static const _bg = Color(0xFFF5F7F6);
+
   int _selectedNavIndex = 0;
-  final Color primaryGreen = const Color(0xFF1DB954);
-  final Color backgroundColor = const Color(0xFFF8F9FA);
-  String? _registeredTurfName;
-  List<String> _registeredTurfNames = [];
-  List<AdminTurf> _filteredAdminTurfs = [];
 
-  // Live dashboard stats from API
   Map<String, dynamic> _dashboardStats = {};
-
-  // When non-null, the owner has no approved turfs — show pending screen
+  Map<String, dynamic> _weeklyStats = {};
+  List<AdminTurf> _filteredAdminTurfs = [];
   Map<String, dynamic>? _pendingApprovalData;
 
+  String _userName = 'Partner';
+  String _userPhone = '';
+  String _userEmail = '';
+  String _memberSince = '';
+
   final TurfDataService _turfService = TurfDataService();
+  List<Widget> _navScreens = [];
+
+  // ── init ────────────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
     _turfService.addListener(_onDataChanged);
-    // Load local data first (immediate), then fetch from API sequentially
-    _loadRegisteredTurf();
-    _startInit();
-  }
-
-  /// Sequential init: load turfs first, then stats (avoids race conditions).
-  Future<void> _startInit() async {
-    await _initOwnerTurfs(); // loads myTurfs and calls _loadRegisteredTurf
-    await _loadDashboardStats(); // then checks can_manage
-  }
-
-  /// Full refresh: sequential — turfs first, then stats.
-  Future<void> _refreshAll() async {
-    await _initOwnerTurfs();
-    await _loadDashboardStats();
-  }
-
-  /// Fetch owner turfs from API, then rebuild dashboard
-  Future<void> _initOwnerTurfs() async {
-    try {
-      await _turfService.loadMyTurfs();
-      print(
-        '🏠 _initOwnerTurfs: loadMyTurfs completed, ${_turfService.myTurfs.length} turfs',
-      );
-    } catch (e) {
-      print('🚨 _initOwnerTurfs error: $e');
-    }
-    // Rebuild dashboard with API data
-    if (mounted) {
-      _loadRegisteredTurf();
-    }
+    _loadAll();
   }
 
   @override
@@ -122,22 +57,35 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   void _onDataChanged() {
-    if (mounted) {
-      _loadRegisteredTurf();
+    if (mounted) _rebuildTurfList();
+  }
+
+  Future<void> _loadAll() async {
+    await _initOwnerTurfs();
+    await Future.wait([_loadDashboardStats(), _loadWeeklyStats()]);
+    _updateNavScreens();
+  }
+
+  Future<void> _refreshAll() async {
+    await _initOwnerTurfs();
+    await Future.wait([_loadDashboardStats(), _loadWeeklyStats()]);
+    _updateNavScreens();
+  }
+
+  Future<void> _initOwnerTurfs() async {
+    try {
+      await _turfService.loadMyTurfs();
+    } catch (e) {
+      debugPrint('_initOwnerTurfs error: $e');
     }
+    if (mounted) _rebuildTurfList();
   }
 
-  bool isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  /// Fetch aggregate dashboard stats from backend.
-  /// If can_manage == false, stores the limited response so the build
-  /// method can render PendingApprovalScreen instead of the full dashboard.
   Future<void> _loadDashboardStats() async {
     try {
-      final api = ApiService();
-      final res = await api.getAuth('/api/turfs/turfs/owner_dashboard_stats/');
+      final res = await ApiService().getAuth(
+        '/api/turfs/turfs/owner_dashboard_stats/',
+      );
       if (!mounted) return;
       if (res['success'] == true) {
         if (res['can_manage'] == false) {
@@ -148,651 +96,491 @@ class _AdminScreenState extends State<AdminScreen> {
         } else {
           setState(() {
             _dashboardStats = res;
-            _pendingApprovalData = null; // clear any stale pending gate
+            _pendingApprovalData = null;
           });
-          _loadRegisteredTurf();
+          _rebuildTurfList();
         }
-      } else {
-        // Unexpected response — clear the pending gate defensively
-        if (mounted) setState(() => _pendingApprovalData = null);
       }
     } catch (e) {
       debugPrint('Dashboard stats error: $e');
-      // On error, do NOT keep showing PendingApprovalScreen forever.
-      if (mounted && _turfService.myTurfs.isNotEmpty) {
-        setState(() => _pendingApprovalData = null);
-      }
     }
   }
 
-  Future<void> _loadRegisteredTurf() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _userName = prefs.getString('userName') ?? "Partner";
-      _userPhone = prefs.getString('userPhone') ?? "";
-      _userEmail = prefs.getString('userEmail') ?? "";
-      _businessName = prefs.getString('businessName') ?? "";
-
-      _registeredTurfNames =
-          prefs.getStringList('registeredTurfNames_$_userPhone') ?? [];
-      _registeredTurfName = prefs.getString('registeredTurfName');
-
-      if (_registeredTurfName != null &&
-          !_registeredTurfNames.contains(_registeredTurfName)) {
-        _registeredTurfNames.add(_registeredTurfName!);
+  Future<void> _loadWeeklyStats() async {
+    try {
+      final res = await ApiService().getAuth('/api/turfs/turfs/weekly_stats/');
+      if (!mounted || res['success'] != true) return;
+      setState(() {
+        _weeklyStats = res;
+      });
+      final perTurfList = res['per_turf'] as List<dynamic>? ?? [];
+      final perTurfMap = <int, Map<String, dynamic>>{};
+      for (final s in perTurfList) {
+        final m = s as Map<String, dynamic>;
+        perTurfMap[m['id'] as int] = m;
       }
+      if (perTurfMap.isNotEmpty) {
+        setState(() {
+          _filteredAdminTurfs = _filteredAdminTurfs.map((turf) {
+            final id = int.tryParse(turf.id) ?? -1;
+            final ws = perTurfMap[id];
+            if (ws == null) return turf;
+            return turf.copyWith(
+              weeklyRevenue: (ws['weekly_revenue'] as num?)?.toDouble() ?? 0,
+              lastWeekRevenue:
+                  (ws['last_week_revenue'] as num?)?.toDouble() ?? 0,
+              weeklyBookings: (ws['weekly_bookings'] as int?) ?? 0,
+              lastWeekBookings: (ws['last_week_bookings'] as int?) ?? 0,
+              revenueChangePct:
+                  (ws['revenue_change_pct'] as num?)?.toDouble() ?? 0,
+              bookingChange: (ws['booking_change'] as int?) ?? 0,
+            );
+          }).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Weekly stats error: $e');
+    }
+  }
+
+  void _rebuildTurfList() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _userName = prefs.getString('userName') ?? 'Partner';
+      _userPhone = prefs.getString('userPhone') ?? '';
+      _userEmail = prefs.getString('userEmail') ?? '';
+      _memberSince = _formatMemberSince(
+        prefs.getString('userJoinedDate') ?? '',
+      );
 
       _filteredAdminTurfs = [];
-      Set<String> processedIds = {};
-      final now = DateTime.now();
-
-      // ── PRIMARY: Use API turfs from loadMyTurfs() ──
       final apiTurfs = _turfService.myTurfs;
       final rawTurfs = _turfService.myTurfsRaw;
-      if (apiTurfs.isNotEmpty) {
-        print('🏠 OWNER DASH: ${apiTurfs.length} turfs from API');
-        for (var i = 0; i < apiTurfs.length; i++) {
-          final turf = apiTurfs[i];
-          // Extract stats from raw JSON (may be null for public browsing)
-          final rawStats = (i < rawTurfs.length)
-              ? rawTurfs[i]['stats'] as Map<String, dynamic>?
-              : null;
 
-          processedIds.add(turf.id.toString());
-          _filteredAdminTurfs.add(
-            AdminTurf(
-              id: turf.id.toString(),
-              name: turf.name,
-              location: turf.city,
-              distance: turf.distance,
-              price: turf.price,
-              rating: turf.rating,
-              // Use backend images; empty list shows placeholder in _buildTurfCard
-              images: turf.images,
-              amenities: turf.amenities,
-              mapLink: turf.mapLink,
-              address: turf.address,
-              description: turf.description,
-              todayBookings: rawStats?['today_bookings'] ?? 0,
-              todayRevenue:
-                  double.tryParse('${rawStats?['today_revenue'] ?? 0}') ?? 0,
-              totalBookings: rawStats?['total_bookings'] ?? 0,
-              totalRevenue:
-                  double.tryParse('${rawStats?['total_revenue'] ?? 0}') ?? 0,
-              slotsCount: rawStats?['slots_count'] ?? 0,
-              avgRating: (rawStats?['avg_rating'] ?? 0).toDouble(),
-              isActive: turf.turfStatus == 'approved',
-            ),
-          );
+      final perTurfStats = <int, Map<String, dynamic>>{};
+      final perTurf = _dashboardStats['per_turf_stats'] as List<dynamic>?;
+      if (perTurf != null) {
+        for (final s in perTurf) {
+          final m = s as Map<String, dynamic>;
+          perTurfStats[m['id'] as int] = m;
         }
       }
 
-      // ── FALLBACK: Add locally registered turfs not yet in API ──
-      Set<String> processedNames = processedIds.isNotEmpty
-          ? _filteredAdminTurfs.map((t) => t.name.toLowerCase()).toSet()
-          : {};
+      for (var i = 0; i < apiTurfs.length; i++) {
+        final turf = apiTurfs[i];
+        final rawStats = (i < rawTurfs.length)
+            ? rawTurfs[i]['stats'] as Map<String, dynamic>?
+            : null;
+        final statsMap =
+            rawStats ??
+            perTurfStats[int.tryParse(turf.id.toString()) ?? -1] ??
+            <String, dynamic>{};
 
-      for (var name in _registeredTurfNames) {
-        if (processedNames.contains(name.toLowerCase())) continue;
+        final rawSports = (i < rawTurfs.length)
+            ? rawTurfs[i]['sports'] as List<dynamic>?
+            : null;
+        final sportsList =
+            rawSports
+                ?.map((s) {
+                  if (s is Map) return s['name']?.toString() ?? '';
+                  return s.toString();
+                })
+                .where((s) => s.isNotEmpty)
+                .toList() ??
+            <String>[];
 
-        final turfBookings = TurfDataService().bookings
-            .where(
-              (b) =>
-                  b.turfName == name &&
-                  isSameDay(b.date, now) &&
-                  b.status != BookingStatus.cancelled,
-            )
-            .toList();
-
-        int todayBookings = turfBookings.length;
-        double todayRevenue = turfBookings.fold(
-          0.0,
-          (sum, b) => sum + b.amount,
+        _filteredAdminTurfs.add(
+          AdminTurf(
+            id: turf.id.toString(),
+            name: turf.name,
+            location: turf.city,
+            distance: turf.distance,
+            price: turf.price,
+            rating: turf.rating,
+            reviewCount: (statsMap['review_count'] as int?) ?? 0,
+            images: turf.images,
+            amenities: turf.amenities,
+            sports: sportsList,
+            mapLink: turf.mapLink,
+            address: turf.address,
+            description: turf.description,
+            todayBookings: (statsMap['today_bookings'] as int?) ?? 0,
+            todayRevenue:
+                double.tryParse('${statsMap['today_revenue'] ?? 0}') ?? 0,
+            totalBookings: (statsMap['total_bookings'] as int?) ?? 0,
+            totalRevenue:
+                double.tryParse('${statsMap['total_revenue'] ?? 0}') ?? 0,
+            slotsCount: (statsMap['slots_count'] as int?) ?? 0,
+            avgRating: ((statsMap['avg_rating'] ?? turf.rating) as num)
+                .toDouble(),
+            isShutdown: (statsMap['is_shutdown'] as bool?) ?? false,
+            shutdownStart: statsMap['shutdown_start'] as String?,
+            shutdownEnd: statsMap['shutdown_end'] as String?,
+            shutdownReason: statsMap['shutdown_reason'] as String? ?? '',
+            isActive: turf.turfStatus == 'approved',
+          ),
         );
-
-        final savedSlots = TurfDataService().getSavedSlots(name, now);
-        int slotsCount;
-        if (savedSlots != null) {
-          slotsCount = savedSlots
-              .where((s) => s['status'] == 'available' && s['disabled'] != true)
-              .length;
-        } else {
-          slotsCount = 24 - todayBookings;
-        }
-
-        final matches = adminTurfs
-            .where((t) => t.name.toLowerCase() == name.toLowerCase())
-            .toList();
-
-        if (matches.isNotEmpty) {
-          for (var mat in matches) {
-            _filteredAdminTurfs.add(
-              AdminTurf(
-                id: mat.id,
-                name: mat.name,
-                location: mat.location,
-                distance: mat.distance,
-                price: mat.price,
-                rating: mat.rating,
-                images: mat.images,
-                amenities: mat.amenities,
-                mapLink: mat.mapLink,
-                address: mat.address,
-                description: mat.description,
-                todayBookings: todayBookings,
-                todayRevenue: todayRevenue.toDouble(),
-                slotsCount: slotsCount,
-                isActive: mat.isActive,
-              ),
-            );
-          }
-        } else {
-          // Dynamic turf from SharedPreferences
-          String? loc = prefs.getString('turf_data_${name}_location');
-          int? price = prefs.getInt('turf_data_${name}_price');
-
-          if (loc == null && name == _registeredTurfName) {
-            loc = prefs.getString('registeredLocation');
-            price = prefs.getInt('registeredPrice');
-          }
-
-          _filteredAdminTurfs.add(
-            AdminTurf(
-              id: 'reg_${name}_${now.millisecondsSinceEpoch}',
-              name: name,
-              location: loc ?? "Registered Location",
-              distance: 0.0,
-              price: price ?? 500,
-              rating: 5.0,
-              images: [
-                "https://images.unsplash.com/photo-1575361204480-aadea25e6e68?w=800",
-              ],
-              amenities: ["All Standards"],
-              mapLink: "",
-              address: "Your Registered Address",
-              description: "Your newly registered turf",
-              todayBookings: todayBookings,
-              todayRevenue: todayRevenue.toDouble(),
-              slotsCount: slotsCount,
-            ),
-          );
-        }
-        processedNames.add(name.toLowerCase());
       }
-
-      print('🏠 TOTAL ADMIN TURFS: ${_filteredAdminTurfs.length}');
       _updateNavScreens();
     });
   }
 
-  String _userName = "Partner";
-  String _userPhone = "";
-  String _userEmail = "";
-  String _businessName = "";
-
-  Future<void> _showPartnerProfile() async {
-    final nameController = TextEditingController(text: _userName);
-    final phoneController = TextEditingController(text: _userPhone);
-    final emailController = TextEditingController(text: _userEmail);
-    final businessController = TextEditingController(text: _businessName);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 20,
-          left: 20,
-          right: 20,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 50,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Partner Profile",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, size: 20),
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                "Your business information",
-                style: TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-              const SizedBox(height: 30),
-              _buildProfileField(
-                "Full Name",
-                nameController,
-                Icons.person_outline,
-              ),
-              const SizedBox(height: 20),
-              _buildProfileField(
-                "Phone Number",
-                phoneController,
-                Icons.phone_android_outlined,
-              ),
-              const SizedBox(height: 20),
-              _buildProfileField(
-                "Email Address",
-                emailController,
-                Icons.email_outlined,
-              ),
-              const SizedBox(height: 20),
-              _buildProfileField(
-                "Business/Brand Name",
-                businessController,
-                Icons.business_outlined,
-              ),
-              const SizedBox(height: 40),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setString(
-                      'userName',
-                      nameController.text.trim(),
-                    );
-                    await prefs.setString(
-                      'userPhone',
-                      phoneController.text.trim(),
-                    );
-                    await prefs.setString(
-                      'userEmail',
-                      emailController.text.trim(),
-                    );
-                    await prefs.setString(
-                      'businessName',
-                      businessController.text.trim(),
-                    );
-
-                    setState(() {
-                      _userName = nameController.text.trim();
-                      _userPhone = phoneController.text.trim();
-                      _userEmail = emailController.text.trim();
-                      _businessName = businessController.text.trim();
-                    });
-
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Profile updated successfully"),
-                        backgroundColor: Color(0xFF1DB954),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    "Save Changes",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileField(
-    String label,
-    TextEditingController controller,
-    IconData icon,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            prefixIcon: Icon(icon, color: primaryGreen),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey[300]!),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey[300]!),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: primaryGreen),
-            ),
-            filled: true,
-            fillColor: Colors.grey[50],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Admin turfs data — previously hardcoded, now all from API
-  List<AdminTurf> adminTurfs = [];
-
-  // Business Stats — from live API
-  double get totalRevenue {
-    final val = _dashboardStats['today_revenue'];
-    if (val == null) return 0;
-    return double.tryParse('$val') ?? 0;
-  }
-
-  int get totalBookings {
-    return (_dashboardStats['today_bookings'] as int?) ?? 0;
-  }
-
-  int get totalAvailableSlots =>
-      _filteredAdminTurfs.fold(0, (sum, turf) => sum + turf.slotsCount);
-
-  double get averageRating {
-    final val = _dashboardStats['avg_rating'];
-    if (val == null) return 0;
-    return (val is num) ? val.toDouble() : (double.tryParse('$val') ?? 0);
-  }
-
-  // Navigation Screens
-  List<Widget> _navScreens = [];
-
   void _updateNavScreens() {
+    if (!mounted) return;
     setState(() {
       _navScreens = [
         _buildDashboard(),
         ReportsScreen(
-          registeredTurfNames: _registeredTurfNames.isNotEmpty
-              ? _registeredTurfNames
-              : (_registeredTurfName != null ? [_registeredTurfName!] : null),
+          registeredTurfNames: _filteredAdminTurfs.map((t) => t.name).toList(),
         ),
       ];
     });
   }
 
-  void _toggleTurfStatus(String turfId) {
-    setState(() {
-      final turf = _filteredAdminTurfs.firstWhere((t) => t.id == turfId);
-      turf.isActive = !turf.isActive;
-    });
+  // ── Computed getters ─────────────────────────────────────────────────────────
+
+  double get _weeklyRevenue {
+    final v = (_weeklyStats['current_week'] as Map?)?['revenue'];
+    return (v as num?)?.toDouble() ?? 0;
   }
 
-  // ------------------------------------------------------------
-  // NEW: Disable Turf with Date Range & Reason
-  // ------------------------------------------------------------
-  Future<void> _showDisableTurfDialog(AdminTurf turf) async {
-    DateTime? fromDate;
-    DateTime? toDate;
-    final reasonController = TextEditingController();
-
-    return showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            title: Text('Disable ${turf.name}'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Select date range and provide a reason for disabling this turf.',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-                  // From Date
-                  InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: fromDate ?? DateTime.now(),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (picked != null) {
-                        setDialogState(() => fromDate = picked);
-                      }
-                    },
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'From Date',
-                        border: OutlineInputBorder(),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            fromDate == null
-                                ? 'Select'
-                                : _formatDate(fromDate!),
-                          ),
-                          const Icon(Icons.calendar_today, size: 16),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // To Date
-                  InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: toDate ?? DateTime.now(),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (picked != null) {
-                        setDialogState(() => toDate = picked);
-                      }
-                    },
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'To Date',
-                        border: OutlineInputBorder(),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            toDate == null ? 'Select' : _formatDate(toDate!),
-                          ),
-                          const Icon(Icons.calendar_today, size: 16),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Reason
-                  TextField(
-                    controller: reasonController,
-                    decoration: const InputDecoration(
-                      labelText: 'Reason for disabling',
-                      border: OutlineInputBorder(),
-                      hintText: 'e.g., Maintenance, Event, etc.',
-                    ),
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: (fromDate == null || toDate == null)
-                    ? null
-                    : () {
-                        Navigator.pop(ctx);
-                        _submitDisableRequest(
-                          turf,
-                          fromDate!,
-                          toDate!,
-                          reasonController.text.trim(),
-                        );
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Disable'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
+  int get _weeklyBookings {
+    final v = (_weeklyStats['current_week'] as Map?)?['bookings'];
+    return (v as int?) ?? 0;
   }
 
-  void _submitDisableRequest(
-    AdminTurf turf,
-    DateTime from,
-    DateTime to,
-    String reason,
-  ) {
-    // TODO: Implement actual backend request to notify "turfzone members"
-    // For now, simulate a success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Disable request sent for ${turf.name} from ${_formatDate(from)} to ${_formatDate(to)}.\nReason: ${reason.isEmpty ? 'Not provided' : reason}',
-        ),
-        backgroundColor: Colors.orange.shade800,
-        duration: const Duration(seconds: 5),
-      ),
-    );
-
-    // Optional: You can also mark the turf as temporarily inactive in the UI
-    // setState(() { ... });
+  double get _revenueChangePct {
+    final v = (_weeklyStats['changes'] as Map?)?['revenue_percent'];
+    return (v as num?)?.toDouble() ?? 0;
   }
 
-  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
-  // ------------------------------------------------------------
+  int get _bookingChangeCnt {
+    final v = (_weeklyStats['changes'] as Map?)?['bookings_count'];
+    return (v as int?) ?? 0;
+  }
+
+  double get _totalRevenue {
+    final v = _dashboardStats['total_revenue'];
+    return double.tryParse('$v') ?? 0;
+  }
+
+  // Referral info (placeholder — backend referral tracking not yet implemented)
+  String get _referralCode =>
+      'TURF${_userPhone.isEmpty ? "000" : _userPhone.substring(_userPhone.length > 4 ? _userPhone.length - 4 : 0)}';
+  int get _referralCount => 0;
+  double get _referralEarnings => 0;
+
+  String _formatMemberSince(String raw) {
+    if (raw.isEmpty) return '';
+    try {
+      final d = DateTime.parse(raw);
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      return '${months[d.month - 1]} ${d.year}';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  String _daysUntilPayout() {
+    final d = (7 - DateTime.now().weekday) % 7;
+    if (d == 0) return 'today';
+    if (d == 1) return 'tomorrow';
+    return 'Mon';
+  }
+
+  int get _currentWeekNumber {
+    final now = DateTime.now();
+    return ((now.difference(DateTime(now.year, 1, 1)).inDays) / 7).ceil();
+  }
+
+  // ── build ────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    // ── Approval gate: show pending screen for unapproved owners ──────────
-    // Safety bypass: if myTurfs already has approved turfs, skip the gate.
-    final hasApprovedTurf = _turfService.myTurfs.any(
+    final hasApproved = _turfService.myTurfs.any(
       (t) => t.turfStatus == 'approved',
     );
-    if (_pendingApprovalData != null && !hasApprovedTurf) {
+    if (_pendingApprovalData != null && !hasApproved) {
       final data = _pendingApprovalData!;
       final rawStatuses = data['turf_statuses'] as List<dynamic>? ?? [];
       return PendingApprovalScreen(
         pendingCount: data['pending_count'] as int? ?? 0,
         rejectedCount: data['rejected_count'] as int? ?? 0,
         suspendedCount: data['suspended_count'] as int? ?? 0,
-        message:
-            data['message'] as String? ??
-            'Your turf is under review. Please check back later.',
+        message: data['message'] as String? ?? 'Your turf is under review.',
         turfStatuses: rawStatuses
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList(),
         onRefresh: _refreshAll,
       );
-    } else if (hasApprovedTurf && _pendingApprovalData != null) {
-      // Stale pending data — clear it so we don't loop
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _pendingApprovalData = null);
-      });
     }
 
     if (_navScreens.isEmpty) {
-      return Scaffold(
-        backgroundColor: backgroundColor,
-        body: Center(child: CircularProgressIndicator(color: primaryGreen)),
+      return const Scaffold(
+        backgroundColor: _bg,
+        body: Center(child: CircularProgressIndicator(color: _green)),
       );
     }
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: _bg,
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
             Expanded(child: _navScreens[_selectedNavIndex]),
-            _buildBottomNavigationBar(),
+            _buildBottomNav(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAppBar() {
+  // ── Dashboard page ──────────────────────────────────────────────────────────
+
+  Widget _buildDashboard() {
+    return RefreshIndicator(
+      color: _green,
+      onRefresh: _refreshAll,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Performance Overview ──
+                  _sectionLabel('Performance Overview'),
+                  const SizedBox(height: 10),
+                  _buildStatsRow(),
+                  const SizedBox(height: 24),
+
+                  // ── Referral Program ──
+                  _sectionLabel('Referral Program'),
+                  const SizedBox(height: 10),
+                  ReferralQrCard(
+                    referralCode: _referralCode,
+                    referralCount: _referralCount,
+                    referralEarnings: _referralEarnings,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── Turf Management ──
+                  _sectionLabel('Turf Management'),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Manage your turfs, slots and bookings',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                  ),
+                  const SizedBox(height: 14),
+                  if (_filteredAdminTurfs.isEmpty)
+                    _buildEmptyState()
+                  else
+                    ..._filteredAdminTurfs.map(_buildTurfCard),
+                  const SizedBox(height: 100),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Header ──────────────────────────────────────────────────────────────────
+
+  Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.only(top: 16, bottom: 20, left: 20, right: 20),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.green.shade800, Colors.green.shade700],
+          colors: [Color(0xFF0A4020), _darkGreen],
         ),
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
         ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back,',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withAlpha(180),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _userName,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_filteredAdminTurfs.length} turf${_filteredAdminTurfs.length == 1 ? "" : "s"}'
+                  '${_memberSince.isNotEmpty ? " · Member since $_memberSince" : ""}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withAlpha(170),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            children: [
+              _headerIconBtn(
+                Icons.home_rounded,
+                _goToUserHome,
+                tooltip: 'Back to User View',
+              ),
+              const SizedBox(height: 8),
+              _headerIconBtn(Icons.refresh_rounded, _refreshAll),
+              const SizedBox(height: 8),
+              _headerIconBtn(Icons.person_outline_rounded, _showPartnerProfile),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerIconBtn(IconData icon, VoidCallback onTap, {String? tooltip}) =>
+      Tooltip(
+        message: tooltip ?? '',
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(30),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withAlpha(50)),
+            ),
+            child: Icon(icon, color: Colors.white, size: 19),
+          ),
+        ),
+      );
+
+  void _goToUserHome() {
+    // Pop everything and go back to the user home screen.
+    // Using pushAndRemoveUntil so the back button from home
+    // never returns to the owner dashboard.
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const UserHomeScreen()),
+      (route) => false,
+    );
+  }
+
+  // ── Section label ───────────────────────────────────────────────────────────
+
+  Widget _sectionLabel(String text) => Text(
+    text,
+    style: const TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w700,
+      color: Color(0xFF1A1A2E),
+    ),
+  );
+
+  // ── Stats Row ───────────────────────────────────────────────────────────────
+
+  Widget _buildStatsRow() {
+    final revUp = _revenueChangePct >= 0;
+    final bkUp = _bookingChangeCnt >= 0;
+    return Row(
+      children: [
+        Expanded(
+          child: _statCard(
+            topLabel: 'WEEK $_currentWeekNumber',
+            icon: Icons.trending_up_rounded,
+            iconColor: _green,
+            value: '₹${_weeklyRevenue.toStringAsFixed(0)}',
+            sublabel: 'Revenue',
+            badge:
+                '${revUp ? "+" : ""}${_revenueChangePct.toStringAsFixed(0)}%',
+            badgeUp: revUp,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _statCard(
+            topLabel: 'WEEK $_currentWeekNumber',
+            icon: Icons.book_online_rounded,
+            iconColor: Colors.blue,
+            value: '$_weeklyBookings',
+            sublabel: 'Bookings',
+            badge: '${bkUp ? "+" : ""}$_bookingChangeCnt',
+            badgeUp: bkUp,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _statCard(
+            topLabel: 'TOTAL',
+            icon: Icons.account_balance_wallet_rounded,
+            iconColor: Colors.orange,
+            value: '₹${_totalRevenue.toStringAsFixed(0)}',
+            sublabel: 'Earned',
+            badge: 'Payout ${_daysUntilPayout()}',
+            badgeUp: true,
+            badgeColor: Colors.blue,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statCard({
+    required String topLabel,
+    required IconData icon,
+    required Color iconColor,
+    required String value,
+    required String sublabel,
+    required String badge,
+    required bool badgeUp,
+    Color? badgeColor,
+  }) {
+    final bc = badgeColor ?? (badgeUp ? Colors.green : Colors.red);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+            color: Colors.black.withAlpha(10),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -800,448 +588,151 @@ class _AdminScreenState extends State<AdminScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome $_userName 👋',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      () {
-                        // Use stats total_turfs from API (most accurate)
-                        final statsTotal =
-                            _dashboardStats['total_turfs'] as int?;
-                        final displayCount =
-                            statsTotal ?? _filteredAdminTurfs.length;
-                        return 'Managing $displayCount turf${displayCount == 1 ? '' : 's'}';
-                      }(),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const UserHomeScreen(),
-                          ),
-                          (route) => false,
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.home,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const JoinPartnerScreen(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: IconButton(
-                      onPressed: _showPartnerProfile,
-                      icon: const Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildQuickStat(
-                value: '₹${totalRevenue.toStringAsFixed(0)}',
-                label: 'Today\'s Revenue',
-                icon: Icons.trending_up,
-                color: Colors.white,
+              Text(
+                topLabel,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[500],
+                  letterSpacing: 0.3,
+                ),
               ),
-              _buildQuickStat(
-                value: '$totalBookings',
-                label: 'Total Bookings',
-                icon: Icons.event,
-                color: Colors.white,
-              ),
-              _buildQuickStat(
-                value: '${averageRating.toStringAsFixed(1)}★',
-                label: 'Avg Rating',
-                icon: Icons.star,
-                color: Colors.white,
-              ),
+              Icon(icon, size: 15, color: iconColor),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickStat({
-    required String value,
-    required String label,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Expanded(
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, size: 20, color: color),
           ),
           const SizedBox(height: 8),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
+              fontSize: 19,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1A2E),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4),
           Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withOpacity(0.9),
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+            sublabel,
+            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(
+                badgeColor != null
+                    ? Icons.calendar_today_rounded
+                    : badgeUp
+                    ? Icons.arrow_upward_rounded
+                    : Icons.arrow_downward_rounded,
+                size: 10,
+                color: bc,
+              ),
+              const SizedBox(width: 2),
+              Expanded(
+                child: Text(
+                  badge,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: bc,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDashboard() {
-    return Column(
-      children: [
-        _buildAppBar(),
-        Expanded(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Turf Management',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: primaryGreen.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '${_filteredAdminTurfs.where((t) => t.isActive).length} Active',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: primaryGreen,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Manage your turf, slots and bookings',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                ..._filteredAdminTurfs.map((turf) {
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: _buildTurfCard(turf),
-                  );
-                }).toList(),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // ── Turf Card ────────────────────────────────────────────────────────────────
 
   Widget _buildTurfCard(AdminTurf turf) {
+    final isShutdown = turf.isShutdown;
+    final statusColor = isShutdown ? Colors.red.shade700 : _green;
+
     return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: Colors.black.withAlpha(10),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Top Section - Image & Status
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-                child: turf.images.isNotEmpty
-                    ? Image.network(
-                        turf.images[0],
-                        height: 140,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 140,
-                            width: double.infinity,
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: Icon(
-                                Icons.image_not_supported,
-                                color: Colors.grey,
-                                size: 40,
-                              ),
-                            ),
-                          );
-                        },
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            height: 140,
-                            width: double.infinity,
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                        },
-                      )
-                    : Container(
-                        height: 140,
-                        width: double.infinity,
-                        color: Colors.grey[200],
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.stadium_outlined,
-                              size: 40,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'No photos yet',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+          // ── Status strip ──
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: statusColor.withAlpha(20),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
               ),
-              // Status Badge
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
                   decoration: BoxDecoration(
-                    color: turf.isActive ? primaryGreen : Colors.grey[700],
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    turf.isActive ? 'ACTIVE' : 'INACTIVE',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                    ),
+                    shape: BoxShape.circle,
+                    color: statusColor,
                   ),
                 ),
-              ),
-              // Action Buttons Row (View Details + Disable)
-              Positioned(
-                bottom: 12,
-                left: 12,
-                child: Row(
-                  children: [
-                    // View Details Button
-                    GestureDetector(
-                      onTap: () => _showTurfDetails(turf),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.visibility_outlined,
-                          size: 16,
-                          color: Colors.blue[700],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // NEW: Disable Turf Button
-                    GestureDetector(
-                      onTap: () => _showDisableTurfDialog(turf),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.block,
-                          size: 16,
-                          color: Colors.red[700],
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 7),
+                Text(
+                  isShutdown
+                      ? 'DISABLED${turf.shutdownEnd != null ? " · until ${_fmtDateStr(turf.shutdownEnd!)}" : ""}'
+                      : 'ACTIVE',
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-              ),
-            ],
+                const Spacer(),
+                const Icon(Icons.star_rounded, size: 13, color: Colors.amber),
+                const SizedBox(width: 3),
+                Text(
+                  '${turf.rating.toStringAsFixed(1)} (${turf.reviewCount})',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
+              ],
+            ),
           ),
-          // Info Section
+
+          // ── Body ──
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Image + name row
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Turf thumbnail
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: turf.images.isNotEmpty
+                          ? Image.network(
+                              turf.images.first,
+                              width: 64,
+                              height: 64,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                            )
+                          : _imagePlaceholder(),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1249,144 +740,178 @@ class _AdminScreenState extends State<AdminScreen> {
                           Text(
                             turf.name,
                             style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A1A2E),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Row(
                             children: [
                               Icon(
-                                Icons.location_on,
-                                size: 14,
-                                color: Colors.grey[600],
+                                Icons.location_on_rounded,
+                                size: 12,
+                                color: Colors.grey[400],
                               ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  turf.location,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                              const SizedBox(width: 2),
+                              Text(
+                                turf.location,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
                                 ),
                               ),
                             ],
                           ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _green.withAlpha(18),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '₹${turf.price}/hr',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: _darkGreen,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: primaryGreen.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '₹${turf.price}',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: primaryGreen,
+                  ],
+                ),
+
+                // Shutdown warning
+                if (isShutdown && turf.shutdownReason.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withAlpha(12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.withAlpha(40)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 13,
+                          color: Colors.red.shade700,
                         ),
-                      ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Reason: ${turf.shutdownReason}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.red.shade700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Stats Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildTurfStat(
-                      icon: Icons.event,
-                      value: '${turf.todayBookings}',
-                      label: 'Bookings',
-                      color: Colors.blue,
-                    ),
-                    _buildTurfStat(
-                      icon: Icons.trending_up,
-                      value: '₹${turf.todayRevenue.toInt()}',
-                      label: 'Revenue',
-                      color: primaryGreen,
-                    ),
-                    _buildTurfStat(
-                      icon: Icons.schedule,
-                      value: '${turf.slotsCount}',
-                      label: 'Slots',
-                      color: Colors.orange,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Action Buttons Row (Slots, Edit, Bookings)
-                Container(
-                  decoration: BoxDecoration(
-                    color: backgroundColor,
-                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
+                ],
+
+                const SizedBox(height: 14),
+
+                // ── Weekly performance table ──
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAF9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.withAlpha(30)),
+                  ),
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: _buildTurfActionButton(
-                          icon: Icons.schedule,
-                          label: 'Slots',
-                          color: Colors.blue,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SlotManagementScreen(),
-                              ),
-                            );
-                          },
+                      Text(
+                        'WEEKLY PERFORMANCE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey[500],
+                          letterSpacing: 0.5,
                         ),
                       ),
-                      Container(width: 1, height: 40, color: Colors.grey[300]),
-                      Expanded(
-                        child: _buildTurfActionButton(
-                          icon: Icons.edit,
-                          label: 'Edit',
-                          color: Colors.orange,
-                          onTap: () async {
-                            final refreshed = await Navigator.push<bool>(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => EditTurfScreen(turf: turf),
-                              ),
-                            );
-                            if (refreshed == true && mounted) {
-                              _refreshAll();
-                            }
-                          },
-                        ),
-                      ),
-                      Container(width: 1, height: 40, color: Colors.grey[300]),
-                      Expanded(
-                        child: _buildTurfActionButton(
-                          icon: Icons.receipt_long,
-                          label: 'Bookings',
-                          color: primaryGreen,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const MyBookingsScreen(),
-                              ),
-                            );
-                          },
-                        ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          _perfCol(
+                            'This Week',
+                            '₹${turf.weeklyRevenue.toStringAsFixed(0)}',
+                            '${turf.weeklyBookings} bookings',
+                          ),
+                          _divider(),
+                          _perfCol(
+                            'Last Week',
+                            '₹${turf.lastWeekRevenue.toStringAsFixed(0)}',
+                            '${turf.lastWeekBookings} bookings',
+                          ),
+                          _divider(),
+                          _perfCol(
+                            'Change',
+                            '${turf.revenueChangePct >= 0 ? "+" : ""}${turf.revenueChangePct.toStringAsFixed(0)}%',
+                            '${turf.bookingChange >= 0 ? "+" : ""}${turf.bookingChange} bk',
+                            valueColor: turf.revenueChangePct >= 0
+                                ? Colors.green.shade700
+                                : Colors.red.shade700,
+                          ),
+                        ],
                       ),
                     ],
                   ),
+                ),
+
+                const SizedBox(height: 14),
+
+                // ── Action buttons ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _actionBtn(
+                      Icons.visibility_rounded,
+                      'Details',
+                      Colors.blue,
+                      () => _showTurfDetails(turf),
+                    ),
+                    _actionBtn(
+                      isShutdown
+                          ? Icons.power_settings_new_rounded
+                          : Icons.power_off_rounded,
+                      isShutdown ? 'Enable' : 'Disable',
+                      isShutdown ? _green : Colors.red.shade700,
+                      () => _handleShutdown(turf),
+                    ),
+                    _actionBtn(
+                      Icons.edit_rounded,
+                      'Edit',
+                      Colors.orange.shade700,
+                      () => _navigateToEdit(turf),
+                    ),
+                    _actionBtn(
+                      Icons.list_alt_rounded,
+                      'Bookings',
+                      Colors.purple,
+                      () => _navigateToBookings(turf),
+                    ),
+                    _actionBtn(
+                      Icons.schedule_rounded,
+                      'Slots',
+                      Colors.indigo,
+                      () => _navigateToSlots(turf),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1396,382 +921,879 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  Widget _buildTurfStat({
-    required IconData icon,
-    required String value,
-    required String label,
-    required Color color,
-  }) {
-    return Expanded(
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 6),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black87,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _imagePlaceholder() => Container(
+    width: 64,
+    height: 64,
+    decoration: BoxDecoration(
+      color: Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Icon(
+      Icons.sports_soccer_rounded,
+      color: Colors.grey.shade300,
+      size: 28,
+    ),
+  );
 
-  Widget _buildTurfActionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Column(
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
-          ],
+  Widget _perfCol(
+    String label,
+    String value,
+    String sub, {
+    Color? valueColor,
+  }) => Expanded(
+    child: Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey[500],
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
         ),
-      ),
-    );
-  }
+        const SizedBox(height: 5),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: valueColor ?? const Color(0xFF1A1A2E),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        Text(
+          sub,
+          style: TextStyle(fontSize: 9, color: Colors.grey[400]),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
 
-  Widget _buildBottomNavigationBar() {
+  Widget _divider() => Container(
+    width: 1,
+    height: 36,
+    color: Colors.grey.withAlpha(40),
+    margin: const EdgeInsets.symmetric(horizontal: 4),
+  );
+
+  Widget _actionBtn(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) => GestureDetector(
+    onTap: onTap,
+    child: Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(9),
+          decoration: BoxDecoration(
+            color: color.withAlpha(20),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: color,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildEmptyState() {
     return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey[300]!)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.sports_soccer_rounded, size: 56, color: Colors.grey[200]),
+          const SizedBox(height: 12),
+          const Text(
+            'No turfs yet',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Register your first turf to get started',
+            style: TextStyle(color: Colors.grey[500]),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const JoinPartnerScreen()),
+            ),
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Add Turf'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _green,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
           ),
         ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildNavItem(
-              icon: Icons.dashboard,
-              label: 'Dashboard',
-              isSelected: _selectedNavIndex == 0,
-              onTap: () => setState(() => _selectedNavIndex = 0),
-            ),
-            _buildNavItem(
-              icon: Icons.analytics,
-              label: 'Reports',
-              isSelected: _selectedNavIndex == 1,
-              onTap: () => setState(() => _selectedNavIndex = 1),
-            ),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? primaryGreen.withOpacity(0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isSelected ? primaryGreen : Colors.grey[600],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                color: isSelected ? primaryGreen : Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // ── Turf Details Modal ──────────────────────────────────────────────────────
 
   void _showTurfDetails(AdminTurf turf) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.88,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, ctrl) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: ListView(
+            controller: ctrl,
+            padding: const EdgeInsets.all(20),
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          turf.name,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on_rounded,
+                              size: 13,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              turf.location,
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 15,
+                            color: Colors.amber,
+                          ),
+                          Text(
+                            ' ${turf.rating.toStringAsFixed(1)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '${turf.reviewCount} reviews',
+                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              if (turf.images.isNotEmpty) ...[
+                _detailSection('Photos'),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 110,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: turf.images.length,
+                    itemBuilder: (_, i) => Container(
+                      width: 140,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        image: DecorationImage(
+                          image: NetworkImage(turf.images[i]),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              if (turf.description.isNotEmpty) ...[
+                _detailSection('Description'),
+                const SizedBox(height: 6),
+                Text(
+                  turf.description,
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              if (turf.amenities.isNotEmpty) ...[
+                _detailSection('Amenities'),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: turf.amenities
+                      .map(
+                        (a) => Chip(
+                          label: Text(a, style: const TextStyle(fontSize: 12)),
+                          backgroundColor: Colors.blue.withAlpha(18),
+                          side: BorderSide(color: Colors.blue.withAlpha(40)),
+                          padding: EdgeInsets.zero,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              if (turf.sports.isNotEmpty) ...[
+                _detailSection('Sports Available'),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: turf.sports
+                      .map(
+                        (s) => Chip(
+                          label: Text(s, style: const TextStyle(fontSize: 12)),
+                          backgroundColor: _green.withAlpha(18),
+                          side: BorderSide(color: _green.withAlpha(40)),
+                          padding: EdgeInsets.zero,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              _detailSection('All-Time Stats'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _infoStat(
+                    'Total Bookings',
+                    '${turf.totalBookings}',
+                    Icons.book_online_rounded,
+                  ),
+                  _infoStat(
+                    'Total Revenue',
+                    '₹${turf.totalRevenue.toStringAsFixed(0)}',
+                    Icons.currency_rupee_rounded,
+                  ),
+                  _infoStat(
+                    'Active Slots',
+                    '${turf.slotsCount}',
+                    Icons.schedule_rounded,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _detailSection(String text) => Text(
+    text,
+    style: const TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w700,
+      color: Color(0xFF1A1A2E),
+    ),
+  );
+
+  Widget _infoStat(String label, String value, IconData icon) => Expanded(
+    child: Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: _green),
+          const SizedBox(height: 4),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+
+  // ── Shutdown flow ────────────────────────────────────────────────────────────
+
+  void _handleShutdown(AdminTurf turf) {
+    if (turf.isShutdown) {
+      _confirmReactivate(turf);
+    } else {
+      _showShutdownModal(turf);
+    }
+  }
+
+  void _confirmReactivate(AdminTurf turf) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Re-enable Turf'),
+        content: Text(
+          '${turf.name} will become visible and accept bookings immediately.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _doReactivate(turf);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _green,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Re-enable'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showShutdownModal(AdminTurf turf) {
+    DateTime? startDate;
+    DateTime? endDate;
+    final reasonCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
       isScrollControlled: true,
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          minChildSize: 0.5,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (context, scrollController) {
-            return Container(
-              padding: const EdgeInsets.all(20),
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setModal) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            ),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
                     child: Container(
-                      width: 60,
+                      width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.grey[300],
+                        color: Colors.grey[200],
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   Text(
-                    turf.name,
+                    'Disable ${turf.name}',
                     style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'The turf will be hidden from users and no new bookings will be accepted.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _datePicker(
+                          label: 'From Date',
+                          selected: startDate,
+                          onTap: () async {
+                            final d = await _pickDate(
+                              ctx,
+                              first: DateTime.now(),
+                            );
+                            if (d != null) setModal(() => startDate = d);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _datePicker(
+                          label: 'To Date',
+                          selected: endDate,
+                          onTap: () async {
+                            final d = await _pickDate(
+                              ctx,
+                              first: startDate ?? DateTime.now(),
+                            );
+                            if (d != null) setModal(() => endDate = d);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: reasonCtrl,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'Reason',
+                      hintText: 'e.g. Maintenance, Renovation…',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: _green),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
                       Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: Colors.grey[600],
+                        Icons.info_outline_rounded,
+                        size: 12,
+                        color: Colors.grey[400],
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        turf.location,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        'Admin will be notified. You can re-enable at any time.',
+                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: scrollController,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // ── Image gallery ────────────────────────────────
-                          if (turf.images.isNotEmpty) ...[
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: SizedBox(
-                                height: 220,
-                                width: double.infinity,
-                                child: PageView.builder(
-                                  itemCount: turf.images.length,
-                                  itemBuilder: (ctx, idx) {
-                                    final url = turf.images[idx];
-                                    return Image.network(
-                                      url,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (ctx, err, st) {
-                                        if (kDebugMode) {
-                                          debugPrint('[IMG ERROR] $url — $err');
-                                        }
-                                        return Container(
-                                          color: Colors.grey[200],
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.broken_image_rounded,
-                                                size: 40,
-                                                color: Colors.grey[500],
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                'Image unavailable',
-                                                style: TextStyle(
-                                                  color: Colors.grey[600],
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                      loadingBuilder: (ctx, child, prog) {
-                                        if (prog == null) return child;
-                                        return Container(
-                                          color: Colors.grey[100],
-                                          child: const Center(
-                                            child: CircularProgressIndicator(),
-                                          ),
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                              ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            if (turf.images.length > 1)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: Center(
-                                  child: Text(
-                                    '${turf.images.length} photos — swipe to view',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[500],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(height: 20),
-                          ] else ...[
-                            Container(
-                              height: 220,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.add_photo_alternate_outlined,
-                                      size: 48,
-                                      color: Colors.grey[400],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'No images uploaded yet',
-                                      style: TextStyle(color: Colors.grey[500]),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-
-                          // ── Description ──────────────────────────────────
-                          const Text(
-                            'Description',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
+                            side: BorderSide(color: Colors.grey.shade300),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            turf.description,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[700],
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            'Amenities',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: turf.amenities
-                                .map(
-                                  (amenity) => Chip(
-                                    label: Text(amenity),
-                                    backgroundColor: primaryGreen.withOpacity(
-                                      0.1,
-                                    ),
-                                    labelStyle: TextStyle(color: primaryGreen),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                          const SizedBox(height: 30),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryGreen,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          child: const Text('Cancel'),
                         ),
                       ),
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              (startDate != null &&
+                                  endDate != null &&
+                                  reasonCtrl.text.trim().isNotEmpty)
+                              ? () {
+                                  Navigator.pop(ctx);
+                                  _doShutdown(
+                                    turf,
+                                    startDate!,
+                                    endDate!,
+                                    reasonCtrl.text.trim(),
+                                  );
+                                }
+                              : null,
+                          icon: const Icon(Icons.power_off_rounded, size: 15),
+                          label: const Text('Disable Turf'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red.shade700,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
-            );
-          },
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
+
+  Widget _datePicker({
+    required String label,
+    required DateTime? selected,
+    required VoidCallback onTap,
+  }) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  selected != null ? _fmtDate(selected) : 'Select date',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: selected != null
+                        ? const Color(0xFF1A1A2E)
+                        : Colors.grey[400],
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.calendar_today_rounded,
+                size: 14,
+                color: Colors.grey,
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Future<DateTime?> _pickDate(BuildContext ctx, {required DateTime first}) =>
+      showDatePicker(
+        context: ctx,
+        initialDate: first,
+        firstDate: first,
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+        builder: (_, child) => Theme(
+          data: Theme.of(
+            ctx,
+          ).copyWith(colorScheme: const ColorScheme.light(primary: _green)),
+          child: child!,
+        ),
+      );
+
+  Future<void> _doShutdown(
+    AdminTurf turf,
+    DateTime start,
+    DateTime end,
+    String reason,
+  ) async {
+    try {
+      await ApiService().postAuth(
+        '/api/turfs/turfs/${turf.id}/owner_shutdown/',
+        body: {
+          'start_date': _isoDate(start),
+          'end_date': _isoDate(end),
+          'reason': reason,
+        },
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${turf.name} disabled until ${_fmtDate(end)}'),
+            backgroundColor: Colors.orange.shade700,
+          ),
+        );
+        _refreshAll();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to disable turf'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _doReactivate(AdminTurf turf) async {
+    try {
+      await ApiService().postAuth(
+        '/api/turfs/turfs/${turf.id}/owner_reactivate/',
+        body: {},
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${turf.name} is now active!'),
+            backgroundColor: _green,
+          ),
+        );
+        _refreshAll();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to reactivate turf'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // ── Partner profile ──────────────────────────────────────────────────────────
+
+  Future<void> _showPartnerProfile() async {
+    final nameCtrl = TextEditingController(text: _userName);
+    final emailCtrl = TextEditingController(text: _userEmail);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Partner Profile',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setString('userName', nameCtrl.text.trim());
+                    await prefs.setString('userEmail', emailCtrl.text.trim());
+                    if (mounted) {
+                      setState(() {
+                        _userName = nameCtrl.text.trim();
+                      });
+                      Navigator.pop(context);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Save Changes'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Bottom nav ───────────────────────────────────────────────────────────────
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(12),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(child: _navItem(Icons.dashboard_rounded, 'Dashboard', 0)),
+            Expanded(child: _navItem(Icons.bar_chart_rounded, 'Reports', 1)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(IconData icon, String label, int index) {
+    final selected = _selectedNavIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() {
+        _selectedNavIndex = index;
+        _updateNavScreens();
+      }),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: selected ? _green : Colors.grey[400], size: 22),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: selected ? _green : Colors.grey[400],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Navigation ───────────────────────────────────────────────────────────────
+
+  void _navigateToEdit(AdminTurf turf) => Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => EditTurfScreen(turf: turf)),
+  );
+
+  void _navigateToBookings(AdminTurf turf) => Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const MyBookingsScreen()),
+  );
+
+  void _navigateToSlots(AdminTurf turf) => Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const SlotManagementScreen()),
+  );
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  String _fmtDate(DateTime d) {
+    const m = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${d.day} ${m[d.month - 1]} ${d.year}';
+  }
+
+  String _fmtDateStr(String iso) {
+    try {
+      return _fmtDate(DateTime.parse(iso));
+    } catch (_) {
+      return iso;
+    }
+  }
+
+  String _isoDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }

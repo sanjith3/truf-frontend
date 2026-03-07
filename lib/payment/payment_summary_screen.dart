@@ -5,6 +5,7 @@ import '../models/turf.dart';
 import '../booking/booking_screen.dart';
 import '../services/api_service.dart';
 import 'payment_screen.dart';
+import 'offers_screen.dart';
 
 /// Payment Summary Screen — Swiggy/Zomato style redesign
 ///
@@ -58,8 +59,9 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
   String _couponDiscount = '0';
   String? _couponError;
 
-  // ─── Available Offers (fetched from API, user-specific) ───
-  List<Map<String, dynamic>> _availableOffers = [];
+  // ─── Available Offers (split into admin coupons + owner offers) ───
+  List<Map<String, dynamic>> _adminCoupons = [];
+  List<Map<String, dynamic>> _ownerOffers = [];
   bool _loadingOffers = false;
 
   // ─── Timer ───
@@ -228,11 +230,6 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
       _couponDiscount = '0';
       _couponError = null;
     });
-  }
-
-  void _tapOfferChip(String code) {
-    _couponCtrl.text = code;
-    Clipboard.setData(ClipboardData(text: code));
   }
 
   // ─── PAYMENT ───
@@ -802,15 +799,19 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
   Future<void> _loadAvailableOffers() async {
     setState(() => _loadingOffers = true);
     try {
-      // Pass subtotal so the backend can filter by min_order_value
       final subtotal = _subtotal.isNotEmpty ? _subtotal : '0';
       final data = await _api.getAuth(
         '/api/coupons/available/?amount=$subtotal',
       );
       if (data['success'] == true && mounted) {
-        final raw = data['offers'] as List<dynamic>? ?? [];
+        // Split format from the backend
+        final rawAdmin = data['admin_coupons'] as List<dynamic>? ?? [];
+        final rawOwner = data['owner_offers'] as List<dynamic>? ?? [];
         setState(() {
-          _availableOffers = raw
+          _adminCoupons = rawAdmin
+              .map((o) => Map<String, dynamic>.from(o as Map))
+              .toList();
+          _ownerOffers = rawOwner
               .map((o) => Map<String, dynamic>.from(o as Map))
               .toList();
         });
@@ -823,21 +824,84 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
   }
 
   Widget _buildOffersCard() {
-    // Don't render the section at all when loading is done and list is empty
-    if (!_loadingOffers && _availableOffers.isEmpty) {
-      return const SizedBox.shrink();
+    final hasOffers = _adminCoupons.isNotEmpty || _ownerOffers.isNotEmpty;
+
+    // While loading: show 2 skeleton rows
+    if (_loadingOffers && !hasOffers) {
+      return _card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1565C0).withAlpha(18),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'OFFERS',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1565C0),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Available for you',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ...List.generate(
+              2,
+              (_) => Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
+
+    // Done loading but nothing to show
+    if (!_loadingOffers && !hasOffers) return const SizedBox.shrink();
+
+    // Build preview (up to 2 admin + 1 owner)
+    final previewAdmins = _adminCoupons.take(2).toList();
+    final previewOwners = _ownerOffers.take(1).toList();
+    final totalCount = _adminCoupons.length + _ownerOffers.length;
 
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Header ──
           Row(
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1565C0).withValues(alpha: 0.1),
+                  color: const Color(0xFF1565C0).withAlpha(18),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
@@ -866,28 +930,66 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
                   height: 14,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
+              GestureDetector(
+                onTap: _viewAllOffers,
+                child: const Text(
+                  'View All',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1565C0),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
-          if (_loadingOffers && _availableOffers.isEmpty)
-            // Skeleton placeholder while loading
-            ...List.generate(
-              2,
-              (_) => Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(10),
+
+          // ── Admin coupon chips ──
+          ...previewAdmins.map(
+            (c) => _offerChip(
+              c['code'] as String? ?? '',
+              c['saving'] as String? ?? '',
+              c['description'] as String? ?? '',
+              isAdmin: true,
+            ),
+          ),
+
+          // ── Owner offer chips ──
+          ...previewOwners.map(
+            (o) => _offerChip(
+              o['title'] as String? ?? 'Special Offer',
+              o['description'] as String? ?? '',
+              'Owner offer · ${o['turf_name'] ?? ''}',
+              isAdmin: false,
+            ),
+          ),
+
+          // ── More offers link ──
+          if (totalCount > previewAdmins.length + previewOwners.length)
+            GestureDetector(
+              onTap: _viewAllOffers,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '+${totalCount - previewAdmins.length - previewOwners.length} more offers',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF1565C0),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 12,
+                      color: Color(0xFF1565C0),
+                    ),
+                  ],
                 ),
-              ),
-            )
-          else
-            ..._availableOffers.map(
-              (o) => _offerChip(
-                o['code'] as String,
-                o['saving'] as String,
-                o['desc'] as String,
               ),
             ),
         ],
@@ -895,70 +997,152 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
     );
   }
 
-  Widget _offerChip(String code, String saving, String desc) {
-    return GestureDetector(
-      onTap: () => _tapOfferChip(code),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+  void _viewAllOffers() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OffersScreen(
+          adminCoupons: _adminCoupons,
+          ownerOffers: _ownerOffers,
+          turfName: _turfName.isNotEmpty ? _turfName : widget.turf.name,
+          onApplyCoupon: (code) {
+            _couponCtrl.text = code;
+            _applyCoupon();
+          },
         ),
-        child: Row(
+      ),
+    );
+  }
+
+  // Helper called when a preview chip is tapped
+  void _applyOffer(String code) {
+    _couponCtrl.text = code;
+    _applyCoupon();
+  }
+
+  Widget _offerChip(
+    String code,
+    String saving,
+    String desc, {
+    bool isAdmin = true,
+  }) {
+    final chipColor = isAdmin
+        ? const Color(0xFF1565C0)
+        : const Color(0xFF1DB954);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: chipColor.withAlpha(30)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(6),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1565C0).withOpacity(0.08),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: const Color(0xFF1565C0).withOpacity(0.2),
-                ),
-              ),
-              child: Text(
-                code,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1565C0),
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Colour accent bar
+            Container(height: 3, color: chipColor),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    saving,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                  // Code pill
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: chipColor.withAlpha(18),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: chipColor.withAlpha(50)),
+                    ),
+                    child: Text(
+                      code,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: chipColor,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    desc,
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+
+                  const SizedBox(width: 10),
+
+                  // Text content — Expanded so it never overflows
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          saving,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: chipColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          desc,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
+
+                  const SizedBox(width: 8),
+
+                  // APPLY button (admin) or info icon (owner)
+                  if (isAdmin)
+                    SizedBox(
+                      height: 32,
+                      child: ElevatedButton(
+                        onPressed: () => _applyOffer(code),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: chipColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'APPLY',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 16,
+                      color: chipColor,
+                    ),
                 ],
               ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 13,
-              color: Color(0xFF1565C0),
             ),
           ],
         ),
