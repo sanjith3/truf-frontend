@@ -8,11 +8,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 class EditProfileScreen extends StatefulWidget {
   final String currentName;
   final String currentEmail;
+  final String? currentDob;
 
   const EditProfileScreen({
     super.key,
     required this.currentName,
     required this.currentEmail,
+    this.currentDob,
   });
 
   @override
@@ -22,20 +24,31 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _emailController;
+  late TextEditingController _dobController;
   File? _image;
   final ImagePicker _picker = ImagePicker();
+  DateTime? _selectedDob;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.currentName);
     _emailController = TextEditingController(text: widget.currentEmail);
+    _dobController = TextEditingController(text: widget.currentDob ?? '');
+    if (widget.currentDob != null && widget.currentDob!.isNotEmpty) {
+      try {
+        _selectedDob = DateTime.parse(widget.currentDob!);
+      } catch (e) {
+        // Ignore parse error
+      }
+    }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _dobController.dispose();
     super.dispose();
   }
 
@@ -53,10 +66,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error picking image: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error picking image: $e")));
       }
+    }
+  }
+
+  Future<void> _pickDob(BuildContext context) async {
+    final DateTime now = DateTime.now();
+    final DateTime initialDate =
+        _selectedDob ?? DateTime(now.year - 18, now.month, now.day);
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(now.year - 100),
+      lastDate: DateTime(now.year - 13), // Require at least 13 years old
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF1DB954), // header background color
+              onPrimary: Colors.white, // header text color
+              onSurface: Colors.black, // body text color
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDob) {
+      setState(() {
+        _selectedDob = picked;
+        _dobController.text =
+            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      });
     }
   }
 
@@ -90,7 +134,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       decoration: BoxDecoration(
                         color: Colors.grey.shade200,
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFF1DB954), width: 2),
+                        border: Border.all(
+                          color: const Color(0xFF1DB954),
+                          width: 2,
+                        ),
                         image: _image != null
                             ? DecorationImage(
                                 image: FileImage(_image!),
@@ -197,6 +244,43 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 fillColor: Colors.grey.shade50,
               ),
             ),
+            const SizedBox(height: 20),
+            const Text(
+              "Date of Birth",
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _dobController,
+              readOnly: true,
+              onTap: () => _pickDob(context),
+              decoration: InputDecoration(
+                hintText: "Select your birthday for bonus credits!",
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                prefixIcon: const Icon(
+                  Icons.cake_outlined,
+                  color: Color(0xFF1DB954),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1DB954)),
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade50,
+              ),
+            ),
             const SizedBox(height: 40),
             SizedBox(
               width: double.infinity,
@@ -205,9 +289,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 onPressed: () async {
                   final name = _nameController.text.trim();
                   final email = _emailController.text.trim();
-                  
+
                   // Validation Regex for Email
-                  final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                  final emailRegex = RegExp(
+                    r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                  );
 
                   if (name.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -235,7 +321,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setString('userName', name);
                   await prefs.setString('userEmail', email);
-                  
+
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -248,6 +334,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       'name': name,
                       'email': email,
                       'image': _image,
+                      'dob': _dobController.text,
                     });
                   }
                 },

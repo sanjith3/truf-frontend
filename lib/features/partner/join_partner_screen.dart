@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/api_service.dart';
 
@@ -888,6 +889,21 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
   // Photos
   List<File> selectedPhotos = [];
   bool isConfirmed = false;
+  bool _ownsFacility = false;
+  bool _infoAccurate = false;
+
+  Future<void> _launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not open link')));
+      }
+    }
+  }
 
   // Step tracking for better UX
   int _currentStep = 0;
@@ -930,10 +946,12 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
       return;
     }
 
-    if (!isConfirmed) {
-      _showSnackBar(
-        'Please enable Terms & Conditions to submit',
-        isError: true,
+    if (!isConfirmed || !_ownsFacility || !_infoAccurate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept all Terms & Conditions to submit'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -1804,43 +1822,6 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           icon: Icons.location_city_outlined,
           isRequired: false,
         ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.green[50],
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.green[100]!),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.account_balance_wallet_outlined,
-                    size: 16,
-                    color: Colors.green[700],
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    "Payment Information",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.green[700],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                "• We deduct 10% commission from each booking\n• 90% is transferred INSTANTLY to your account\n• Payments processed after each booking",
-                style: TextStyle(fontSize: 11, color: Colors.green[800]),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -1961,134 +1942,206 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
 
         const SizedBox(height: 24),
 
-        // Compact Terms & Conditions
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[300]!),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.verified_outlined,
-                      size: 20,
-                      color: const Color(0xFF00C853),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Terms & Conditions",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+        const SizedBox(height: 24),
 
-                // Scrollable Terms
-                Container(
-                  height: 160,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey[200]!),
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildTermItem("✓ I own/manage this turf facility"),
-                        _buildTermItem("✓ Information provided is accurate"),
-                        _buildTermItem("✓ Approval process takes 48 hours"),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.orange[50],
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.account_balance_wallet_outlined,
-                                    size: 14,
-                                    color: Colors.orange[700],
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    "Commission Agreement",
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.orange[700],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                "• 10% commission on each booking\n• 90% transferred INSTANTLY after booking\n• Fixed, non-negotiable structure",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.orange[800],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+        // Terms & Conditions Section
+        Text(
+          '⚖️ TERMS & CONDITIONS',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+
+        const SizedBox(height: 16),
+
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
+            children: [
+              CheckboxListTile(
+                title: const Text(
+                  'I own/manage this turf facility',
+                  style: TextStyle(fontSize: 14),
                 ),
-                const SizedBox(height: 12),
-                Row(
+                value: _ownsFacility,
+                onChanged: (value) {
+                  setState(() => _ownsFacility = value ?? false);
+                },
+                activeColor: Colors.green,
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+              CheckboxListTile(
+                title: const Text(
+                  'All information provided is accurate',
+                  style: TextStyle(fontSize: 14),
+                ),
+                value: _infoAccurate,
+                onChanged: (value) {
+                  setState(() => _infoAccurate = value ?? false);
+                },
+                activeColor: Colors.green,
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+              const Divider(height: 24),
+
+              Padding(
+                padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Transform.scale(
-                      scale: 1.1,
-                      child: Checkbox(
-                        value: isConfirmed,
-                        onChanged: (value) {
-                          setState(() {
-                            isConfirmed = value ?? false;
-                          });
-                        },
-                        activeColor: const Color(0xFF00C853),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+                    const Text(
+                      'I have read and agree to the:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "I have read and agree to all terms and conditions",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[700],
-                          height: 1.3,
-                        ),
-                      ),
+                    const SizedBox(height: 8),
+
+                    _buildLinkTile(
+                      '📜 Privacy Policy',
+                      'https://turfzone.com/privacy',
+                    ),
+                    _buildLinkTile(
+                      '📋 Terms & Conditions',
+                      'https://turfzone.com/terms',
+                    ),
+                    _buildLinkTile(
+                      '❌ Cancellation Policy',
+                      'https://turfzone.com/cancellation',
                     ),
                   ],
                 ),
-              ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Commission Agreement Section
+        Text(
+          '💰 COMMISSION AGREEMENT',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+
+        const SizedBox(height: 16),
+
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.green.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.green.withOpacity(0.2)),
+          ),
+          child: Column(
+            children: [
+              _buildCommissionRow(
+                Icons.percent,
+                '5% commission on each booking',
+                '',
+              ),
+              const SizedBox(height: 8),
+              _buildCommissionRow(
+                Icons.calendar_today,
+                'Weekly payouts every Monday',
+                '',
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Final Agreement Checkbox
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: CheckboxListTile(
+            title: const Text(
+              'I have read and agree to all terms and conditions',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             ),
+            value: isConfirmed,
+            onChanged: (value) {
+              setState(() => isConfirmed = value ?? false);
+            },
+            activeColor: Colors.green,
+            controlAffinity: ListTileControlAffinity.leading,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLinkTile(String title, String url) {
+    return InkWell(
+      onTap: () => _launchURL(url),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.green,
+                  decoration: TextDecoration.underline,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const Icon(Icons.open_in_new, size: 14, color: Colors.green),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCommissionRow(IconData icon, String main, String sub) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: sub.isNotEmpty ? 12 : 0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.green, size: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  main,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                if (sub.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    sub,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2617,25 +2670,6 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
           ],
         ),
       ],
-    );
-  }
-
-  Widget _buildTermItem(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.check_circle, size: 14, color: Colors.green[600]),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

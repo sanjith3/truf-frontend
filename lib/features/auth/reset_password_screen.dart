@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
-
 import '../../services/api_service.dart';
 
-/// Screen for setting a new password after OTP verification.
-///
-/// [phoneNumber] — the verified phone number.
-/// [otpToken]    — the short-lived temp token returned from verify_otp.
+/// Step 2 of password reset: set new password after phone verification.
+/// If verified via WhatsApp OTP, a resetToken is passed for backend validation.
 class ResetPasswordScreen extends StatefulWidget {
   final String phoneNumber;
-  final String otpToken;
+  final String? resetToken;
 
   const ResetPasswordScreen({
     super.key,
     required this.phoneNumber,
-    required this.otpToken,
+    this.resetToken,
   });
 
   @override
@@ -26,8 +23,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _obscureNew = true;
   bool _obscureConfirm = true;
   bool _isLoading = false;
-
-  final ApiService _api = ApiService();
 
   @override
   void dispose() {
@@ -55,13 +50,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final response = await _api.post(
-        '/api/users/otp/reset_password/',
-        body: {
-          'phone': widget.phoneNumber,
-          'new_password': newPass,
-          'otp_token': widget.otpToken,
-        },
+      final body = <String, dynamic>{
+        'phone': widget.phoneNumber,
+        'new_password': newPass,
+      };
+      if (widget.resetToken != null && widget.resetToken!.isNotEmpty) {
+        body['reset_token'] = widget.resetToken;
+      }
+      final response = await ApiService().post(
+        '/api/users/auth/reset-password/',
+        body: body,
       );
 
       if (response['success'] == true) {
@@ -80,7 +78,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         _showError(response['error'] ?? 'Password reset failed');
       }
     } on ApiException catch (e) {
-      // Try to extract readable error from body
       String msg = 'Password reset failed';
       final match = RegExp(r'"error"\s*:\s*"([^"]+)"').firstMatch(e.body);
       if (match != null) msg = match.group(1)!;
@@ -126,7 +123,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-
               const Text(
                 'Create New Password',
                 style: TextStyle(
@@ -136,13 +132,18 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Your new password must be different from previous passwords.',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+              Text(
+                'Phone ${widget.phoneNumber} verified! '
+                'Enter your new password below.',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 40),
 
-              // ── New Password ─────────────────────────────────────────────
+              // New Password
               TextField(
                 controller: _newPasswordController,
                 obscureText: _obscureNew,
@@ -170,7 +171,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ── Confirm Password ─────────────────────────────────────────
+              // Confirm Password
               TextField(
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirm,
@@ -200,7 +201,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               ),
               const SizedBox(height: 40),
 
-              // ── Reset Button ─────────────────────────────────────────────
+              // Reset Button
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1DB954),

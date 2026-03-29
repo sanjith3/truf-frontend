@@ -224,26 +224,6 @@ class _FirstBookingBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          SizedBox(
-            height: 32,
-            child: ElevatedButton(
-              onPressed: onBookNow,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: _kPurple,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'BOOK NOW',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
           GestureDetector(
             onTap: onDismiss,
             child: Padding(

@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:turfzone/services/api_service.dart';
+import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:turfzone/booking/booking_screen.dart';
 import 'package:turfzone/models/turf.dart';
@@ -849,9 +850,83 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   }
 
   Future<void> _handleAdminAccess() async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AdminPinScreen()),
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final status = await _checkApprovalStatus();
+
+    if (context.mounted) {
+      Navigator.pop(context); // Remove loading dialog
+    }
+
+    if (status['can_access'] == true) {
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminPinScreen()),
+        );
+      }
+    } else {
+      if (context.mounted) {
+        _showPendingApprovalDialog(status);
+      }
+    }
+  }
+
+  Future<Map<String, dynamic>> _checkApprovalStatus() async {
+    try {
+      final response = await ApiService().getAuth(
+        '/api/users/owner/approval-status/',
+      );
+      return response;
+    } catch (e) {
+      return {'can_access': false, 'message': 'Error checking status'};
+    }
+  }
+
+  void _showPendingApprovalDialog(Map<String, dynamic> status) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('⏳ Pending Approval'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your turf is under review by our team.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '• Pending turfs: ${status['pending_count'] ?? 0}',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            Text(
+              '• Approved turfs: ${status['approved_count'] ?? 0}',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'You will be notified once approved.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 

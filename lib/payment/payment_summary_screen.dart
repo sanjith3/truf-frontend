@@ -50,6 +50,7 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
   String _gstOnPlatformFee = '0';
   String _totalPayable = '0';
   String _firstBookingDiscount = '0';
+  String _loyaltyCashback = '0';
   String _turfName = '';
   String _expiresAt = '';
 
@@ -116,6 +117,7 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
           _totalPayable = response['total_payable']?.toString() ?? '0';
           _firstBookingDiscount =
               response['first_booking_discount']?.toString() ?? '0';
+          _loyaltyCashback = response['loyalty_cashback']?.toString() ?? '0';
           _turfName = response['turf_name']?.toString() ?? widget.turf.name;
           _expiresAt = expiresAt;
           _secondsLeft = secs;
@@ -574,6 +576,8 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
   Widget _buildPriceCard() {
     final hasFirstDiscount =
         _firstBookingDiscount != '0' && _firstBookingDiscount != '0.00';
+    final hasLoyaltyCashback =
+        _loyaltyCashback != '0' && _loyaltyCashback != '0.00';
     final hasCouponDiscount =
         _appliedCoupon != null &&
         _couponDiscount != '0' &&
@@ -590,7 +594,7 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
           _priceRow('Platform Fee', '₹$_platformFee'),
           _priceRow('GST on Platform Fee', '₹$_gstOnPlatformFee'),
 
-          if (hasFirstDiscount || hasCouponDiscount) ...[
+          if (hasFirstDiscount || hasCouponDiscount || hasLoyaltyCashback) ...[
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
@@ -620,6 +624,12 @@ class _PaymentSummaryScreenState extends State<PaymentSummaryScreen> {
               _priceRow(
                 'First Booking Discount',
                 '-₹$_firstBookingDiscount',
+                isDiscount: true,
+              ),
+            if (hasLoyaltyCashback)
+              _priceRow(
+                'Tier Cashback',
+                '-₹$_loyaltyCashback',
                 isDiscount: true,
               ),
             if (hasCouponDiscount)

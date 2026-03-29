@@ -833,19 +833,6 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
   }
 
   // ------------------------------------------------------------
-  // Stats
-  // ------------------------------------------------------------
-  int get _bookedCount => _timeSlots.where((s) => s.isBooked).length;
-  int get _availableCount => _timeSlots.where((s) => s.isAvailable).length;
-  int get _disabledCount =>
-      _timeSlots.where((s) => s.isDisabled && !s.isBooked).length;
-  int get _offerCount =>
-      _timeSlots.where((s) => s.hasOffer && !s.isBooked).length;
-  double get _todayRevenue => _timeSlots
-      .where((s) => s.isBooked)
-      .fold(0.0, (sum, s) => sum + s.effectivePrice);
-
-  // ------------------------------------------------------------
   // Helpers
   // ------------------------------------------------------------
   int _getHourFromSlotString(String slot) {
@@ -908,10 +895,12 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
         title: const Text('Slot Management'),
         backgroundColor: const Color(0xFF1DB954),
         elevation: 0,
-        // ── Date selector pinned below AppBar — always visible ───────────
+        // ── Global offers & Date selector pinned below AppBar ───────────
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(90),
-          child: _buildDateSelector(),
+          preferredSize: const Size.fromHeight(136),
+          child: Column(
+            children: [_buildGlobalActionButtons(), _buildDateSelector()],
+          ),
         ),
         actions: [
           PopupMenuButton<String>(
@@ -943,8 +932,6 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
                 slivers: [
                   // Turf selector — scrolls away
                   SliverToBoxAdapter(child: _buildTurfSelector()),
-                  // Stats cards — scrolls away
-                  SliverToBoxAdapter(child: _buildStatsCards()),
                   // Section header — scrolls away
                   SliverToBoxAdapter(child: _buildTimeSlotHeader()),
                   // Loading or slot grid — scrolls away
@@ -1106,58 +1093,288 @@ class _SlotManagementScreenState extends State<SlotManagementScreen> {
     );
   }
 
-  Widget _buildStatsCards() {
+  Widget _buildGlobalActionButtons() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      color: const Color(0xFF1DB954),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _statCard(
-            'Revenue',
-            '₹${_todayRevenue.toStringAsFixed(0)}',
-            Colors.green,
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _timeSlots.isEmpty || _isLoading
+                  ? null
+                  : () => _showGlobalOfferModal(),
+              icon: const Icon(Icons.bolt, size: 18),
+              label: const Text(
+                'Apply Offer to All Slots',
+                style: TextStyle(fontSize: 12),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.deepOrange,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
           ),
-          _statCard('Booked', '$_bookedCount', Colors.blue),
-          _statCard('Available', '$_availableCount', Colors.orange),
-          _statCard('Disabled', '$_disabledCount', Colors.grey),
-          _statCard('Offers', '$_offerCount', Colors.red),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _timeSlots.isEmpty || _isLoading
+                  ? null
+                  : () => _clearAllOffers(),
+              icon: const Icon(Icons.clear_all, size: 18),
+              label: const Text(
+                'Clear All Offers',
+                style: TextStyle(fontSize: 12),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _statCard(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2), width: 1),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-              maxLines: 1,
-            ),
-          ],
-        ),
+  Future<void> _clearAllOffers() async {
+    if (_selectedTurf == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear All Offers?'),
+        content: Text('Remove all offers for ${_formatDate(_selectedDate)}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Clear', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    final api = ApiService();
+    final dateStr =
+        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+
+    try {
+      final res = await api.deleteAuth(
+        '/api/turfs/turfs/${_selectedTurf!.id}/bulk-offer/?date=$dateStr',
+      );
+      if (res['success'] == true) {
+        _showSnackBar(res['message'] ?? 'Offers cleared successfully');
+        _loadSlotsForDate(_selectedDate); // refresh UI
+      } else {
+        _showSnackBar(res['error'] ?? 'Failed to clear offers', isError: true);
+      }
+    } catch (e) {
+      _showSnackBar('Error: $e', isError: true);
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showGlobalOfferModal() {
+    String selectedOfferType = 'percentage';
+    final valueController = TextEditingController();
+    DateTime? validUntil;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.bolt, color: Colors.deepOrange),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Global Offer',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                Text(
+                  'Apply to ALL slots on ${_formatDate(_selectedDate)}',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Offer Type',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _offerTypeChip(
+                        label: 'Percentage (%)',
+                        isSelected: selectedOfferType == 'percentage',
+                        onTap: () {
+                          setSheetState(() {
+                            selectedOfferType = 'percentage';
+                            valueController.clear();
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _offerTypeChip(
+                        label: 'Flat (₹)',
+                        isSelected: selectedOfferType == 'flat',
+                        onTap: () {
+                          setSheetState(() {
+                            selectedOfferType = 'flat';
+                            valueController.clear();
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: valueController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: selectedOfferType == 'percentage'
+                        ? 'Discount % (max 90)'
+                        : 'Discount ₹ (applied to each slot)',
+                    prefixIcon: Icon(
+                      selectedOfferType == 'percentage'
+                          ? Icons.percent
+                          : Icons.currency_rupee,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final value = double.tryParse(valueController.text);
+                      if (value == null || value <= 0) {
+                        _showSnackBar(
+                          'Enter a valid positive value',
+                          isError: true,
+                        );
+                        return;
+                      }
+                      if (selectedOfferType == 'percentage' && value > 90) {
+                        _showSnackBar('Max percentage is 90%', isError: true);
+                        return;
+                      }
+
+                      Navigator.pop(ctx);
+                      await _applyBulkOffer(
+                        selectedOfferType,
+                        value,
+                        validUntil,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepOrange,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Apply to All',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _applyBulkOffer(
+    String offerType,
+    double value,
+    DateTime? validUntil,
+  ) async {
+    if (_selectedTurf == null) return;
+
+    setState(() => _isLoading = true);
+    final api = ApiService();
+    final turfId = _selectedTurf!.id;
+    final dateStr =
+        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+
+    try {
+      final res = await api.postAuth(
+        '/api/turfs/turfs/$turfId/bulk-offer/',
+        body: {'date': dateStr, 'offer_type': offerType, 'value': value},
+      );
+
+      if (res['success'] == true) {
+        _showSnackBar(res['message'] ?? 'Global offer applied');
+        _loadSlotsForDate(_selectedDate); // refresh UI to show badges
+      } else {
+        _showSnackBar(
+          res['error'] ?? 'Failed to apply global offer',
+          isError: true,
+        );
+      }
+    } catch (e) {
+      _showSnackBar('Error: $e', isError: true);
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Widget _buildTimeSlotHeader() {

@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'whatsapp_otp_screen.dart';
 
-import '../../services/api_service.dart';
-import 'otp_verify_screen.dart';
-import 'reset_password_screen.dart';
-
-/// Step 1 of password reset: enter phone number → send OTP → go to OTP screen.
+/// Step 1 of password reset: enter phone number → verify via WhatsApp OTP.
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -15,9 +12,6 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _phoneController = TextEditingController();
-  bool _isLoading = false;
-
-  final ApiService _api = ApiService();
 
   @override
   void dispose() {
@@ -25,7 +19,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  Future<void> _sendOtp() async {
+  void _verifyPhone() {
     final phone = _phoneController.text.trim();
 
     if (phone.length != 10) {
@@ -33,58 +27,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
-
-    try {
-      await _api.post(
-        '/api/users/otp/send_otp/',
-        body: {'phone': phone, 'purpose': 'reset'},
-      );
-
-      if (!mounted) return;
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OtpVerificationScreen(
-            phoneNumber: phone,
-            purpose: 'reset',
-            onVerified: (tempToken) {
-              // OTP verified — go to the new-password screen
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ResetPasswordScreen(
-                    phoneNumber: phone,
-                    otpToken: tempToken,
-                  ),
-                ),
-              );
-            },
-          ),
+    // Navigate directly to WhatsApp OTP screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WhatsAppOtpScreen(
+          phone: phone,
+          purpose: 'reset',
         ),
-      );
-    } on ApiException catch (e) {
-      String msg = 'Failed to send OTP';
-      final match = RegExp(r'"error"\s*:\s*"([^"]+)"').firstMatch(e.body);
-      if (match != null) msg = match.group(1)!;
-      _showError(msg);
-    } catch (_) {
-      _showError('Cannot connect to server. Please check your connection.');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _showError(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  void _showError(String msg) {
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+    }
   }
 
   @override
@@ -110,7 +70,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-
               const Text(
                 'Reset Your Password',
                 style: TextStyle(
@@ -121,16 +80,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Enter your registered phone number. We\'ll send a verification code to reset your password.',
+                'Enter your registered phone number. '
+                'We\'ll send a verification code via WhatsApp.',
                 style: TextStyle(fontSize: 14, color: Colors.grey, height: 1.5),
               ),
               const SizedBox(height: 40),
 
+              // Phone field
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.number,
                 textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _sendOtp(),
+                onSubmitted: (_) => _verifyPhone(),
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(10),
@@ -162,25 +123,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   elevation: 0,
                 ),
-                onPressed: _isLoading ? null : _sendOtp,
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
-                        ),
-                      )
-                    : const Text(
-                        'SEND OTP',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                onPressed: _verifyPhone,
+                child: const Text(
+                  'SEND OTP VIA WHATSAPP',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),

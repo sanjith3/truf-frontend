@@ -12,9 +12,9 @@ import 'package:http/http.dart' as http;
 /// - Use getAuth() / postAuth() for PROTECTED endpoints (JWT required)
 /// - Never store money as double. Use String for all financial values.
 class ApiService {
-  // ─── BASE URL CONFIGURATION ───
-  // LAN IP — NOT localhost / 127.0.0.1 / 10.0.2.2
-  static const String BASE_URL = 'http://10.33.236.36:8000';
+  // Physical device: ADB reverse maps phone's localhost → laptop's localhost.
+  // ★ 10.0.2.2 is EMULATOR ONLY. Physical devices use 127.0.0.1 with adb reverse.
+  static const String BASE_URL = 'http://127.0.0.1:8000';
 
   // BUG-12 FIX: Tokens stored in flutter_secure_storage (Android Keystore /
   // iOS Keychain) — never in plain SharedPreferences XML on disk.
@@ -52,6 +52,7 @@ class ApiService {
   static Future<void> clearTokens() async {
     await _storage.delete(key: _accessTokenKey);
     await _storage.delete(key: _refreshTokenKey);
+    await _storage.delete(key: 'owner_pin_hash');
     debugPrint('🔐 Tokens cleared from secure storage');
   }
 
@@ -244,6 +245,76 @@ class ApiService {
     }
   }
 
+  /// DELETE request with JWT Bearer token
+  Future<dynamic> deleteAuth(
+    String path, {
+    Map<String, String>? queryParams,
+  }) async {
+    final headers = await _authHeaders();
+    final url = Uri.parse(
+      '$BASE_URL$path',
+    ).replace(queryParameters: queryParams);
+    print('🔐 AUTH DELETE $url');
+
+    try {
+      final response = await http
+          .delete(url, headers: headers)
+          .timeout(const Duration(seconds: 10));
+
+      print('🔐 AUTH DELETE ${response.statusCode}: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        if (response.body.isEmpty) return {'success': true};
+        return jsonDecode(response.body);
+      } else if (response.statusCode == 401) {
+        throw AuthExpiredException();
+      } else {
+        throw ApiException(response.statusCode, response.body);
+      }
+    } on SocketException catch (e) {
+      print('🚨 SOCKET ERROR (AUTH DELETE): $e');
+      rethrow;
+    } catch (e) {
+      if (e is AuthExpiredException) rethrow;
+      print('🚨 AUTH DELETE ERROR: $e (${e.runtimeType})');
+      rethrow;
+    }
+  }
+
+  /// PUT request with JWT Bearer token
+  Future<dynamic> putAuth(String path, {Map<String, dynamic>? body}) async {
+    final headers = await _authHeaders();
+    final url = Uri.parse('$BASE_URL$path');
+    print('🔐 AUTH PUT $url | body: $body');
+
+    try {
+      final response = await http
+          .put(
+            url,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(const Duration(seconds: 10));
+
+      print('🔐 AUTH PUT ${response.statusCode}: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body);
+      } else if (response.statusCode == 401) {
+        throw AuthExpiredException();
+      } else {
+        throw ApiException(response.statusCode, response.body);
+      }
+    } on SocketException catch (e) {
+      print('🚨 SOCKET ERROR (AUTH PUT): $e');
+      rethrow;
+    } catch (e) {
+      if (e is AuthExpiredException) rethrow;
+      print('🚨 AUTH PUT ERROR: $e (${e.runtimeType})');
+      rethrow;
+    }
+  }
+
   /// POST request with JWT — returns raw response (for confirm flow error handling)
   Future<http.Response> postAuthRaw(
     String path, {
@@ -263,6 +334,30 @@ class ApiService {
 
     print('🔐 AUTH POST RAW ${response.statusCode}: ${response.body}');
     return response;
+  }
+
+  // ─── WHATSAPP OTP ───
+
+  /// Send OTP via WhatsApp. [phone] should be 10-digit (no country code).
+  static Future<Map<String, dynamic>> sendWhatsAppOtp(String phone) async {
+    final api = ApiService();
+    return await api.post(
+      '/api/whatsapp/send-otp/',
+      body: {'phone': '+91$phone'},
+    );
+  }
+
+  /// Verify WhatsApp OTP. [purpose] is 'register' or 'reset'.
+  static Future<Map<String, dynamic>> verifyWhatsAppOtp(
+    String phone,
+    String otp, {
+    String purpose = 'register',
+  }) async {
+    final api = ApiService();
+    return await api.post(
+      '/api/whatsapp/verify-otp/',
+      body: {'phone': '+91$phone', 'otp': otp, 'purpose': purpose},
+    );
   }
 
   // ─── HEADERS ───

@@ -7,7 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
-import 'package:turfzone/features/splash/splash_screen.dart';
+import 'package:turfzone/screens/login_screen.dart';
+import 'package:turfzone/screens/register_screen.dart';
+import 'package:turfzone/features/home/user_home_screen.dart';
 import 'package:turfzone/services/api_service.dart';
 
 /// Global navigator key — lets us show snackbars from outside widget tree
@@ -223,7 +225,13 @@ class TurfZoneApp extends StatelessWidget {
           child: child!,
         );
       },
-      home: const SplashScreen(),
+      initialRoute: '/login',
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/home': (context) => const UserHomeScreen(),
+      },
+      // home: const SplashScreen(),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/Admindashboard/admin_screen.dart';
 
 /// Secure admin PIN screen.
@@ -30,8 +31,12 @@ class _AdminPinScreenState extends State<AdminPinScreen> {
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
 
-  // Fixed, stable key — NOT phone-based.
-  static const _pinKey = 'owner_pin_hash';
+  /// Dynamically fetch the key based on the logged-in user's phone number
+  Future<String> get _pinKey async {
+    final prefs = await SharedPreferences.getInstance();
+    final phone = prefs.getString('userPhone') ?? 'default';
+    return 'owner_pin_hash_$phone';
+  }
 
   static const _primaryGreen = Color(0xFF1DB954);
 
@@ -56,8 +61,9 @@ class _AdminPinScreenState extends State<AdminPinScreen> {
 
   /// Read whether a PIN hash is stored.
   Future<bool> _checkHasPin() async {
-    final stored = await _storage.read(key: _pinKey);
-    debugPrint('[PIN] stored hash present: ${stored != null}');
+    final key = await _pinKey;
+    final stored = await _storage.read(key: key);
+    debugPrint('[PIN] key $key stored hash present: ${stored != null}');
     return stored != null && stored.isNotEmpty;
   }
 
@@ -68,15 +74,17 @@ class _AdminPinScreenState extends State<AdminPinScreen> {
 
   Future<void> _savePin(String pin) async {
     final hash = _hashPin(pin);
-    await _storage.write(key: _pinKey, value: hash);
-    debugPrint('[PIN] saved hash: $hash');
+    final key = await _pinKey;
+    await _storage.write(key: key, value: hash);
+    debugPrint('[PIN] saved hash: $hash to $key');
   }
 
   Future<bool> _verifyPin(String enteredPin) async {
-    final stored = await _storage.read(key: _pinKey);
+    final key = await _pinKey;
+    final stored = await _storage.read(key: key);
     if (stored == null || stored.isEmpty) return false;
     final match = stored == _hashPin(enteredPin);
-    debugPrint('[PIN] verify: $match');
+    debugPrint('[PIN] verify match: $match');
     return match;
   }
 

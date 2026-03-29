@@ -6,14 +6,16 @@ import 'package:turfzone/features/bookings/my_bookings_screen.dart';
 import 'package:turfzone/features/Help_support/help_support_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:turfzone/features/credits_rewards/credits_rewards_screen.dart';
-import 'package:turfzone/features/auth/otp_login_screen.dart';
+import 'package:turfzone/screens/login_screen.dart';
 import 'package:turfzone/features/profile/edit_profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turfzone/features/Admin_pinset/admin_pin_screen.dart';
 import '../../services/auth_state.dart';
 import 'package:turfzone/features/referral/invite_friends_screen.dart';
 import 'package:turfzone/features/wallet/wallet_screen.dart';
-import 'package:turfzone/features/home/growth_widgets.dart';
+import '../../models/loyalty_tier.dart';
+import '../../screens/loyalty/loyalty_tiers_screen.dart';
+import '../../screens/support/support_ticket_list_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -26,9 +28,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userName = "User Name";
   String _userEmail = "user@example.com";
   String _userPhone = "+91 98765 43210";
+  String _userDob = "";
   File? _userImage;
   bool _isPartner = false;
-  String _memberSince = "Jan 2023";
+  String _memberSince = "";
   int _totalBookings = 0;
   int _credits = 0;
 
@@ -58,34 +61,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       String? phone = prefs.getString('userPhone');
       _userPhone = phone != null ? "+91 $phone" : "Phone number not set";
       _isPartner = AuthState.instance.isOwner;
-
-      // Load registration date
-      if (phone != null) {
-        final regDateStr = prefs.getString('registrationDate_$phone');
-        if (regDateStr != null) {
-          try {
-            final regDate = DateTime.parse(regDateStr);
-            final months = [
-              'Jan',
-              'Feb',
-              'Mar',
-              'Apr',
-              'May',
-              'Jun',
-              'Jul',
-              'Aug',
-              'Sep',
-              'Oct',
-              'Nov',
-              'Dec',
-            ];
-            _memberSince = '${months[regDate.month - 1]} ${regDate.year}';
-          } catch (e) {
-            // Use default if parsing fails
-            _memberSince = 'Jan 2023';
-          }
-        }
-      }
     });
 
     // Fetch live stats from backend
@@ -93,21 +68,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfileStats() async {
+    print('📡 Calling _loadProfileStats()');
     try {
       // Refresh auth state from API (keeps role in sync)
       await AuthState.instance.loadProfile();
 
       final user = AuthState.instance.userProfile;
+      print('📥 AuthState userProfile: $user');
       if (user != null && mounted) {
         setState(() {
           _totalBookings = user['total_bookings'] ?? 0;
           _credits = user['available_credits'] ?? 0;
           _isPartner = AuthState.instance.isOwner;
+          _userDob = user['date_of_birth'] ?? "";
+
+          if (user['created_at'] != null) {
+            try {
+              final createdAt = DateTime.parse(user['created_at']);
+              const months = [
+                'Jan',
+                'Feb',
+                'Mar',
+                'Apr',
+                'May',
+                'Jun',
+                'Jul',
+                'Aug',
+                'Sep',
+                'Oct',
+                'Nov',
+                'Dec',
+              ];
+              _memberSince = '${months[createdAt.month - 1]} ${createdAt.year}';
+              print('✅ Member since correctly set to: $_memberSince');
+            } catch (e) {
+              print('❌ Date Parse Error: $e');
+              _memberSince = '';
+            }
+          } else {
+            print('⚠️ user["created_at"] is null!');
+          }
         });
+      } else {
+        print('⚠️ Either user is null or widget is not mounted');
       }
     } catch (e) {
       // Silently fail — show 0 on error
-      debugPrint('Profile stats error: $e');
+      debugPrint('❌ Profile stats error: $e');
+      if (mounted) {
+        setState(() {
+          _memberSince = '';
+        });
+      }
     }
   }
 
@@ -153,16 +165,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       builder: (context) => EditProfileScreen(
                         currentName: _userName,
                         currentEmail: _userEmail,
+                        currentDob: _userDob,
                       ),
                     ),
                   );
 
                   if (result != null && result is Map<String, dynamic>) {
+                    final newDob = result['dob'];
+                    final newName = result['name'] ?? _userName;
+
                     setState(() {
-                      _userName = result['name'] ?? _userName;
+                      _userName = newName;
                       _userEmail = result['email'] ?? _userEmail;
                       _userImage = result['image'];
+                      _userDob = newDob ?? _userDob;
                     });
+
+                    // Sync with backend
+                    try {
+                      final api = ApiService();
+                      await api.putAuth(
+                        '/api/users/user-profile/update_profile/',
+                        body: {
+                          'first_name': newName,
+                          if (newDob != null && newDob.toString().isNotEmpty)
+                            'date_of_birth': newDob,
+                        },
+                      );
+                      // Trigger a profile reload so other screens get updated info
+                      await AuthState.instance.loadProfile();
+                    } catch (e) {
+                      print('❌ Profile Update API Error: $e');
+                    }
                   }
                 },
               ),
@@ -301,35 +335,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: 12),
 
                           // Member Since
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1DB954).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.calendar_month,
-                                  size: 14,
-                                  color: const Color(0xFF1DB954),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  "Member since ${userStats['memberSince']}",
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF1DB954),
+                          if (userStats['memberSince'] != '')
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1DB954).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.calendar_month,
+                                    size: 14,
+                                    color: const Color(0xFF1DB954),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "Member since ${userStats['memberSince']}",
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1DB954),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -445,7 +480,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 10),
 
                 // Loyalty Badge
-                const LoyaltyBadge(),
+                _buildLoyaltyCard(),
+
+                const SizedBox(height: 10),
+
+                // My Support Tickets
+                _buildMenuCard(
+                  icon: Icons.support_agent,
+                  title: "My Support Tickets",
+                  subtitle: "View and reply to your open tickets",
+                  iconColor: const Color(0xFF00B4D8),
+                  bgColor: const Color(0xFF00B4D8).withOpacity(0.1),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SupportTicketListScreen(),
+                      ),
+                    );
+                  },
+                ),
 
                 const SizedBox(height: 10),
 
@@ -491,15 +545,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     bgColor: const Color(0xFFFFD700).withOpacity(0.1),
                     title: "Partner Dashboard",
                     subtitle: "Manage your registered turf",
-                    onTap: () {
-                      // ✅ Always go through PIN screen — same as badge/icon path
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminPinScreen(pushOnSuccess: true),
-                        ),
+                    onTap: () async {
+                      // Check if owner has approved turf
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) =>
+                            const Center(child: CircularProgressIndicator()),
                       );
+
+                      final status = await _checkApprovalStatus();
+
+                      if (context.mounted) {
+                        Navigator.pop(context); // Remove loading dialog
+                      }
+
+                      if (status['can_access'] == true) {
+                        // Has approved turf → go to PIN
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const AdminPinScreen(pushOnSuccess: true),
+                            ),
+                          );
+                        }
+                      } else {
+                        // No approved turf → show pending message
+                        if (context.mounted) {
+                          _showPendingApprovalDialog(status);
+                        }
+                      }
                     },
                   ),
 
@@ -974,7 +1051,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   Navigator.pushAndRemoveUntil(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => const OtpLoginScreen(),
+                                      builder: (_) => const LoginScreen(),
                                     ),
                                     (route) => false,
                                   );
@@ -1023,6 +1100,199 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildLoyaltyCard() {
+    final bookings = _totalBookings; // From your state
+    final currentTier = LoyaltyTier.getTierForBookings(bookings);
+
+    // Find next tier
+    final nextTierIndex = LoyaltyTier.allTiers.indexWhere(
+      (tier) => tier.minBookings > bookings,
+    );
+    final nextTier = nextTierIndex != -1
+        ? LoyaltyTier.allTiers[nextTierIndex]
+        : null;
+
+    // Calculate progress to next tier
+    double progress = 1.0;
+    String progressText = '';
+
+    if (nextTier != null) {
+      final neededForCurrent = currentTier.minBookings;
+      final neededForNext = nextTier.minBookings;
+      progress =
+          (bookings - neededForCurrent) / (neededForNext - neededForCurrent);
+      progress = progress.clamp(0.0, 1.0);
+      progressText = '$bookings/${nextTier.minBookings} bookings';
+    } else {
+      progressText = '$bookings bookings (Max tier)';
+    }
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LoyaltyTiersScreen()),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              currentTier.color.withOpacity(0.2),
+              currentTier.color.withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: currentTier.color.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: currentTier.color.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    currentTier.icon,
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${currentTier.displayName} Member',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        progressText,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: currentTier.color,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: Colors.grey[200],
+                valueColor: AlwaysStoppedAnimation<Color>(currentTier.color),
+                minHeight: 6,
+              ),
+            ),
+            if (nextTier != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    currentTier.displayName,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: currentTier.color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '${nextTier.minBookings - bookings} more to ${nextTier.displayName}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  ),
+                  Text(
+                    nextTier.displayName,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: nextTier.color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> _checkApprovalStatus() async {
+    try {
+      final response = await ApiService().getAuth(
+        '/api/users/owner/approval-status/',
+      );
+      return response;
+    } catch (e) {
+      return {'can_access': false, 'message': 'Error checking status'};
+    }
+  }
+
+  void _showPendingApprovalDialog(Map<String, dynamic> status) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('⏳ Pending Approval'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your turf is under review by our team.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '• Pending turfs: ${status['pending_count'] ?? 0}',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            Text(
+              '• Approved turfs: ${status['approved_count'] ?? 0}',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'You will be notified once approved.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 }

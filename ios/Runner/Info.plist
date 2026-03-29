@@ -49,9 +49,22 @@
 		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
-		<key>UIStatusBarHidden</key>
-		<false/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
+
+		<!-- Truecaller SDK -->
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>truecallersdk</string>
+		</array>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>fbYOUR_APP_ID</string>
+				</array>
+			</dict>
+		</array>
 	</dict>
 </plist>

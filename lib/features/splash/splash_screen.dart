@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:turfzone/features/auth/otp_login_screen.dart';
+import 'package:turfzone/screens/welcome_screen.dart';
 import 'package:turfzone/features/home/user_home_screen.dart';
 import 'package:turfzone/services/auth_state.dart';
 import 'package:turfzone/services/api_service.dart';
@@ -133,7 +133,7 @@ class _SplashScreenState extends State<SplashScreen>
     try {
       final hasToken = await ApiService.hasToken();
       if (!hasToken) {
-        _destination = const OtpLoginScreen();
+        _destination = const WelcomeScreen();
         return;
       }
       await AuthState.instance.loadProfile();
@@ -144,14 +144,14 @@ class _SplashScreenState extends State<SplashScreen>
       await prefs.remove('access_token');
       await prefs.remove('refresh_token');
       await AuthState.instance.clear();
-      _destination = const OtpLoginScreen();
+      _destination = const WelcomeScreen();
     } catch (_) {
       final prefs = await SharedPreferences.getInstance();
       final token =
           prefs.getString('auth_token') ?? prefs.getString('access_token');
       _destination = (token != null && token.isNotEmpty)
           ? const UserHomeScreen()
-          : const OtpLoginScreen();
+          : const WelcomeScreen();
     }
   }
 

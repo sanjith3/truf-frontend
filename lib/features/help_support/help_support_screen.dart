@@ -1,257 +1,422 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'chat_screen.dart';
+import '../../data/faq_data.dart';
+import '../../services/api_service.dart';
+import '../../screens/support/chat_screen.dart';
 
-class HelpSupportScreen extends StatelessWidget {
+class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
 
-  Future<void> _launchCaller(String phoneNumber) async {
-    final Uri url = Uri.parse('tel:$phoneNumber');
-    if (!await launchUrl(url)) {
-      throw 'Could not launch $url';
-    }
-  }
+  @override
+  _HelpSupportScreenState createState() => _HelpSupportScreenState();
+}
 
-  Future<void> _launchEmail(String email) async {
-    final Uri url = Uri.parse('mailto:$email?subject=Support Request&body=Hi Support Team,');
-    if (!await launchUrl(url)) {
-      throw 'Could not launch $url';
-    }
-  }
+class _HelpSupportScreenState extends State<HelpSupportScreen> {
+  final TextEditingController _subjectController = TextEditingController();
+  final TextEditingController _messageController = TextEditingController();
+  final List<FaqItem> _faqItems = faqItems; // from data/faq_data.dart
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Help & Support"),
+        title: const Text('Help & Support'),
         backgroundColor: const Color(0xFF1DB954),
+        foregroundColor: Colors.white,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // ... (Search Bar, Common Issues, FAQ Sections remain the same)
-          // Note: To keep code clean, only showing the updated Contact Us section logic
-          
-          _buildTopContent(),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Search Bar
+            _buildSearchBar(),
 
-          const SizedBox(height: 30),
+            const SizedBox(height: 20),
 
-          // FAQ Section
-          Text(
-            "Frequently Asked Questions",
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 15),
-          ..._buildFAQItems(),
+            // Common Issues
+            _buildCommonIssues(),
 
-          const SizedBox(height: 30),
+            const SizedBox(height: 24),
 
-          // Contact Options
-          Text(
-            "Contact Us",
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 15),
-          _buildContactOptions(context),
+            // FAQs
+            _buildFAQSection(),
 
-          const SizedBox(height: 40),
+            const SizedBox(height: 24),
 
-          // Feedback Section
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1DB954).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Still need help?",
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "Our support team is available 24/7 to assist you with any issues.",
-                  style: TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LiveChatScreen()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1DB954),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 30,
-                      vertical: 12,
-                    ),
-                  ),
-                  child: const Text("Send Message"),
-                ),
-              ],
-            ),
-          ),
-        ],
+            // Contact Us
+            _buildContactSection(),
+
+            const SizedBox(height: 24),
+
+            // Message Form
+            _buildMessageForm(),
+          ],
+        ),
       ),
     );
   }
 
-  // Helper widget to keep the layout consistent while simplifying edits
-  Widget _buildTopContent() {
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        onChanged: (value) {
+          setState(() {
+            _searchQuery = value.toLowerCase();
+          });
+        },
+        decoration: InputDecoration(
+          hintText: 'Search for help...',
+          prefixIcon: const Icon(Icons.search, color: Color(0xFF1DB954)),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () {
+                    setState(() {
+                      _searchQuery = '';
+                    });
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCommonIssues() {
+    final commonIssues = [
+      {'title': 'Booking Cancellation', 'icon': Icons.cancel},
+      {'title': 'Payment Failed/Refund', 'icon': Icons.payment},
+      {'title': 'Turf Availability', 'icon': Icons.sports_soccer},
+      {'title': 'Account Login Issues', 'icon': Icons.account_circle},
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Search Bar
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(12),
+        Text(
+          '📋 COMMON ISSUES',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[600],
           ),
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: "Search for help...",
-              border: InputBorder.none,
-              icon: const Icon(Icons.search, color: Colors.grey),
+        ),
+        const SizedBox(height: 12),
+        ...commonIssues.map((issue) => _buildIssueTile(issue)),
+      ],
+    );
+  }
+
+  Widget _buildIssueTile(Map<String, dynamic> issue) {
+    return ListTile(
+      leading: Icon(issue['icon'], color: const Color(0xFF1DB954)),
+      title: Text(issue['title']),
+      trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
+      onTap: () {
+        // Feature coming soon or scroll to FAQ logic
+      },
+    );
+  }
+
+  Widget _buildFAQSection() {
+    final filteredFaqs = _faqItems.where((faq) {
+      return faq.question.toLowerCase().contains(_searchQuery) ||
+          faq.answer.toLowerCase().contains(_searchQuery);
+    }).toList();
+
+    if (filteredFaqs.isEmpty && _searchQuery.isNotEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text('No results found for "$_searchQuery"'),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '❓ FREQUENTLY ASKED QUESTIONS',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...filteredFaqs.map((faq) => _buildFaqItem(faq)),
+      ],
+    );
+  }
+
+  Widget _buildFaqItem(FaqItem faq) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          title: Text(
+            faq.question,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                faq.answer,
+                style: TextStyle(color: Colors.grey[700], height: 1.5),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1DB954).withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1DB954).withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '📞 CONTACT US',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1DB954),
             ),
           ),
-        ),
-        const SizedBox(height: 30),
-        const Text(
-          "Common Issues",
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 15),
-        ..._buildCommonIssues(),
-      ],
-    );
-  }
+          const SizedBox(height: 16),
 
-  List<Widget> _buildCommonIssues() {
-    final issues = [
-      {
-        'title': 'Booking Cancellation',
-        'subtitle': 'How to cancel a booking and refund policy',
-        'icon': Icons.cancel_outlined,
-      },
-      {
-        'title': 'Payment Issues',
-        'subtitle': 'Payment failed or refund not received',
-        'icon': Icons.payment_outlined,
-      },
-      {
-        'title': 'Turf Availability',
-        'subtitle': 'Check real-time turf availability',
-        'icon': Icons.schedule_outlined,
-      },
-      {
-        'title': 'Account Issues',
-        'subtitle': 'Login, password reset, profile update',
-        'icon': Icons.person_outline,
-      },
-    ];
-
-    return issues.map((issue) {
-      return Card(
-        margin: const EdgeInsets.only(bottom: 10),
-        child: ListTile(
-          leading: Icon(
-            issue['icon'] as IconData,
-            color: const Color(0xFF1DB954),
+          _buildContactRow(
+            icon: Icons.phone,
+            label: 'Call Support',
+            value: '+91 8825934519',
+            onTap: () => _launchURL('tel:+918825934519'),
           ),
-          title: Text(issue['title'] as String),
-          subtitle: Text(issue['subtitle'] as String),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {
-            // Handle tap
-          },
-        ),
-      );
-    }).toList();
-  }
-
-  List<Widget> _buildFAQItems() {
-    final faqs = [
-      {
-        'question': 'How do I book a turf?',
-        'answer':
-            'Navigate to the Home screen, select your preferred turf, choose date and time, and proceed to payment.',
-      },
-      {
-        'question': 'What is the cancellation policy?',
-        'answer':
-            'Cancellations are allowed up to 24 hours before booking for a full refund. Late cancellations may incur charges.',
-      },
-      {
-        'question': 'How do credits work?',
-        'answer':
-            'Earn credits by completing bookings. 1 credit = ₹1. Use credits for future bookings or transfer to wallet.',
-      },
-      {
-        'question': 'Are there membership plans?',
-        'answer':
-            'Yes! We offer monthly and yearly plans with exclusive benefits including discounts and priority booking.',
-      },
-      {
-        'question': 'How to become a turf partner?',
-        'answer':
-            'Go to Profile → Become a Turf Partner and submit your turf details. Our team will contact you within 24 hours.',
-      },
-    ];
-
-    return faqs.map((faq) {
-      return ExpansionTile(
-        title: Text(faq['question'] as String),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(faq['answer'] as String),
+          _buildContactRow(
+            icon: Icons.email,
+            label: 'Email Support',
+            value: 'support@turfzone.com',
+            onTap: () => _launchURL('mailto:support@turfzone.com'),
+          ),
+          _buildContactRow(
+            icon: Icons.chat,
+            label: 'Live Chat',
+            value: 'Available 24/7',
+            onTap: () => _openLiveChat(),
           ),
         ],
-      );
-    }).toList();
+      ),
+    );
   }
 
-  Widget _buildContactOptions(BuildContext context) {
+  Widget _buildContactRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: onTap,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1DB954).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: const Color(0xFF1DB954), size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward, color: Color(0xFF1DB954)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageForm() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ListTile(
-          leading: const Icon(Icons.phone, color: Color(0xFF1DB954)),
-          title: const Text('Call Support'),
-          subtitle: const Text('+91 8825934519'),
-          onTap: () => _launchCaller('+918825934519'),
-          trailing: const Icon(Icons.call, size: 20, color: Colors.grey),
+        Text(
+          '✉️ SEND US A MESSAGE',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[600],
+          ),
         ),
-        ListTile(
-          leading: const Icon(Icons.email, color: Color(0xFF1DB954)),
-          title: const Text('Email Support'),
-          subtitle: const Text('support@turfzone.com'),
-          onTap: () => _launchEmail('support@turfzone.com'),
-          trailing: const Icon(Icons.email_outlined, size: 20, color: Colors.grey),
+        const SizedBox(height: 12),
+
+        TextField(
+          controller: _subjectController,
+          decoration: const InputDecoration(
+            labelText: 'Subject',
+            border: OutlineInputBorder(),
+          ),
         ),
-        ListTile(
-          leading: const Icon(Icons.chat, color: Color(0xFF1DB954)),
-          title: const Text('Live Chat'),
-          subtitle: const Text('Available 24/7'),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const LiveChatScreen()),
-            );
-          },
-          trailing: const Icon(Icons.chat_bubble_outline, size: 20, color: Colors.grey),
+
+        const SizedBox(height: 12),
+
+        TextField(
+          controller: _messageController,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'Message',
+            border: OutlineInputBorder(),
+            alignLabelWithHint: true,
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: _sendMessage,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1DB954),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('📤 Send Message'),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Text(
+          'Our support team will respond within 24 hours',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+            fontStyle: FontStyle.italic,
+          ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
+  }
+
+  Future<void> _launchURL(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not launch $url')));
+    }
+  }
+
+  void _openLiveChat() {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Live chat coming soon!')));
+  }
+
+  Future<void> _sendMessage() async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final focusScope = FocusScope.of(context);
+
+    if (_subjectController.text.isEmpty || _messageController.text.isEmpty) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Please fill all fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final response = await ApiService().postAuth(
+        '/api/support/tickets/create/',
+        body: {
+          'subject': _subjectController.text,
+          'message': _messageController.text,
+        },
+      );
+
+      if (!mounted) return;
+
+      final ticketId = response['ticket_id'] ?? '';
+
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Ticket created! Chat with us now.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      _subjectController.clear();
+      _messageController.clear();
+      focusScope.unfocus();
+
+      if (ticketId.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SupportChatScreen(ticketId: ticketId),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Failed to send message. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _subjectController.dispose();
+    _messageController.dispose();
+    super.dispose();
   }
 }
