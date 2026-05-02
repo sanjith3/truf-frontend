@@ -7,10 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
-import 'package:turfzone/screens/login_screen.dart';
-import 'package:turfzone/screens/register_screen.dart';
-import 'package:turfzone/features/home/user_home_screen.dart';
-import 'package:turfzone/services/api_service.dart';
+import 'package:turfspotx/screens/login_screen.dart';
+import 'package:turfspotx/screens/register_screen.dart';
+import 'package:turfspotx/features/home/user_home_screen.dart';
+import 'package:turfspotx/services/api_service.dart';
 
 /// Global navigator key — lets us show snackbars from outside widget tree
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -23,7 +23,7 @@ final FlutterLocalNotificationsPlugin _localNotif =
 final AndroidNotificationChannel _channel = AndroidNotificationChannel(
   'high_importance_channel',
   'Push Notifications',
-  description: 'TurfZone push notifications from admin',
+  description: 'TurfSpotX push notifications from admin',
   importance: Importance.max,
   playSound: true,
 );
@@ -158,7 +158,7 @@ Future<void> main() async {
     });
   }
 
-  runApp(const TurfZoneApp());
+  runApp(const TurfSpotXApp());
 }
 
 /// Upload FCM token to backend using stored JWT — called on every app start.
@@ -203,15 +203,15 @@ void _handleNotificationData(Map<String, dynamic> data) {
   debugPrint('🔀 FCM route: $route');
 }
 
-class TurfZoneApp extends StatelessWidget {
-  const TurfZoneApp({super.key});
+class TurfSpotXApp extends StatelessWidget {
+  const TurfSpotXApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      title: 'TurfZone',
+      title: 'TurfSpotX',
       theme: ThemeData(
         textTheme: GoogleFonts.poppinsTextTheme(),
         primaryColor: const Color(0xFF1DB954),
@@ -243,7 +243,7 @@ class RoleSelectionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TurfZone'),
+        title: const Text('TurfSpotX'),
         backgroundColor: const Color(0xFF1DB954),
       ),
       body: Padding(

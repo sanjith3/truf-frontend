@@ -14,7 +14,7 @@ final List<FaqItem> faqItems = [
   FaqItem(
     question: 'How do I book a turf?',
     answer:
-        '1. Open the TurfZone app and go to Home screen\n'
+        '1. Open the TurfSpotX app and go to Home screen\n'
         '2. Browse available turfs in your city\n'
         '3. Select your preferred turf\n'
         '4. Choose date and time slot\n'

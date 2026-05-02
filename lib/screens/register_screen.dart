@@ -102,7 +102,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    "Welcome to TurfZone",
+                    "Welcome to TurfSpotX",
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,

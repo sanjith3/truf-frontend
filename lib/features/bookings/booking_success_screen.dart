@@ -334,7 +334,7 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
                   onPressed: () {
                     final msg =
                         'Join my game at ${widget.turfName} on ${widget.bookingDate}! '
-                        'Install TurfZone and get ₹20 cashback: $_teamInviteLink';
+                        'Install TurfSpotX and get ₹20 cashback: $_teamInviteLink';
                     _shareOnWhatsApp(msg);
                   },
                   icon: const Icon(Icons.chat, size: 18),
@@ -455,7 +455,7 @@ class _BookingSuccessScreenState extends State<BookingSuccessScreen>
                 child: ElevatedButton.icon(
                   onPressed: () {
                     final msg =
-                        'Join me on TurfZone! Install app and get ₹30 cashback '
+                        'Join me on TurfSpotX! Install app and get ₹30 cashback '
                         'on your first booking: $_referralLink';
                     _shareOnWhatsApp(msg);
                   },

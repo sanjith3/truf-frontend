@@ -42,7 +42,7 @@ class WelcomeScreen extends StatelessWidget {
 
               // Title
               const Text(
-                'Welcome to Turfspot',
+                'Welcome to TurfSpotX',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,

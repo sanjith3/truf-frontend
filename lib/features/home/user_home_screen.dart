@@ -1,21 +1,21 @@
-﻿import 'package:turfzone/services/api_service.dart';
+import 'package:turfspotx/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:turfzone/booking/booking_screen.dart';
-import 'package:turfzone/models/turf.dart';
-import 'package:turfzone/features/profile/profile_screen.dart';
+import 'package:turfspotx/booking/booking_screen.dart';
+import 'package:turfspotx/models/turf.dart';
+import 'package:turfspotx/features/profile/profile_screen.dart';
 
-import 'package:turfzone/features/Admin_pinset/admin_pin_screen.dart';
-import 'package:turfzone/features/home/favorites_screen.dart';
+import 'package:turfspotx/features/Admin_pinset/admin_pin_screen.dart';
+import 'package:turfspotx/features/home/favorites_screen.dart';
 import '../../turffdetail/turfdetails_screen.dart';
 import '../../services/turf_data_service.dart';
 import '../../services/favorites_service.dart';
 // api_service import removed — no longer used directly in this screen
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:turfzone/features/tournament/tournament_screen.dart';
+import 'package:turfspotx/features/tournament/tournament_screen.dart';
 import '../../services/auth_state.dart';
-import 'package:turfzone/features/home/growth_widgets.dart';
+import 'package:turfspotx/features/home/growth_widgets.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -1852,7 +1852,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                           child: Text(
                             _userName.isNotEmpty
                                 ? 'Hello, $_userName!'
-                                : 'TurfZone',
+                                : 'TurfSpotX',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,

@@ -1,6 +1,6 @@
 // turf_details_screen.dart
 import 'dart:async';
-import 'package:turfzone/booking/booking_screen.dart';
+import 'package:turfspotx/booking/booking_screen.dart';
 import 'package:flutter/material.dart';
 import '../models/turf.dart';
 import 'package:cached_network_image/cached_network_image.dart';

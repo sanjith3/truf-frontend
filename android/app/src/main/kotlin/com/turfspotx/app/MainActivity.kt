@@ -1,4 +1,4 @@
-package com.turfspot.app
+package com.turfspotx.app
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

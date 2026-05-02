@@ -59,7 +59,7 @@ class _CaptainInviteScreenState extends State<CaptainInviteScreen> {
 
   void _shareWhatsApp() {
     final msg = Uri.encodeComponent(
-      '👑 I just booked a turf on TurfZone! Join my game and get ₹$_teammateReward off YOUR first booking. '
+      '👑 I just booked a turf on TurfSpotX! Join my game and get ₹$_teammateReward off YOUR first booking. '
       'Join here 👉 $_inviteLink',
     );
     launchUrl(Uri.parse('whatsapp://send?text=$msg'));

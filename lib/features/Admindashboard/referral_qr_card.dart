@@ -29,12 +29,12 @@ class _ReferralQrCardState extends State<ReferralQrCard> {
   final ScreenshotController _screenshotController = ScreenshotController();
   bool _isBusy = false;
 
-  static const String _baseUrl = 'https://turfspot.app/join?ref=';
+  static const String _baseUrl = 'https://TurfSpotX.app/join?ref=';
 
   String get _referralLink => '$_baseUrl${widget.referralCode}';
 
   String get _shareMessage =>
-      '🎉 Book sports turfs near you with TurfSpot!\n\n'
+      '🎉 Book sports turfs near you with TurfSpotX!\n\n'
       'Use my referral code *${widget.referralCode}* and get ₹50 off your first booking!\n\n'
       '👉 Download here: $_referralLink';
 
@@ -45,7 +45,7 @@ class _ReferralQrCardState extends State<ReferralQrCard> {
     );
     if (bytes == null) return null;
     final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/turfspot_qr_${widget.referralCode}.png');
+    final file = File('${dir.path}/TurfSpotX_qr_${widget.referralCode}.png');
     await file.writeAsBytes(bytes);
     return file;
   }
@@ -59,11 +59,11 @@ class _ReferralQrCardState extends State<ReferralQrCard> {
           ? ShareParams(
               files: [XFile(qrFile.path, mimeType: 'image/png')],
               text: _shareMessage,
-              subject: 'Join TurfSpot — ₹50 off with my code!',
+              subject: 'Join TurfSpotX — ₹50 off with my code!',
             )
           : ShareParams(
               text: _shareMessage,
-              subject: 'Join TurfSpot — ₹50 off with my code!',
+              subject: 'Join TurfSpotX — ₹50 off with my code!',
             );
       await SharePlus.instance.share(params);
     } catch (e) {
@@ -89,7 +89,7 @@ class _ReferralQrCardState extends State<ReferralQrCard> {
 
       // Save a persistent copy to documents
       final docsDir = await getApplicationDocumentsDirectory();
-      final savePath = '${docsDir.path}/turfspot_qr_${widget.referralCode}.png';
+      final savePath = '${docsDir.path}/TurfSpotX_qr_${widget.referralCode}.png';
       await qrFile.copy(savePath);
 
       if (mounted) {

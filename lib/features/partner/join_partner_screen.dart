@@ -975,7 +975,7 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
         body: {
           // Account credentials
           'username': _phoneController.text.trim(),
-          'email': '${_phoneController.text.trim()}@partner.turfzone.com',
+          'email': '${_phoneController.text.trim()}@partner.TurfSpotX.com',
           'password': 'Partner@${_phoneController.text.trim()}',
           'password_confirm': 'Partner@${_phoneController.text.trim()}',
           'first_name': _fullNameController.text.trim().split(' ').first,
@@ -2003,15 +2003,15 @@ class _JoinPartnerScreenState extends State<JoinPartnerScreen> {
 
                     _buildLinkTile(
                       '📜 Privacy Policy',
-                      'https://turfzone.com/privacy',
+                      'https://TurfSpotX.com/privacy',
                     ),
                     _buildLinkTile(
                       '📋 Terms & Conditions',
-                      'https://turfzone.com/terms',
+                      'https://TurfSpotX.com/terms',
                     ),
                     _buildLinkTile(
                       '❌ Cancellation Policy',
-                      'https://turfzone.com/cancellation',
+                      'https://TurfSpotX.com/cancellation',
                     ),
                   ],
                 ),

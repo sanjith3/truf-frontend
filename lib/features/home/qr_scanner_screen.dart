@@ -43,7 +43,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     });
 
     try {
-      // Parse owner_id from QR value: https://turfzone.app/join?owner=X&code=Y
+      // Parse owner_id from QR value: https://TurfSpotX.app/join?owner=X&code=Y
       final uri = Uri.tryParse(rawValue);
       final ownerId = uri?.queryParameters['owner'] ?? '';
       final code = uri?.queryParameters['code'] ?? '';
@@ -51,7 +51,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       if (ownerId.isEmpty && code.isEmpty) {
         setState(() {
           _loading = false;
-          _resultText = 'Invalid QR code. Please scan a TurfZone owner QR.';
+          _resultText = 'Invalid QR code. Please scan a TurfSpotX owner QR.';
         });
         return;
       }

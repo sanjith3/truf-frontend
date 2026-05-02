@@ -215,8 +215,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           _buildContactRow(
             icon: Icons.email,
             label: 'Email Support',
-            value: 'support@turfzone.com',
-            onTap: () => _launchURL('mailto:support@turfzone.com'),
+            value: 'support@TurfSpotX.com',
+            onTap: () => _launchURL('mailto:support@TurfSpotX.com'),
           ),
           _buildContactRow(
             icon: Icons.chat,

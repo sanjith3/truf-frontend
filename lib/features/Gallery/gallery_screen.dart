@@ -432,7 +432,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       Icon(Icons.sports, size: 24, color: Color(0xFF00C853)),
                       SizedBox(width: 8),
                       Text(
-                        'TurfSpot',
+                        'TurfSpotX',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
@@ -454,7 +454,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '© 2026 TurfSpot Logic Systems. All rights reserved.',
+                        '© 2026 TurfSpotX Logic Systems. All rights reserved.',
                         style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                       ),
                       Row(

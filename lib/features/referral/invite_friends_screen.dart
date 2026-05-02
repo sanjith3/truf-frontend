@@ -54,7 +54,7 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
 
   Future<void> _shareOnWhatsApp() async {
     final message =
-        'Join me on TurfZone! Install app and get ₹30 cashback '
+        'Join me on TurfSpotX! Install app and get ₹30 cashback '
         'on your first booking: $_referralLink';
     final whatsappUrl = 'whatsapp://send?text=${Uri.encodeComponent(message)}';
     final uri = Uri.parse(whatsappUrl);

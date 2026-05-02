@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:turfzone/features/editslottime/edit_turf_screen.dart';
-import 'package:turfzone/features/Admindashboard/admin_turf_model.dart';
+import 'package:turfspotx/features/editslottime/edit_turf_screen.dart';
+import 'package:turfspotx/features/Admindashboard/admin_turf_model.dart';
 import 'my_bookings_screen.dart';
 import '../../services/api_service.dart';
-import 'package:turfzone/features/turfslot/slot_management_screen.dart';
-import 'package:turfzone/features/partner/join_partner_screen.dart';
+import 'package:turfspotx/features/turfslot/slot_management_screen.dart';
+import 'package:turfspotx/features/partner/join_partner_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'reports_screen.dart';
 import '../../services/turf_data_service.dart';
 import 'pending_approval_screen.dart';
 import 'referral_qr_card.dart';
-import 'package:turfzone/features/home/user_home_screen.dart';
+import 'package:turfspotx/features/home/user_home_screen.dart';
 
 // ─── WIDGET ────────────────────────────────────────────────────────────────────
 

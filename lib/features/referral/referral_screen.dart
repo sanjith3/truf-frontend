@@ -61,7 +61,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
     }
   }
 
-  String get _referralLink => 'https://turfzone.app/join?ref=$_referralCode';
+  String get _referralLink => 'https://TurfSpotX.app/join?ref=$_referralCode';
 
   void _copyCode() {
     Clipboard.setData(ClipboardData(text: _referralCode));
@@ -72,7 +72,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
 
   void _shareWhatsApp() {
     final msg = Uri.encodeComponent(
-      'Hey! Join TurfZone and book sports turfs near you. '
+      'Hey! Join TurfSpotX and book sports turfs near you. '
       'Use my referral code *$_referralCode* to get ₹$_rewardFriend off your first booking! '
       '$_referralLink',
     );
@@ -296,7 +296,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                             n: '2',
                             icon: '📲',
                             text:
-                                'Friend installs TurfZone & signs up — you get ₹$_rewardInstall',
+                                'Friend installs TurfSpotX & signs up — you get ₹$_rewardInstall',
                           ),
                           _Step(
                             n: '3',

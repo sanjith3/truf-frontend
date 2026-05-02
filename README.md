@@ -1,5 +1,5 @@
-# turfzone
-TurfZone Flutter App Project
+# TurfSpotX
+TurfSpotX Flutter App Project
 
 A new Flutter project.
 

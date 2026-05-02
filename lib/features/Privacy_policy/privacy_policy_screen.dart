@@ -42,7 +42,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildSection(
               title: "1. Introduction",
               content:
-                  "TurfZone respects your privacy and is committed to protecting your personal data. This privacy policy will inform you about how we look after your personal data when you use our application and tell you about your privacy rights.",
+                  "TurfSpotX respects your privacy and is committed to protecting your personal data. This privacy policy will inform you about how we look after your personal data when you use our application and tell you about your privacy rights.",
             ),
 
             // Information We Collect
@@ -104,8 +104,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
               title: "7. Contact Us",
               content:
                   "For any privacy-related questions or concerns:\n\n"
-                  "Email: privacy@turfzone.com\n"
-                  "Address: TurfZone Technologies Pvt. Ltd., Mumbai, India\n"
+                  "Email: privacy@TurfSpotX.com\n"
+                  "Address: TurfSpotX Technologies Pvt. Ltd., Mumbai, India\n"
                   "Phone: +91 1800-123-4567",
             ),
 
@@ -120,7 +120,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 border: Border.all(color: Colors.green.shade200),
               ),
               child: const Text(
-                "By using TurfZone, you acknowledge that you have read and understood this Privacy Policy.",
+                "By using TurfSpotX, you acknowledge that you have read and understood this Privacy Policy.",
                 style: TextStyle(fontSize: 14),
               ),
             ),

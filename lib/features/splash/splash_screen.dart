@@ -1,10 +1,10 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:turfzone/screens/welcome_screen.dart';
-import 'package:turfzone/features/home/user_home_screen.dart';
-import 'package:turfzone/services/auth_state.dart';
-import 'package:turfzone/services/api_service.dart';
+import 'package:turfspotx/screens/welcome_screen.dart';
+import 'package:turfspotx/features/home/user_home_screen.dart';
+import 'package:turfspotx/services/auth_state.dart';
+import 'package:turfspotx/services/api_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

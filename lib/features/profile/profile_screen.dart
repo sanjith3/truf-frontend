@@ -1,18 +1,18 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
-import 'package:turfzone/features/partner/join_partner_screen.dart';
-import 'package:turfzone/features/bookings/my_bookings_screen.dart';
-import 'package:turfzone/features/Help_support/help_support_screen.dart';
+import 'package:turfspotx/features/partner/join_partner_screen.dart';
+import 'package:turfspotx/features/bookings/my_bookings_screen.dart';
+import 'package:turfspotx/features/Help_support/help_support_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:turfzone/features/credits_rewards/credits_rewards_screen.dart';
-import 'package:turfzone/screens/login_screen.dart';
-import 'package:turfzone/features/profile/edit_profile_screen.dart';
+import 'package:turfspotx/features/credits_rewards/credits_rewards_screen.dart';
+import 'package:turfspotx/screens/login_screen.dart';
+import 'package:turfspotx/features/profile/edit_profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:turfzone/features/Admin_pinset/admin_pin_screen.dart';
+import 'package:turfspotx/features/Admin_pinset/admin_pin_screen.dart';
 import '../../services/auth_state.dart';
-import 'package:turfzone/features/referral/invite_friends_screen.dart';
-import 'package:turfzone/features/wallet/wallet_screen.dart';
+import 'package:turfspotx/features/referral/invite_friends_screen.dart';
+import 'package:turfspotx/features/wallet/wallet_screen.dart';
 import '../../models/loyalty_tier.dart';
 import '../../screens/loyalty/loyalty_tiers_screen.dart';
 import '../../screens/support/support_ticket_list_screen.dart';
@@ -587,7 +587,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: Icons.privacy_tip,
                   title: "Privacy Policy",
                   subtitle: "How we handle your data",
-                  onTap: () => _launchURL("https://turfzone.com/legal/privacy"),
+                  onTap: () => _launchURL("https://TurfSpotX.com/legal/privacy"),
                 ),
 
                 const SizedBox(height: 10),
@@ -597,7 +597,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: Icons.description,
                   title: "Terms & Conditions",
                   subtitle: "User agreement and policies",
-                  onTap: () => _launchURL("https://turfzone.com/legal/terms"),
+                  onTap: () => _launchURL("https://TurfSpotX.com/legal/terms"),
                 ),
 
                 const SizedBox(height: 20),
@@ -701,7 +701,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 12),
                       const Text(
-                        "TurfZone",
+                        "TurfSpotX",
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
@@ -715,7 +715,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "© 2024 TurfZone. All rights reserved.",
+                        "© 2024 TurfSpotX. All rights reserved.",
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade600,

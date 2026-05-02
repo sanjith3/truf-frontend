@@ -41,7 +41,7 @@ class TermsConditionsScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 10),
                   Text(
-                    "Please read these terms carefully before using our services. By accessing or using TurfZone, you agree to be bound by these terms.",
+                    "Please read these terms carefully before using our services. By accessing or using TurfSpotX, you agree to be bound by these terms.",
                     style: TextStyle(fontSize: 14),
                   ),
                 ],
@@ -55,7 +55,7 @@ class TermsConditionsScreen extends StatelessWidget {
               number: "1",
               title: "Acceptance of Terms",
               content:
-                  "By accessing and using TurfZone, you accept and agree to be bound by these Terms. If you do not agree, you must not use our services.",
+                  "By accessing and using TurfSpotX, you accept and agree to be bound by these Terms. If you do not agree, you must not use our services.",
             ),
 
             _buildTermSection(
@@ -104,14 +104,14 @@ class TermsConditionsScreen extends StatelessWidget {
               number: "6",
               title: "Intellectual Property",
               content:
-                  "All content, logos, and software are owned by TurfZone. You may not copy, modify, or distribute any content without explicit permission.",
+                  "All content, logos, and software are owned by TurfSpotX. You may not copy, modify, or distribute any content without explicit permission.",
             ),
 
             _buildTermSection(
               number: "7",
               title: "Limitation of Liability",
               content:
-                  "TurfZone is not liable for:\n"
+                  "TurfSpotX is not liable for:\n"
                   "• Injuries during turf usage\n"
                   "• Property damage at turf facilities\n"
                   "• Technical issues beyond our control\n"

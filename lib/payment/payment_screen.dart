@@ -113,7 +113,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           'key': keyId,
           'amount': amount,
           'order_id': _currentOrderId,
-          'name': 'TurfZone',
+          'name': 'TurfSpotX',
           'description': '${widget.turfName} - ${widget.bookingDate}',
           'prefill': {
             'name': _userName,

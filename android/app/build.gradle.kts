@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.turfspot.app"
+    namespace = "com.turfspotx.app"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -24,7 +24,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.turfspot.app"
+        applicationId = "com.turfspotx.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

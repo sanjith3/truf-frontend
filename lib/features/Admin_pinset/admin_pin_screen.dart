@@ -3,7 +3,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:turfzone/features/Admindashboard/admin_screen.dart';
+import 'package:turfspotx/features/Admindashboard/admin_screen.dart';
 
 /// Secure admin PIN screen.
 ///
